@@ -50,11 +50,8 @@ RTL_GEN_DIRS = -vdir Verilog_RTL  -bdir build  -info-dir build
 build:
 	mkdir -p $@
 
-Verilog_RTL:
-	mkdir -p $@
-
 .PHONY: gen_RTL
-gen_RTL:  build  Verilog_RTL
+gen_RTL:  build
 	@echo Verilog RTL generation ...
 	bsc -u -elab -verilog  $(RTL_GEN_DIRS)  $(BSC_FLAGS)  $(BSC_PATH)  $(TOPFILE)
 	@echo Verilog RTL generation finished
@@ -105,7 +102,8 @@ mkSim:
 
 .PHONY: test
 test:
-	ln -f -s  ../Tests/isa/rv32ui-p-add.hex  Mem.hex
+	make -C  ../Tests/elf_to_hex
+	../Tests/elf_to_hex/elf_to_hex  ../Tests/isa/rv32ui-p-add  Mem.hex
 	./$(SIM_EXE_FILE)  +v1
 
 # ================================================================
@@ -116,6 +114,6 @@ clean:
 
 .PHONY: full_clean
 full_clean: clean
-	rm -r -f  *~  $(SIM_EXE_FILE)  *.log  *.vcd  *.hex  Verilog_RTL  obj_dir
+	rm -r -f  *~  $(SIM_EXE_FILE)  *.log  *.vcd  *.hex  obj_dir
 
 # ================================================================
