@@ -1,8 +1,12 @@
 # Piccolo
 RISC-V CPU, simple 3-stage pipeline, for low-end applications (e.g., embedded, IoT)
 
-Piccolo is one of a family of free, open-source CPUs created by Bluespec, Inc.
-It is intended for low-end applications (Embedded Systems, IoT, microcontrollers, etc.).
+Piccolo is one of a family of free, open-source RISC-V CPUs created by Bluespec, Inc.
+
+- [Piccolo](https://github.com/bluespec/Piccolo): 3-stage, in-order pipeline
+- [Flute](https://github.com/bluespec/Flute): 5-stage, in-order pipeline
+
+Piccolo is intended for low-end applications (Embedded Systems, IoT, microcontrollers, etc.).
 The BSV source code is parameterized for
 
 - RV32I or RV64I
