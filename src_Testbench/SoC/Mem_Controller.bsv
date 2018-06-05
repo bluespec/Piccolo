@@ -462,6 +462,24 @@ module mkMem_Controller (Mem_Controller_IFC);
 	 $display ("        ", fshow (f_reqs.first));
 	 $display ("     => ", fshow (wrr));
       end
+
+      // For simulation testing of riscv-tests/isa only:
+      Bool         monitor_tohost <- $test$plusargs ("tohost");
+      Fabric_Addr  addr_tohost    = 'h_8000_1000;
+      if ((monitor_tohost)
+	  && (f_reqs.first.addr == addr_tohost)
+	  && (word64_new != 0))
+	 begin
+
+	    $display ("%0d: Mem_Controller.rl_process_wr_req: addr 0x%0h (<tohost>) data 0x%0h",
+		      cur_cycle, addr_tohost, word64_new);
+	    let exit_value = (word64_new >> 1);
+	    if (exit_value == 0)
+	       $display ("PASS");
+	    else
+	       $display ("FAIL %0d", exit_value);
+	    $finish (truncate (exit_value));
+	 end
    endrule
 
    // ================================================================

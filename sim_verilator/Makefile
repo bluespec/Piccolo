@@ -104,7 +104,7 @@ mkSim:
 test:
 	make -C  ../Tests/elf_to_hex
 	../Tests/elf_to_hex/elf_to_hex  ../Tests/isa/rv32ui-p-add  Mem.hex
-	./$(SIM_EXE_FILE)  +v1
+	./$(SIM_EXE_FILE)  +v1  +tohost
 
 # ================================================================
 

@@ -9,6 +9,7 @@ help:
 	@echo '    make  compile        Recompile Core (CPU, caches)'
 	@echo '    make  link           Link bsc-compiled objects into Bluesim executable'
 	@echo '    make  all            Both'
+	@echo '    make  test           Run the executable on the standard RISC-V ISA test "rv32ui-p-add"'
 
 .PHONY: all
 all: compile  link
@@ -77,8 +78,9 @@ link:
 
 .PHONY: test
 test:
-	ln -f -s  ../Tests/isa/rv32ui-p-add.hex  Mem.hex
-	./$(BSIM_EXE_FILE)  -m 2500  +v1
+	make -C  ../Tests/elf_to_hex
+	../Tests/elf_to_hex/elf_to_hex  ../Tests/isa/rv32ui-p-add  Mem.hex
+	./$(BSIM_EXE_FILE)  -m 2500  +v1  +tohost
 
 # ================================================================
 
