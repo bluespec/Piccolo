@@ -146,10 +146,10 @@ CSR_Addr   csr_mhpmevent29    = 12'h33D;    // Machine performance-monitoring ev
 CSR_Addr   csr_mhpmevent30    = 12'h33E;    // Machine performance-monitoring event selector
 CSR_Addr   csr_mhpmevent31    = 12'h33F;    // Machine performance-monitoring event selector
 
-CSR_Addr   csr_tselect        = 12'h7A0;    // Debug/Trace trigger register select
-CSR_Addr   csr_tdata1         = 12'h7A1;    // First Debug/Trace trigger data
-CSR_Addr   csr_tdata2         = 12'h7A2;    // Secont Debug/Trace trigger data
-CSR_Addr   csr_tdata3         = 12'h7A3;    // Third Debug/Trace trigger data
+CSR_Addr   csr_addr_tselect   = 12'h7A0;    // Debug/Trace trigger register select
+CSR_Addr   csr_addr_tdata1    = 12'h7A1;    // First Debug/Trace trigger data
+CSR_Addr   csr_addr_tdata2    = 12'h7A2;    // Secont Debug/Trace trigger data
+CSR_Addr   csr_addr_tdata3    = 12'h7A3;    // Third Debug/Trace trigger data
 
 CSR_Addr   csr_addr_dcsr      = 12'h7B0;    // Debug control and status
 CSR_Addr   csr_addr_dpc       = 12'h7B1;    // Debug PC

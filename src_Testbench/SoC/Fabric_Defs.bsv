@@ -9,13 +9,12 @@ package Fabric_Defs;
 // ================================================================
 // Fabric parameters
 
-// Width of fabric 'addr' datapaths
-typedef 32   Wd_Addr;
-
-// Width of fabric 'data' datapaths
+// Width of fabric 'addr' and 'data' datapaths
 `ifdef FABRIC64
+typedef 64   Wd_Addr;
 typedef 64   Wd_Data;
 `else
+typedef 32   Wd_Addr;
 typedef 32   Wd_Data;
 `endif
 

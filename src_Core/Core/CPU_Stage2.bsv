@@ -51,7 +51,7 @@ import TV_Info       :: *;
 
 import CPU_Globals   :: *;
 import Near_Mem_IFC  :: *;
-import CSR_RegFile   :: *;    // For SATP only
+import CSR_RegFile   :: *;    // For SATP, SSTATUS, MSTATUS
 
 `ifdef SHIFT_SERIAL
 import Shifter_Box  :: *;
@@ -450,7 +450,7 @@ module mkCPU_Stage2 #(Bit #(4)         verbosity,
       fa_enq (x);
 
       if (verbosity > 1)
-	 $display ("    CPU_Stage2.enq (Data_Stage1_to_Stage2)");
+	 $display ("    S2.enq (Data_Stage1_to_Stage2)");
    endmethod
 
    method Action set_full (Bool full);

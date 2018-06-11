@@ -217,45 +217,31 @@ void c_mem_load_elf (char *elf_filename,
 
 // ================================================================
 
-#define Words_per_Raw_Mem_Word  8
-#define BASE_ADDR_B  (0x80000000u)
-#define BASE_ADDR_RAW_MEM (BASE_ADDR_B / Words_per_Raw_Mem_Word)
-
 // Write out from word containing addr1 to word containing addr2
-void write_mem_hex32_file (FILE *fp, uint64_t addr1, uint64_t addr2)
+void write_mem_hex_file (FILE *fp, uint64_t addr1, uint64_t addr2)
 {
-    fprintf (stdout, "Subtracting 0x%08x base from addresses\n", BASE_ADDR_B);
+    const uint64_t  BASE_ADDR_B = 0x80000000u;
 
-    int Bytes_per_Raw_Mem_Word = Words_per_Raw_Mem_Word * 4;    // 32
+    const uint64_t bits_per_raw_mem_word   = 256;
+    uint64_t bytes_per_raw_mem_word  = bits_per_raw_mem_word / 8;    // 32
+    uint64_t raw_mem_word_align_mask = (~ ((uint64_t) (bytes_per_raw_mem_word - 1)));
 
-    uint32_t a1 = addr1 & (~ ((uint32_t) (Bytes_per_Raw_Mem_Word - 1)));
-    uint32_t a2 = (addr2 + (Bytes_per_Raw_Mem_Word - 1)) & (~ ((uint32_t) (Bytes_per_Raw_Mem_Word - 1)));
+    fprintf (stdout, "Subtracting 0x%08" PRIx64 " base from addresses\n", BASE_ADDR_B);
 
-    fprintf (fp, "@%07x    // raw_mem addr;  byte addr: %08x\n",
-	     ((a1 - BASE_ADDR_B) / Bytes_per_Raw_Mem_Word),
+    // Align the start and end addrs to raw mem words
+    uint64_t a1 = (addr1 & raw_mem_word_align_mask);
+    uint64_t a2 = ((addr2 + bytes_per_raw_mem_word - 1) & raw_mem_word_align_mask);
+
+    fprintf (fp, "@%07" PRIx64 "    // raw_mem addr;  byte addr: %08" PRIx64 "\n",
+	     ((a1 - BASE_ADDR_B) / bytes_per_raw_mem_word),
 	     a1 - BASE_ADDR_B);
 	     
-    for (uint32_t addr = a1; addr < a2; addr += Bytes_per_Raw_Mem_Word) {
-	for (int j = (Bytes_per_Raw_Mem_Word - 1); j >= 0; j--)
+    for (uint64_t addr = a1; addr < a2; addr += bytes_per_raw_mem_word) {
+	for (int j = (bytes_per_raw_mem_word - 1); j >= 0; j--)
 	    fprintf (fp, "%02x", mem_buf [addr+j]);
-	fprintf (fp, "    // raw_mem addr %08x;  byte_addr %08x\n",
-		 ((addr - BASE_ADDR_B) / Bytes_per_Raw_Mem_Word),
+	fprintf (fp, "    // raw_mem addr %08" PRIx64 ";  byte addr %08" PRIx64 "\n",
+		 ((addr - BASE_ADDR_B) / bytes_per_raw_mem_word),
 		 (addr  - BASE_ADDR_B));
-    }
-}
-
-void write_mem_hex64_file (FILE *fp)
-{
-    int Bytes_per_Raw_Mem_Word = Words_per_Raw_Mem_Word * 8;
-
-    uint64_t a1 = min_addr & (~ ((uint64_t) (Bytes_per_Raw_Mem_Word - 1)));
-    uint64_t a2 = (max_addr + (Bytes_per_Raw_Mem_Word - 1)) & (~ ((uint64_t) (Bytes_per_Raw_Mem_Word - 1)));
-
-    fprintf (fp, "@%016" PRIx64 "\n", a1);
-    for (uint64_t addr = a1; addr < a2; addr += Bytes_per_Raw_Mem_Word) {
-	for (int j = (Bytes_per_Raw_Mem_Word - 1); j >= 0; j--)
-	    fprintf (fp, "%02x", mem_buf [addr+j]);
-	fprintf (fp, "    // %016" PRIx64 "\n", addr);
     }
 }
 
@@ -273,8 +259,8 @@ void print_usage (FILE *fp, int argc, char *argv [])
 // Min and max byte addrs for various mem sizes
 
 // For 16 MB memory at 0x_8000_0000
-#define MIN_MEM32_ADDR_16MB  0x80000000
-#define MAX_MEM32_ADDR_16MB  (0x80000000 + 0x1000000)
+#define MIN_MEM_ADDR_16MB  0x80000000
+#define MAX_MEM_ADDR_16MB  (0x80000000 + 0x1000000)
 
 // ================================================================
 
@@ -301,12 +287,7 @@ int main (int argc, char *argv [])
     }
 
     fprintf (stdout, "Writing mem hex to file '%s'\n", argv [2]);
-    if (bitwidth == 32) {
-	// write_mem_hex32_file (fp_out, min_addr, max_addr);
-	write_mem_hex32_file (fp_out, MIN_MEM32_ADDR_16MB, MAX_MEM32_ADDR_16MB);
-    }
-    else {
-	write_mem_hex64_file (fp_out);
-    }
+    write_mem_hex_file (fp_out, MIN_MEM_ADDR_16MB, MAX_MEM_ADDR_16MB);
+
     fclose (fp_out);
 }

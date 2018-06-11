@@ -33,12 +33,10 @@ typedef 3 NO_OF_PRIVMODES;
 `ifdef RV32
 
 typedef 32 XLEN;
-`define SV32
 
 `elsif RV64
 
 typedef 64 XLEN;
-`define SV39
 
 `endif
 
@@ -528,6 +526,14 @@ Bit #(12) f12_WFI       = 12'b_0001_0000_0101;
 Bit #(7)  f7_SFENCE_VMA = 7'b_0001_001;
 
 Instr break_instr = { f12_EBREAK, 5'b00000, 3'b000, 5'b00000, op_SYSTEM };
+
+function Bool fn_instr_is_csrrx (Instr  instr);
+   let decoded_instr = fv_decode (instr);
+   let opcode        = decoded_instr.opcode;
+   let funct3        = decoded_instr.funct3;
+   let csr           = decoded_instr.csr;
+   return ((opcode == op_SYSTEM) && f3_is_CSRR_any (funct3));
+endfunction
 
 function Bool f3_is_CSRR_any (Bit #(3) f3);
    return (f3 [1:0] != 2'b00);

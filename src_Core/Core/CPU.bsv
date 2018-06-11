@@ -75,6 +75,7 @@ typedef enum {CPU_RESET1,
 	      CPU_DEBUG_MODE,   // Stopped for debugger
 `endif
 	      CPU_RUNNING,      // Normal operation
+	      CPU_CSRRX_STALL,
 	      CPU_FENCE_I,      // While waiting for FENCE.I to complete in Near_Mem
 	      CPU_FENCE,        // While waiting for FENCE to complete in Near_Mem
 
@@ -137,16 +138,10 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
    // Pipeline stages
    CPU_Stage3_IFC stage3 <- mkCPU_Stage3 (cur_verbosity, gpr_regfile, csr_regfile);
    CPU_Stage2_IFC stage2 <- mkCPU_Stage2 (cur_verbosity, csr_regfile, near_mem.dmem);
-
-   // CSR instructions are stalled in stage1 until downstream stages are empty
-   Bool stall_csrrx = (   (stage2.out.ostatus != OSTATUS_EMPTY)
-		       || (stage3.out.ostatus  != OSTATUS_EMPTY));
-
    CPU_Stage1_IFC  stage1 <- mkCPU_Stage1 (cur_verbosity,
 					   gpr_regfile,
 					   csr_regfile,
 					   near_mem.imem,
-					   stall_csrrx,
 					   stage2.out.bypass,
 					   stage3.out.bypass,
 					   rg_cur_priv);
@@ -293,7 +288,8 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 
    function Action fa_restart (Addr resume_pc);
       action
-	 fa_start_ifetch (resume_pc, rg_cur_priv);  stage1.set_full (True);
+	 fa_start_ifetch (resume_pc, rg_cur_priv);
+	 stage1.set_full (True);
 	 rg_state <= CPU_RUNNING;
 
 `ifdef INCLUDE_GDB_CONTROL
@@ -436,9 +432,19 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 				 && (stage2.out.ostatus == OSTATUS_EMPTY)
 				 && (stage3.out.ostatus == OSTATUS_EMPTY));
 
+   Bool stage1_is_csrrx = ((stage1.out.ostatus == OSTATUS_PIPE)
+			   && fn_instr_is_csrrx (stage1.out.data_to_stage2.instr));
+
    // ================================================================
    // PIPELINE BEHAVIOR (excluding nonpipe special instructions and exceptions)
-   
+
+   // We do not attempt to manage CSR values in the pipeline like GPRs
+   // (read reg, writeback, bypassing) because of complexity: too many
+   // CSRs can change simultaneously.  A CSRRx instruction in stage1
+   // is stalled until downstream stages are empty. Then, we delay for
+   // a cycle before fetching the next instr, since the fetch may need
+   // the just-written CSR value.
+
    (* fire_when_enabled *)
    rule rl_pipe (   (rg_state == CPU_RUNNING)
 		 && (! pipe_is_empty)
@@ -450,7 +456,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
       Bool stage1_full = (stage1.out.ostatus != OSTATUS_EMPTY);
 
       // ----------------
-      // Stage3 sink (does regfile and CSRfile writebacks)
+      // Stage3 sink (does regfile writebacks)
 
       if (stage3.out.ostatus == OSTATUS_PIPE) begin
 	 stage3.deq; stage3_full = False;
@@ -475,10 +481,13 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 
       // ----------------
       // Move instruction from Stage1 to Stage2
+      // (but stall if Stage1 is CSRRx and rest of pipe is not empty)
 
-      if (   (! stage2_full)
+      if (   (! rg_halt)
+	  && (! stage2_full)
 	  && (stage1.out.ostatus == OSTATUS_PIPE)
-	  && (! rg_halt))
+	  && (! (stage1_is_csrrx && (   (stage2.out.ostatus != OSTATUS_EMPTY)
+				     || (stage3.out.ostatus != OSTATUS_EMPTY)))))
 	 begin
 	    stage1.deq;                              stage1_full = False;
 	    stage2.enq (stage1.out.data_to_stage2);  stage2_full = True;
@@ -498,30 +507,34 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
       // Feed Stage 1
 
       if (   (! rg_halt)
-	  && (! stage1_full)
-	  && (stage1.out.ostatus == OSTATUS_PIPE))
+	  && (! stage1_full))
 	 begin
-	    fa_start_ifetch (stage1.out.next_pc, rg_cur_priv);  stage1_full = True;
-
-	    /*
-	    // Simulation heuristic: finish if Branch/Jump back to this instr
-	    if (stage1.out.next_pc == stage1.out.data_to_stage2.pc) begin
-	       $display ("%0d: CPU.rl_pipe: Tight infinite loop: pc 0x%0x instr 0x%08x", cur_cycle,
-			 stage1.out.next_pc, stage1.out.data_to_stage2.instr);
-`ifdef INCLUDE_GDB_CONTROL
-               rg_self_stop_req <= True;
-`else
-	       fa_report_CPI;
-	       $finish (0);
-`endif
+	    if (stage1_is_csrrx) begin
+	       // Delay for a clock if Stage1 is CSRRx, since fa_start_ifetch reads some
+	       // CSRs, which may be stale w.r.t. CSRRx
+	       // TODO: delay only if the CSRRx is writing certain CSRs read by fa_start_ifetch?
+	       //       i.e., csr_satp/csr_mstatus/csr_sstatus?
+	       rg_state <= CPU_CSRRX_STALL;
 	    end
-	    */
+	    else begin
+	       fa_start_ifetch (stage1.out.next_pc, rg_cur_priv);
+	       stage1_full = True;
+	    end
 	 end
 
       stage3.set_full (stage3_full);
       stage2.set_full (stage2_full);
       stage1.set_full (stage1_full);
    endrule: rl_pipe
+
+   // ================================================================
+   // Restart the pipe after a CSRRX stall 
+
+   rule rl_stage1_csrrx (rg_state == CPU_CSRRX_STALL);
+      fa_start_ifetch (stage1.out.next_pc, rg_cur_priv);
+      stage1.set_full (True);
+      rg_state <= CPU_RUNNING;
+   endrule
 
    // ================================================================
    // Stage2: nonpipe special: all stage2 nonpipe behaviors are traps
@@ -545,7 +558,8 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 							    badaddr);
       rg_cur_priv <= new_priv;
 
-      fa_start_ifetch (next_pc, new_priv); stage1.set_full (True);
+      fa_start_ifetch (next_pc, new_priv);
+      stage1.set_full (True);
       stage2.set_full (False);
 
 `ifdef INCLUDE_TANDEM_VERIF
@@ -587,7 +601,8 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
       rg_cur_priv <= new_priv;
 
       // Redirect PC
-      fa_start_ifetch (next_pc, new_priv); stage1.set_full (True);
+      fa_start_ifetch (next_pc, new_priv);
+      stage1.set_full (True);
 
       // Accounting
       csr_regfile.csr_minstret_incr;
@@ -846,7 +861,8 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 							    exc_code,
 							    badaddr);       // v1.10 - mtval
       rg_cur_priv <= new_priv;
-      fa_start_ifetch (next_pc, new_priv);  stage1.set_full (True);
+      fa_start_ifetch (next_pc, new_priv);
+      stage1.set_full (True);
 
       // Accounting: increment instret if ECALL
       if (   (exc_code >= exc_code_ECALL_FROM_U)

@@ -73,8 +73,7 @@ import TLB          :: *;
 
 `ifdef RV32
 import Cache_Decls_RV32 :: *;
-`endif
-`ifdef RV64
+`elsif RV64
 import Cache_Decls_RV64 :: *;
 `endif
 
@@ -150,9 +149,7 @@ typedef enum {MODULE_PRERESET,              // After power on reset, before soft
 
               PTW_START,                    // On TLB miss, initiate refill of PTE into TLB
 `ifdef RV64
-`ifdef SV39
 	      PTW_LEVEL_2,                  // Page Table Walk, Request Level 2
-`endif
 `endif
 	      PTW_LEVEL_1,                  // Page Table Walk, Request Level 1
 	      PTW_LEVEL_0,                  // Page Table Walk, Request Level 0
@@ -344,10 +341,8 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
    // Fabric request/response
    AXI4_Lite_Master_Xactor_IFC #(Wd_Addr, Wd_Data, Wd_User) master_xactor <- mkAXI4_Lite_Master_Xactor_2;
 
-`ifdef ISA_PRIV_S
    // The TLB
    TLB_IFC  tlb <- mkTLB (dmem_not_imem);
-`endif
 
    // For discarding write-responses
    CreditCounter_IFC #(4) ctr_wr_rsps_pending <- mkCreditCounter; // Max 15 writes outstanding
@@ -377,7 +372,15 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
    Reg #(Priv_Mode)  rg_priv        <- mkRegU;    // Privilege level for this request
    Reg #(Bit #(1))   rg_sstatus_SUM <- mkRegU;    // SUM bit in SSTATUS CSR
    Reg #(Bit #(1))   rg_mstatus_MXR <- mkRegU;    // MXR bit in MSTATUS CSR
+
+`ifdef ISA_PRIV_S
    Reg #(WordXL)     rg_satp        <- mkRegU;    // Copy of value in SATP CSR { VM_Mode, ASID, PPN }
+`else
+   Reg #(WordXL)     rg_satp        = interface Reg;
+					 method _read  = 0;
+					 method _write (x) = noAction;
+				      endinterface;
+`endif
 
    // Phys addr (initially taken from rg_addr; VM xlation may replace it)
    Reg #(PA)  rg_pa <- mkRegU;
@@ -386,9 +389,7 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
    VA      va     = fn_WordXL_to_VA (rg_addr);
    VPN     vpn    = fn_Addr_to_VPN (va);
 `ifdef RV64
-`ifdef SV39
    VPN_J   vpn_2  = fn_Addr_to_VPN_2 (va);
-`endif
 `endif
    VPN_J   vpn_1  = fn_Addr_to_VPN_1 (va);
    VPN_J   vpn_0  = fn_Addr_to_VPN_0 (va);
@@ -403,7 +404,7 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
    VM_Mode  vm_mode  = fn_satp_to_VM_Mode (rg_satp);
    ASID     asid     = fn_satp_to_ASID    (rg_satp);
    PPN      satp_ppn = fn_satp_to_PPN     (rg_satp);
-   PA       satp_pa  = { satp_ppn, 12'b0 };
+   PA       satp_pa  = fn_PPN_and_Offset_to_PA (satp_ppn, 12'b0);
 
    // We continuously probe the TLB with (asid, vpn)
 `ifdef ISA_PRIV_S
@@ -435,6 +436,7 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
    Reg #(Bool)                rg_requesting_cline    <- mkReg (False);
    Reg #(Fabric_Addr)         rg_req_byte_in_cline   <- mkRegU;
    Reg #(Word64_Set_in_Cache) rg_word64_set_in_cache <- mkRegU;
+   Reg #(Bool)                rg_error_during_refill <- mkRegU;
    // In 32b fabrics, these hold the lower word32 while we're fetching the upper word32 of a word64
    Reg #(Bool)      rg_lower_word32_full <- mkReg (False);
    Reg #(Bit #(32)) rg_lower_word32      <- mkRegU;
@@ -508,7 +510,10 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 `endif
 
    Exc_Code access_exc_code     = fn_access_exc_code     (dmem_not_imem, ((rg_op == CACHE_LD) || is_AMO_LR));
+
+`ifdef ISA_PRIV_S
    Exc_Code page_fault_exc_code = fn_page_fault_exc_code (dmem_not_imem, ((rg_op == CACHE_LD) || is_AMO_LR));
+`endif
 
    // ----------------------------------------------------------------
    // Functions to drive read-responses (outputs)
@@ -604,13 +609,10 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 	 if (vm_mode != satp_mode_RV32_bare)
 	    $display ("        Priv:%0d  SATP:{mode %0d asid %0h pa %0h}  VA:%0h.%0h.%0h",
 		      rg_priv, vm_mode, asid, satp_pa, vpn_1, vpn_0, offset);
-`endif
-`ifdef RV64
-`ifdef SV39
+`elsif SV39
 	 if (vm_mode != satp_mode_RV64_bare)
 	    $display ("        Priv:%0d  SATP:{mode %0d asid %0h pa %0h}  VA:%0h.%0h.%0h",
 		      rg_priv, vm_mode, asid, satp_pa, vpn_1, vpn_0, offset);
-`endif
 `endif
 	 $display ("        eaddr = {CTag 0x%0h  CSet 0x%0h  Word64 0x%0h  Byte 0x%0h}",
 		   fn_PA_to_CTag (fn_WordXL_to_PA (rg_addr)),
@@ -629,22 +631,19 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 						       rg_satp,
 						       tlb_result,
 						       dmem_not_imem,
-						       (rg_op == CACHE_LD),
+						       ((rg_op == CACHE_LD) || is_AMO_LR),
 						       rg_priv,
 						       rg_sstatus_SUM,
 						       rg_mstatus_MXR);
 `else
 `ifdef RV32
       PA   pa    = zeroExtend (rg_addr);    // TODO: or should this be signExtend?
-`endif
-`ifdef RV64
+`elsif RV64
       PA   pa    = truncate (rg_addr);
 `endif
       VM_Xlate_Result vm_xlate_result = VM_Xlate_Result {outcome:      VM_XLATE_OK,
 							 pa:           pa,
-							 exc_code:     ?,
-							 pte_modified: False,
-							 pte:          ?};
+							 exc_code:     ?};
 `endif
 
       if (cfg_verbosity > 1)
@@ -911,8 +910,7 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 
       rg_pte_pa <= lev_1_pte_pa;
       rg_state  <= PTW_LEVEL_1;
-`else
-`ifdef SV39
+`elsif SV39
       // RV64.Sv39: Page Table top is at Level 2
       PA           vpn_2_pa            = (zeroExtend (vpn_2) << bits_per_byte_in_wordxl);
       PA           lev_2_pte_pa        = satp_pa + vpn_2_pa;
@@ -923,7 +921,6 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 
       rg_pte_pa <= lev_2_pte_pa;
       rg_state  <= PTW_LEVEL_2;
-`endif
 `endif
 
       if (cfg_verbosity > 1) begin
@@ -978,7 +975,7 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
       // Pointer to next-level PTE
       else if ((fn_PTE_to_X (pte) == 0) && (fn_PTE_to_R (pte) == 0)) begin
 	 PPN          ppn                 = fn_PTE_to_PPN (pte);
-	 PA           lev_1_PTN_pa        = { ppn, 12'b0 };
+	 PA           lev_1_PTN_pa        = fn_PPN_and_Offset_to_PA (ppn, 12'b0);
 	 PA           vpn_1_pa            = (zeroExtend (vpn_1) << bits_per_byte_in_wordxl);
 	 PA           lev_1_pte_pa        = lev_1_PTN_pa + vpn_1_pa;
 	 PA           lev_1_pte_pa_w64    = { lev_1_pte_pa [pa_sz - 1 : 3], 3'b0 };    // 64b-aligned addr
@@ -1004,7 +1001,7 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 
 	 if (cfg_verbosity > 1) begin
 	    PPN ppn                = fn_PTE_to_PPN (pte);
-	    PA  addr_space_page_pa = truncate ({ ppn, 12'b0 });
+	    PA  addr_space_page_pa = fn_PPN_and_Offset_to_PA (ppn, 12'b0);
 	    $display ("%0d: %s.rl_ptw_level_2: for eaddr 0x%0h: pte 0x%0h @ 0x%0h: leaf PTE for megapage",
 		      cur_cycle, d_or_i, rg_addr, pte, rg_pte_pa);
 	    $display ("    Addr Space megapage pa: 0x%0h", addr_space_page_pa);
@@ -1058,7 +1055,7 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
       // Pointer to next-level PTE
       else if ((fn_PTE_to_X (pte) == 0) && (fn_PTE_to_R (pte) == 0)) begin
 	 PPN          ppn                 = fn_PTE_to_PPN (pte);
-	 PA           lev_0_PTN_pa        = { ppn, 12'b0 };
+	 PA           lev_0_PTN_pa        = fn_PPN_and_Offset_to_PA (ppn, 12'b0);
 	 PA           vpn_0_pa            = (zeroExtend (vpn_0) << bits_per_byte_in_wordxl);
 	 PA           lev_0_pte_pa        = lev_0_PTN_pa + vpn_0_pa;
 	 PA           lev_0_pte_pa_w64    = { lev_0_pte_pa [pa_sz - 1 : 3], 3'b0 };    // 64b-aligned addr
@@ -1084,7 +1081,7 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 
 	 if (cfg_verbosity > 1) begin
 	    PPN ppn                = fn_PTE_to_PPN (pte);
-	    PA  addr_space_page_pa = truncate ({ ppn, 12'b0 });
+	    PA  addr_space_page_pa = fn_PPN_and_Offset_to_PA (ppn, 12'b0);
 	    $display ("%0d: %s.rl_ptw_level_1: for eaddr 0x%0h: pte 0x%0h @ 0x%0h: leaf PTE for megapage",
 		      cur_cycle, d_or_i, rg_addr, pte, rg_pte_pa);
 	    $display ("    Addr Space megapage pa: 0x%0h", addr_space_page_pa);
@@ -1152,7 +1149,7 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 
 	 if (cfg_verbosity > 1) begin
 	    PPN ppn                = fn_PTE_to_PPN (pte);
-	    PA  addr_space_page_pa = truncate ({ ppn, 12'b0 });
+	    PA  addr_space_page_pa = fn_PPN_and_Offset_to_PA (ppn, 12'b0);
 	    $display ("%0d: %s.rl_ptw_level_0: for eaddr 0x%0h: pte 0x%0h @ 0x%0h: leaf PTE",
 		      cur_cycle, d_or_i, rg_addr, pte, rg_pte_pa);
 	    $display ("    Addr Space page pa: 0x%0h", addr_space_page_pa);
@@ -1207,7 +1204,8 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
       ram_word64_set.b.put (bram_cmd_read, word64_set_in_cache, ?);
 
       // Enter cache refill loop, awaiting refill responses from mem
-      rg_state <= CACHE_REFILL;
+      rg_error_during_refill <= False;
+      rg_state               <= CACHE_REFILL;
 
       if (cfg_verbosity > 1) begin
 	 $display ("%0d: %s.rl_start_cache_refill: mem req: ", cur_cycle, d_or_i, fshow (mem_req));
@@ -1266,17 +1264,18 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 	 $display ("        ", fshow (mem_rsp));
       end
 
-      // Bus error
-      if (mem_rsp.rresp != AXI4_LITE_OKAY) begin
-	 rg_exc_code <= access_exc_code;
-	 rg_state    <= MODULE_EXCEPTION_RSP;
+      // Bus errors; remember it, and raise exception after all the refill responses
+      Bool err_rsp = (mem_rsp.rresp != AXI4_LITE_OKAY);
+      if (err_rsp) begin
+	 rg_error_during_refill <= True;
+	 rg_exc_code            <= access_exc_code;
 	 if (cfg_verbosity > 1)
 	    $display ("%0d: %s.rl_cache_refill_rsps_loop: FABRIC_RSP_ERR: raising access exception %0d",
 		      cur_cycle, d_or_i, access_exc_code);
       end
 
       // For 32b fabrics, if this is lower Word32, just register it to hold until upper Word32 arrives
-      else if ((valueOf (Wd_Data) == 32) && (! rg_lower_word32_full)) begin
+      if ((valueOf (Wd_Data) == 32) && (! rg_lower_word32_full)) begin
 	 rg_lower_word32      <= truncate (mem_rsp.rdata);
 	 rg_lower_word32_full <= True;
       end
@@ -1290,10 +1289,11 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 	    rg_lower_word32_full <= False;
 	 end
 
-	 // Update the Word64_Set (BRAM port A)
+	 // Update the Word64_Set (BRAM port A) (if this response was not an error)
 	 let new_word64_set = word64_set;
 	 new_word64_set [rg_victim_way] = new_word64;
-	 ram_word64_set.a.put (bram_cmd_write, rg_word64_set_in_cache, new_word64_set);
+	 if (! err_rsp)
+	    ram_word64_set.a.put (bram_cmd_write, rg_word64_set_in_cache, new_word64_set);
 
 	 Word64_in_CLine word64_in_cline = truncate (rg_word64_set_in_cache);
 
@@ -1304,11 +1304,20 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 	    rg_word64_set_in_cache <= next_word64_set_in_cache;
 	 end
 
-	 // else final Word64 of CLine, redo the original missing request on port B.
+	 // else final Word64 of CLine; raise exception if pending,
+	 // or redo original missing request on port B.
 	 // The word64 we just wrote in port A may be the word64 we request on port B,
 	 // so we do it a cycle later, in rl_rereq.
+	 else if (err_rsp || rg_error_during_refill) begin
+	    rg_state    <= MODULE_EXCEPTION_RSP;
+	    if (cfg_verbosity > 1)
+	       $display ("    => MODULE_EXCEPTION_RSP");
+	 end
+
 	 else begin
 	    rg_state <= CACHE_REREQ;
+	    if (cfg_verbosity > 1)
+	       $display ("    => CACHE_REREQ");
 	 end
 
 	 if (cfg_verbosity > 2) begin
@@ -1432,8 +1441,9 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
    endrule
 
    // ----------------------------------------------------------------
-   // Memory-mapped I/O AMO_ST requests. Always fail.
+   // Memory-mapped I/O AMO_SC requests. Always fail.
 
+`ifdef ISA_A
    rule rl_io_AMO_ST_req ((rg_state == IO_REQ) && is_AMO_SC);
       rg_ld_val <= 1;    // 1 is LR/SC failure value
       rg_state  <= CACHE_ST_AMO_RSP;
@@ -1445,6 +1455,7 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 	 $display ("    => rl_ST_AMO_response");
       end
    endrule
+`endif
 
    // ----------------------------------------------------------------
    // Memory-mapped I/O AMO requests other than LR/SC
@@ -1501,10 +1512,6 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
       dw_valid    <= True;
       dw_exc      <= True;
       dw_exc_code <= rg_exc_code;
-   endrule
-
-   rule rl_drain_read (rg_state == MODULE_EXCEPTION_RSP || rg_state == MODULE_RUNNING);
-      let mem_rsp <- pop_o (master_xactor.o_rd_data);
    endrule
 
    // ================================================================

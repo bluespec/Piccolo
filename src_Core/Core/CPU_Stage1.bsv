@@ -78,7 +78,6 @@ module mkCPU_Stage1 #(Bit #(4)         verbosity,
 		      GPR_RegFile_IFC  gpr_regfile,
 		      CSR_RegFile_IFC  csr_regfile,
 		      IMem_IFC         icache,
-		      Bool             stall_csrrx,
 		      Bypass           bypass_from_stage2,
 		      Bypass           bypass_from_stage3,
 		      Priv_Mode        cur_priv)
@@ -196,11 +195,6 @@ module mkCPU_Stage1 #(Bit #(4)         verbosity,
 	 output_stage1.ostatus = OSTATUS_BUSY;
       end
 
-      // Stall if CSRRx, and pipeline ahead is not empty (may contain a CSRRx for same CSR)
-      else if (is_csrrx && stall_csrrx) begin
-	 output_stage1.ostatus = OSTATUS_BUSY;
-      end
-
       // Trap on ICache exception
       else if (icache.exc) begin
 	 output_stage1.ostatus   = OSTATUS_NONPIPE;
@@ -265,7 +259,18 @@ module mkCPU_Stage1 #(Bit #(4)         verbosity,
    endmethod
 
    method Action deq ();
-      noAction;
+      // Writeback CSR if valid
+      let data_to_stage2 = fv_out.data_to_stage2;
+
+      Bool wrote_csr_minstret = False;
+      if (data_to_stage2.csr_valid) begin
+	 CSR_Addr csr_addr = truncate (data_to_stage2.addr);
+	 WordXL   csr_val  = data_to_stage2.val2;
+	 csr_regfile.write_csr (csr_addr, csr_val);
+	 wrote_csr_minstret = ((csr_addr == csr_minstret) || (csr_addr == csr_minstreth));
+	 if (verbosity > 1)
+	    $display ("    S2: write CSR 0x%0h, val 0x%0h", csr_addr, csr_val);
+      end
    endmethod
 
    // ---- Input
@@ -273,7 +278,7 @@ module mkCPU_Stage1 #(Bit #(4)         verbosity,
       icache.req (f3_LW, next_pc, priv, sstatus_SUM, mstatus_MXR, satp);
 
       if (verbosity > 1)
-	 $display ("        CPU_Stage1.enq: 0x%08x", next_pc);
+	 $display ("    S1.enq: 0x%08x", next_pc);
    endmethod
 
    method Action set_full (Bool full);
@@ -282,9 +287,9 @@ module mkCPU_Stage1 #(Bit #(4)         verbosity,
 
    method Action show_state;
       if (rg_full)
-	 $display ("    CPU_Stage1: pc ", fshow (icache.pc));
+	 $display ("    S1: pc ", fshow (icache.pc));
       else
-	 $display ("    CPU_Stage1: empty");
+	 $display ("    S1: empty");
    endmethod
 endmodule
 

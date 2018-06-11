@@ -26,8 +26,8 @@ import ISA_Decls :: *;
 
 // ================================================================
 
-export TLB_Lookup_Result (..), TLB_IFC (..), mkTLB;
-export VM_Xlate_Outcome (..), VM_Xlate_Result (..), fav_vm_xlate;
+export TLB_Lookup_Result (..), TLB_IFC (..), mkTLB, fav_vm_xlate;
+export VM_Xlate_Outcome (..), VM_Xlate_Result (..);
 
 // ================================================================
 // Abbreviations (from ISA spec)
@@ -363,18 +363,14 @@ function ActionValue #(VM_Xlate_Result)  fav_vm_xlate (WordXL             addr,
 						       Bit #(1)           mstatus_MXR);
    actionvalue
       // Translate if in VM mode (sv32, sv39), and priv <= s_Priv_Mode
-      // Default PA (no translation) = rg_addr.
+      // Default PA (no translation) = addr
 
 `ifdef RV32
       Bool xlate = ((priv <= s_Priv_Mode) && (fn_satp_to_VM_Mode (satp) == satp_mode_RV32_sv32));
       PA   pa    = zeroExtend (addr);    // TODO: or should this be signExtend?
-`endif
-
-`ifdef RV64
-`ifdef SV39
+`elsif SV39
       Bool xlate = ((priv <= s_Priv_Mode) && (fn_satp_to_VM_Mode (satp) == satp_mode_RV64_sv39));
       PA   pa    = truncate (addr);    // TODO: should this be zeroExtend (fn_WordXL_to_VA (addr))?
-`endif
 `endif
 
       VM_Xlate_Outcome   outcome      = VM_XLATE_OK;
@@ -400,21 +396,19 @@ function ActionValue #(VM_Xlate_Result)  fav_vm_xlate (WordXL             addr,
 
 	    else begin
 	       if (tlb_result.pte_level == 0)
-		  pa = {fn_PTE_to_PPN (pte),
-			fn_Addr_to_Offset (addr) };
+		  pa = zeroExtend ({fn_PTE_to_PPN (pte),
+				    fn_Addr_to_Offset (addr) });
 
 	       else if (tlb_result.pte_level == 1)
-		  pa = {fn_PTE_to_PPN_mega (pte),
-			fn_Addr_to_VPN_0 (addr),
-			fn_Addr_to_Offset (addr) };
-`ifdef RV64
+		  pa = zeroExtend ({fn_PTE_to_PPN_mega (pte),
+				    fn_Addr_to_VPN_0 (addr),
+				    fn_Addr_to_Offset (addr) });
 `ifdef SV39
 	       else if (tlb_result.pte_level == 2)
-		  pa = {fn_PTE_to_PPN_giga (pte),
-			fn_Addr_to_VPN_1 (addr),
-			fn_Addr_to_VPN_0 (addr),
-			fn_Addr_to_Offset (addr) };
-`endif
+		  pa = zeroExtend ({fn_PTE_to_PPN_giga (pte),
+				    fn_Addr_to_VPN_1 (addr),
+				    fn_Addr_to_VPN_0 (addr),
+				    fn_Addr_to_Offset (addr) });
 `endif
 
 	       if (fn_PTE_to_A (pte) == 1'b0) begin

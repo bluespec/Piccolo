@@ -115,17 +115,17 @@ module mkCPU_Stage3 #(Bit #(4)         verbosity,
 	 if (rg_stage3.rd_valid) begin
 	    gpr_regfile.write_rd (rg_stage3.rd, rg_stage3.rd_val);
 	    if (verbosity > 1)
-	       $display ("            CPU_Stage3: write Rd 0x%0h, rd_val 0x%0h",
+	       $display ("    S3.fa_deq: write Rd 0x%0h, rd_val 0x%0h",
 			 rg_stage3.rd, rg_stage3.rd_val);
 	 end
 
 	 // Writeback CSR if valid
 	 Bool wrote_csr_minstret = False;
 	 if (rg_stage3.csr_valid) begin
-	    csr_regfile.write_csr (rg_stage3.csr, rg_stage3.csr_val);
+	    // TODO: remove: has been moved to Stage1: csr_regfile.write_csr (rg_stage3.csr, rg_stage3.csr_val);
 	    wrote_csr_minstret = ((rg_stage3.csr == csr_minstret) || (rg_stage3.csr == csr_minstreth));
 	    if (verbosity > 1)
-	       $display ("            CPU_Stage3: write CSR 0x%0h, val 0x%0h",
+	       $display ("    S3.fa_deq: write CSR 0x%0h, val 0x%0h",
 			 rg_stage3.csr, rg_stage3.csr_val);
 	 end
 
@@ -156,7 +156,7 @@ module mkCPU_Stage3 #(Bit #(4)         verbosity,
       rg_stage3 <= x;
 
       if (verbosity > 1)
-	 $display ("            CPU_Stage3.enq: ", fshow (x));
+	 $display ("    S3.enq: ", fshow (x));
    endmethod
 
    method Action set_full (Bool full);
@@ -166,9 +166,9 @@ module mkCPU_Stage3 #(Bit #(4)         verbosity,
    // ---- Debugging
    method Action show_state;
       if (rg_full)
-	 $display ("            CPU_Stage3 state: ", fshow (rg_stage3));
+	 $display ("    S3 state: ", fshow (rg_stage3));
       else
-	 $display ("            CPU_Stage3 state: empty");
+	 $display ("    S3 state: empty");
    endmethod
 endmodule
 

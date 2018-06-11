@@ -12,6 +12,10 @@
 //
 // ================================================================
 
+// Invariants on ifdefs:
+// - If RV32 is defined, we assume Sv32 for the VM system
+// - If RV64 is defined, one of SV39 or SV48 must also be defined for the VM system
+
 // ================================================================
 // Supervisor-level CSRs
 
@@ -72,10 +76,7 @@ function PPN      fn_satp_to_PPN      (Bit #(32) satp_val); return satp_val [21:
 Bit #(1)  satp_mode_RV32_bare = 1'h_0;
 Bit #(1)  satp_mode_RV32_sv32 = 1'h_1;
 
-`endif
-
-// ----------------
-`ifdef RV64
+`elsif RV64
 
 typedef Bit #(4)  VM_Mode;
 typedef Bit #(16) ASID;
@@ -102,7 +103,6 @@ Bit #(4)  satp_mode_RV64_sv64 = 4'd_11;
 // RV32.Sv32
 
 `ifdef RV32
-`ifdef SV32
 
 // Virtual addrs
 typedef  32  VA_sz;
@@ -116,7 +116,7 @@ typedef  12  PPN_1_sz;
 typedef  10  PPN_0_sz;
 
 // Offsets within a page
-typedef  12         Offset_sz;
+typedef  12  Offset_sz;
 
 // PTNodes (nodes in the page-table tree)
 typedef  1024  PTNode_sz;    // # of PTEs in a PTNode
@@ -127,15 +127,16 @@ function VPN   fn_Addr_to_VPN   (Bit #(n) addr) = addr [31:12];
 function VPN_J fn_Addr_to_VPN_1 (Bit #(n) addr) = addr [31:22];
 function VPN_J fn_Addr_to_VPN_0 (Bit #(n) addr) = addr [21:12];
 
-`else
-typedef  32  PA_sz;
-`endif
-`endif
+// ----------------
+// RV64.Sv39
+
+// ifdef RV32
+`elsif RV64
 
 // ----------------
 // RV64.Sv39
 
-`ifdef RV64
+// ifdef RV32 .. elsif RV64
 `ifdef SV39
 
 // Virtual addrs
@@ -144,7 +145,7 @@ typedef   27  VPN_sz;
 typedef    9  VPN_J_sz;
 
 // Physical addrs
-typedef   56  PA_sz;
+typedef   64  PA_sz;        // need 56b in Sv39 mode and 64b in Bare mode
 typedef   44  PPN_sz;
 typedef   26  PPN_2_sz;
 typedef    9  PPN_1_sz;
@@ -163,50 +164,22 @@ function VPN_J fn_Addr_to_VPN_2 (Bit #(n) addr) = addr [38:30];
 function VPN_J fn_Addr_to_VPN_1 (Bit #(n) addr) = addr [29:21];
 function VPN_J fn_Addr_to_VPN_0 (Bit #(n) addr) = addr [20:12];
 
+// ifdef RV32 .. elsif RV64 / ifdef SV39
 `else
-typedef  64  PA_sz;
+
+// TODO: RV64.SV48 definitions
+
+// ifdef RV32 .. elsif RV64 / ifdef SV39 .. else
 `endif
+
+// ifdef RV32 .. elsif RV64
 `endif
 
 // ----------------
 // Derived types and values
 
-function  Offset  fn_Addr_to_Offset (Bit #(n) addr);
-   return addr [offset_sz - 1: 0];
-endfunction
-
-Integer  va_sz     = valueOf (VA_sz);        typedef Bit #(VA_sz)      VA;
-Integer  vpn_sz    = valueOf (VPN_sz);       typedef Bit #(VPN_sz)     VPN;
-Integer  vpn_j_sz  = valueOf (VPN_J_sz);     typedef Bit #(VPN_J_sz)   VPN_J;
-Integer  offset_sz = valueOf (Offset_sz);    typedef Bit #(Offset_sz)  Offset;
-
 // Physical addrs
-Integer  pa_sz    = valueOf (PA_sz);     typedef Bit #(PA_sz)     PA;
-Integer  ppn_sz   = valueOf (PPN_sz);    typedef Bit #(PPN_sz)    PPN;
-`ifdef RV64
-Integer  ppn_2_sz = valueOf (PPN_2_sz);  typedef Bit #(PPN_2_sz)  PPN_2;
-`endif
-Integer  ppn_1_sz = valueOf (PPN_1_sz);  typedef Bit #(PPN_1_sz)  PPN_1;
-Integer  ppn_0_sz = valueOf (PPN_0_sz);  typedef Bit #(PPN_0_sz)  PPN_0;
-
-`ifdef RV32
-typedef Bit #(PPN_1_sz)  PPN_MEGA;
-`endif
-
-`ifdef RV64
-`ifdef SV39
-typedef Bit #(TAdd #(PPN_2_sz, PPN_1_sz))  PPN_MEGA;
-typedef Bit #(PPN_2_sz)                    PPN_GIGA;
-`endif
-`endif
-
-function VA fn_WordXL_to_VA (WordXL  eaddr);
-`ifdef RV32
-   return eaddr;
-`elsif RV64
-   return truncate (eaddr);
-`endif
-endfunction
+Integer  pa_sz = valueOf (PA_sz);  typedef Bit #(PA_sz)     PA;
 
 function PA fn_WordXL_to_PA (WordXL  eaddr);
 `ifdef RV32
@@ -216,8 +189,52 @@ function PA fn_WordXL_to_PA (WordXL  eaddr);
 `endif
 endfunction
 
+// Virtual addrs
+Integer  va_sz = valueOf (VA_sz);  typedef Bit #(VA_sz)      VA;
+
+function VA fn_WordXL_to_VA (WordXL  eaddr);
+`ifdef RV32
+   return eaddr;
+`elsif RV64
+   return truncate (eaddr);
+`endif
+endfunction
+
+// Page offsets
+function  Offset  fn_Addr_to_Offset (Bit #(n) addr);
+   return addr [offset_sz - 1: 0];
+endfunction
+
+// VPNs
+Integer  vpn_sz    = valueOf (VPN_sz);       typedef Bit #(VPN_sz)     VPN;
+Integer  vpn_j_sz  = valueOf (VPN_J_sz);     typedef Bit #(VPN_J_sz)   VPN_J;
+Integer  offset_sz = valueOf (Offset_sz);    typedef Bit #(Offset_sz)  Offset;
+
+// PPNs
+Integer  ppn_sz   = valueOf (PPN_sz);    typedef Bit #(PPN_sz)    PPN;
+`ifdef RV64
+Integer  ppn_2_sz = valueOf (PPN_2_sz);  typedef Bit #(PPN_2_sz)  PPN_2;
+`endif
+Integer  ppn_1_sz = valueOf (PPN_1_sz);  typedef Bit #(PPN_1_sz)  PPN_1;
+Integer  ppn_0_sz = valueOf (PPN_0_sz);  typedef Bit #(PPN_0_sz)  PPN_0;
+
+`ifdef RV32
+typedef Bit #(PPN_1_sz)  PPN_MEGA;
+`elsif RV64
+typedef Bit #(TAdd #(PPN_2_sz, PPN_1_sz))  PPN_MEGA;
+typedef Bit #(PPN_2_sz)                    PPN_GIGA;
+`endif
+
 function  PPN  fn_PA_to_PPN (PA pa);
    return pa [ppn_sz + offset_sz - 1: offset_sz];
+endfunction
+
+function PA fn_PPN_and_Offset_to_PA (PPN ppn, Offset offset);
+`ifdef RV32
+   return {ppn, offset};
+`elsif RV64
+   return zeroExtend ({ppn, offset});
+`endif
 endfunction
 
 // ----------------
@@ -246,16 +263,11 @@ Integer  pte_RSW_offset  = 8;    // Reserved for supervisor SW
 `ifdef RV32
 Integer  pte_PPN_0_offset  = 10;
 Integer  pte_PPN_1_offset  = 20;
-`endif
-
-`ifdef RV64
-`ifdef SV39
+`elsif RV64
 Integer  pte_PPN_0_offset  = 10;
 Integer  pte_PPN_1_offset  = 19;
 Integer  pte_PPN_2_offset  = 28;
 `endif
-`endif
-
 
 function Bit #(1) fn_PTE_to_V (PTE pte);
    return pte [pte_V_offset];
@@ -298,11 +310,9 @@ function PPN_MEGA  fn_PTE_to_PPN_mega (PTE pte);
 endfunction
 
 `ifdef RV64
-`ifdef SV39
 function PPN_GIGA  fn_PTE_to_PPN_giga (PTE pte);
    return pte [ppn_sz + pte_PPN_0_offset - 1 : pte_PPN_2_offset];
 endfunction
-`endif
 `endif
 
 // ----------------
@@ -355,15 +365,6 @@ function Bool is_pte_A_D_fault (Bool read_not_write, PTE pte);
 endfunction
 
 // ----------------
-// Choose particular kind of access fault
-
-function Exc_Code  fn_access_exc_code (Bool dmem_not_imem, Bool read_not_write);
-   return ((! dmem_not_imem) ? exc_code_INSTR_ACCESS_FAULT
-	   :(read_not_write  ? exc_code_LOAD_ACCESS_FAULT
-	     :                 exc_code_STORE_AMO_ACCESS_FAULT));
-endfunction
-
-// ----------------
 // Choose particular kind of page fault
 
 function Exc_Code  fn_page_fault_exc_code (Bool dmem_not_imem, Bool read_not_write);
@@ -371,5 +372,14 @@ function Exc_Code  fn_page_fault_exc_code (Bool dmem_not_imem, Bool read_not_wri
 	   :(read_not_write  ? exc_code_LOAD_PAGE_FAULT
 	     :                 exc_code_STORE_AMO_PAGE_FAULT));
 endfunction   
+
+// ----------------
+// Choose particular kind of access fault
+
+function Exc_Code  fn_access_exc_code (Bool dmem_not_imem, Bool read_not_write);
+   return ((! dmem_not_imem) ? exc_code_INSTR_ACCESS_FAULT
+	   :(read_not_write  ? exc_code_LOAD_ACCESS_FAULT
+	     :                 exc_code_STORE_AMO_ACCESS_FAULT));
+endfunction
 
 // ================================================================

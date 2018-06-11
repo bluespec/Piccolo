@@ -281,10 +281,17 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
    RWire #(Bit #(64)) rw_minstret      <- mkRWire;      // Driven on CSRRx write to minstret
    PulseWire          pw_minstret_incr <- mkPulseWire;
 
-`ifdef INCLUDE_GDB_CONTROL
-   Reg #(Word)      rg_dpc  <- mkRegU;
-   Reg #(Bit #(32)) rg_dcsr <- mkRegU;    // Is 32b even in RV64
-`endif
+   // Debug/Trace
+   Reg #(WordXL)    rg_tselect <- mkRegU;
+   Reg #(WordXL)    rg_tdata1  <- mkRegU;
+   Reg #(WordXL)    rg_tdata2  <- mkRegU;
+   Reg #(WordXL)    rg_tdata3  <- mkRegU;
+
+   // Debug
+   Reg #(Bit #(32)) rg_dcsr      <- mkRegU;    // Is 32b even in RV64
+   Reg #(WordXL)    rg_dpc       <- mkRegU;
+   Reg #(WordXL)    rg_dscratch0 <- mkRegU;
+   Reg #(WordXL)    rg_dscratch1 <- mkRegU;
 
    // ----------------
    // Non-standard 'watchpoint' CSRs
@@ -420,7 +427,7 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
 	 csr_stval:     m_csr_value = tagged Valid rg_stval;
 	 csr_sip:       m_csr_value = tagged Valid (mip_to_word (rg_sip));
 
-	 csr_satp:      m_csr_value = tagged Valid 0;    // hardwired to 0 (Bare more only)
+	 csr_satp:      m_csr_value = tagged Valid rg_satp;
 
 	 csr_medeleg:   m_csr_value = tagged Valid zeroExtend (rg_medeleg);
 	 csr_mideleg:   m_csr_value = tagged Valid zeroExtend (rg_mideleg);
@@ -473,9 +480,16 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
 	 csr_minstreth: m_csr_value = tagged Valid (rg_minstret [63:32]);
 `endif
 
+	 csr_addr_tselect:  m_csr_value = tagged Valid rg_tselect;
+	 csr_addr_tdata1:   m_csr_value = tagged Valid rg_tdata1;
+	 csr_addr_tdata2:   m_csr_value = tagged Valid rg_tdata2;
+	 csr_addr_tdata3:   m_csr_value = tagged Valid rg_tdata3;
+
 `ifdef INCLUDE_GDB_CONTROL
-	 csr_addr_dpc:  m_csr_value = tagged Valid rg_dpc;
-	 csr_addr_dcsr: m_csr_value = tagged Valid zeroExtend (rg_dcsr);
+	 csr_addr_dcsr:       m_csr_value = tagged Valid zeroExtend (rg_dcsr);
+	 csr_addr_dpc:        m_csr_value = tagged Valid rg_dpc;
+	 csr_addr_dscratch0:  m_csr_value = tagged Valid rg_dscratch0;
+	 csr_addr_dscratch1:  m_csr_value = tagged Valid rg_dscratch1;
 `endif
 
 	 csr_addr_watch_n:     m_csr_value = tagged Valid rg_watch_n;
@@ -573,13 +587,20 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
 	    csr_minstret:  rw_minstret.wset (word);
 `endif
 
+	    csr_addr_tselect:  rg_tselect <= word;
+	    csr_addr_tdata1:   rg_tdata1  <= word;
+	    csr_addr_tdata2:   rg_tdata2  <= word;
+	    csr_addr_tdata3:   rg_tdata3  <= word;
+
 `ifdef INCLUDE_GDB_CONTROL
-	    csr_addr_dpc:  rg_dpc  <= word;
-	    csr_addr_dcsr: rg_dcsr <= zeroExtend ({rg_dcsr [31:28],    // xdebugver: read-only
-						   word [27:9],        // ebreakm/s/u, stepie, stopcount, stoptime
-						   rg_dcsr [8:6],      // cause: read-only
-						   word [5:0]}         // step, prv
-						  );
+	    csr_addr_dcsr:       rg_dcsr <= zeroExtend ({rg_dcsr [31:28],    // xdebugver: read-only
+							 word [27:9],        // ebreakm/s/u, stepie, stopcount, stoptime
+							 rg_dcsr [8:6],      // cause: read-only
+							 word [5:0]}         // step, prv
+							);
+	    csr_addr_dpc:        rg_dpc  <= word;
+	    csr_addr_dscratch0:  rg_dscratch0  <= word;
+	    csr_addr_dscratch1:  rg_dscratch1  <= word;
 `endif
 
 	    csr_addr_watch_n:     noAction;

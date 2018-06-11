@@ -570,9 +570,11 @@ function ALU_Outputs fv_SYSTEM (ALU_Inputs inputs);
 	    // ECALL instructions
 	    if (inputs.decoded_instr.imm12_I == f12_ECALL) begin
 	       alu_outputs.control  = CONTROL_TRAP;
-	       alu_outputs.exc_code = (  (inputs.cur_priv == u_Priv_Mode)
+	       alu_outputs.exc_code = ((inputs.cur_priv == u_Priv_Mode)
 				       ? exc_code_ECALL_FROM_U
-				       : exc_code_ECALL_FROM_M);
+				       : ((inputs.cur_priv == s_Priv_Mode)
+					  ? exc_code_ECALL_FROM_S
+					  : exc_code_ECALL_FROM_M));
 	    end
 
 	    // EBREAK instruction

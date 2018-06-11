@@ -134,9 +134,7 @@ interface DMem_IFC;
    // CPU side: DMem response
    (* always_ready *)  method Bool       valid;
    (* always_ready *)  method Bit #(64)  word64;      // Load-value
-`ifdef ISA_A
    (* always_ready *)  method Bit #(64)  st_amo_val;  // Final store-value for ST, SC, AMO
-`endif
    (* always_ready *)  method Bool       exc;
    (* always_ready *)  method Exc_Code   exc_code;
 endinterface
