@@ -218,14 +218,21 @@ module mkSoC_Top (SoC_Top_IFC);
 
    Control_Req req = f_external_control_reqs.first;
 
-   rule rl_handle_external_req_read (req.op == external_control_req_op_read_control_fabric);
+   rule rl_handle_external_req_read_request (req.op == external_control_req_op_read_control_fabric);
       f_external_control_reqs.deq;
-      let x <- brvf_core.dm_dmi.av_read (truncate (req.arg1));
+      brvf_core.dm_dmi.read_addr (truncate (req.arg1));
+      if (verbosity != 0) begin
+	 $display ("%0d: SoC_Top.rl_handle_external_req_read_request", cur_cycle);
+         $display ("    ", fshow (req));
+      end
+   endrule
+
+   rule rl_handle_external_req_read_response;
+      let x <- brvf_core.dm_dmi.read_data;
       let rsp = Control_Rsp {status: external_control_rsp_status_ok, result: signExtend (x)};
       f_external_control_rsps.enq (rsp);
       if (verbosity != 0) begin
-	 $display ("%0d: SoC_Top.rl_handle_external_req_read", cur_cycle);
-         $display ("    ", fshow (req));
+	 $display ("%0d: SoC_Top.rl_handle_external_req_read_response", cur_cycle);
          $display ("    ", fshow (rsp));
       end
    endrule
