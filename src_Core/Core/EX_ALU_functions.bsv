@@ -170,8 +170,12 @@ function ALU_Outputs fv_BRANCH (ALU_Inputs inputs);
    else if (funct3 == f3_BGEU) branch_taken = (rs1_val  >= rs2_val);
    else                        trap = True;
 
+   trap = (trap ||
+	   (branch_taken && (branch_target [1] == 1'b1)));
+
    let alu_outputs = alu_outputs_base;
    alu_outputs.control   = (trap ? CONTROL_TRAP : (branch_taken ? CONTROL_BRANCH : CONTROL_STRAIGHT));
+   alu_outputs.exc_code  = exc_code_INSTR_ADDR_MISALIGNED;
    alu_outputs.op_stage2 = OP_Stage2_ALU;
    alu_outputs.rd        = 0;
    alu_outputs.addr      = (branch_taken ? branch_target : (inputs.pc + 4));

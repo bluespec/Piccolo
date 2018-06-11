@@ -577,8 +577,8 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 
       // Debug
       if (cur_verbosity != 0)
-	 $display ("%0d: CPU.rl_stage2_nonpipe; epc 0x%0h, pc 0x%0h, new mstatus 0x%0h", cur_cycle,
-		   epc, next_pc, new_mstatus);
+	 $display ("%0d: CPU.rl_stage2_nonpipe; priv:%0d  mcause:0x%0h  epc 0x%0h  tval:0x%0h  new pc 0x%0h, new mstatus 0x%0h",
+		   cur_cycle, rg_cur_priv, mcause, epc, badaddr, next_pc, new_mstatus);
    endrule : rl_stage2_nonpipe
 
    // ================================================================
@@ -898,7 +898,8 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
       // Debug
       fa_emit_instr_trace (rg_inum, epc, instr, rg_cur_priv);
       if (cur_verbosity != 0)
-	 $display ("    Trap: mcause:0x%0h  epc:0x%0h  new pc:0x%0h  new mstatus:0x%0h", mcause, epc, next_pc, new_mstatus);
+	 $display ("%0d: CPU.rl_stage1_trap: priv:%0d  mcause:0x%0h  epc:0x%0h  tval:0x%0h  new pc:0x%0h  new mstatus:0x%0h",
+		   cur_cycle, rg_cur_priv, mcause, epc, badaddr, next_pc, new_mstatus);
    endrule: rl_stage1_trap
 
    // ================================================================

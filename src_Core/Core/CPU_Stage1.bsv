@@ -221,9 +221,15 @@ module mkCPU_Stage1 #(Bit #(4)         verbosity,
 			? OSTATUS_PIPE
 			: OSTATUS_NONPIPE);
 
+	 // TODO: change name 'badaddr' to 'tval'
+	 let badaddr = 0;
+	 if (alu_outputs.exc_code == exc_code_ILLEGAL_INSTRUCTION)
+	    badaddr = zeroExtend (instr);
+	 else if (alu_outputs.exc_code == exc_code_INSTR_ADDR_MISALIGNED)
+	    badaddr = alu_outputs.addr;    // branch target pc
 	 let trap_info = Trap_Info {epc:      pc,
 				    exc_code: alu_outputs.exc_code,
-				    badaddr:  0};  // v1.10 - mtval
+				    badaddr:  badaddr};  // v1.10 - mtval
 
 	 let next_pc = ((alu_outputs.control == CONTROL_BRANCH) ? alu_outputs.addr : pc + 4);
 
