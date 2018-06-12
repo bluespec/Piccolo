@@ -56,7 +56,7 @@ interface BRVF_Core_IFC;
    (* always_ready *)
    method Action cpu_software_interrupt_req;
    (* always_ready *)
-   method Action cpu_timer_interrupt_req;
+   method Action cpu_timer_interrupt_req (Bool set_not_clear);
 
 `ifdef INCLUDE_TANDEM_VERIF
    // ----------------------------------------------------------------

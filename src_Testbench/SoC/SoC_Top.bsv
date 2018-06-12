@@ -203,7 +203,7 @@ module mkSoC_Top (SoC_Top_IFC);
    // Timer interrupt
    rule rl_connect_timer_interrupt_request;
       let x <- timer0.get_timer_interrupt_req.get;
-      brvf_core.cpu_timer_interrupt_req;
+      brvf_core.cpu_timer_interrupt_req (x);
    endrule
 
    // ================================================================

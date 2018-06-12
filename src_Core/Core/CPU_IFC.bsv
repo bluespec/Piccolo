@@ -46,7 +46,7 @@ interface CPU_IFC;
    (* always_ready *)
    method Action  external_interrupt_req;
    (* always_ready *)
-   method Action  timer_interrupt_req;
+   method Action  timer_interrupt_req (Bool set_not_clear);
    (* always_ready *)
    method Action  software_interrupt_req;
 

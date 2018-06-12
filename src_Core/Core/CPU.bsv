@@ -1168,9 +1168,9 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
    // ----------------
    // Interrupts
 
-   method Action  external_interrupt_req = csr_regfile.external_interrupt_req;
-   method Action  software_interrupt_req = csr_regfile.software_interrupt_req;
-   method Action  timer_interrupt_req    = csr_regfile.timer_interrupt_req;
+   method Action  external_interrupt_req  = csr_regfile.external_interrupt_req;
+   method Action  software_interrupt_req  = csr_regfile.software_interrupt_req;
+   method Action  timer_interrupt_req (x) = csr_regfile.timer_interrupt_req (x);
 
    // ----------------
    // Optional interface to Tandem Verifier

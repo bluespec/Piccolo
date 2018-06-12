@@ -79,8 +79,9 @@ interface Timer_IFC;
    // Main Fabric Reqs/Rsps
    interface AXI4_Lite_Slave_IFC #(Wd_Addr, Wd_Data, Wd_User) slave;
 
-   // External interrupt
-   interface Get #(Bit #(0))  get_timer_interrupt_req;
+   // Timer interrupt
+   // True/False = set/clear interrupt-pending in CPU's MTIP
+   interface Get #(Bool)  get_timer_interrupt_req;
 
    // Software interrupt
    interface Get #(Bit #(0))  get_sw_interrupt_req;
@@ -113,7 +114,7 @@ module mkTimer (Timer_IFC);
    Reg #(Bool)      crg_interrupted [2] <- mkCRegU (2);
 
    // Timer interrupt queue
-   FIFOF #(Bit #(0)) f_timer_interrupt_req <- mkFIFOF;
+   FIFOF #(Bool) f_timer_interrupt_req <- mkFIFOF;
 
    // ----------------
    // Software-interrupt registers
@@ -159,7 +160,7 @@ module mkTimer (Timer_IFC);
    rule rl_always (rg_state == MODULE_STATE_READY);
       if ((! crg_interrupted [0]) && (crg_time [0] >= crg_timecmp [0])) begin
 	 crg_interrupted [0] <= True;
-	 f_timer_interrupt_req.enq (?);
+	 f_timer_interrupt_req.enq (True);
 	 if  (cfg_verbosity > 1)
 	    $display ("%0d: Timer.rl_always: raising interrupt. time = %0d, timecmp = %0d",
 		      cur_cycle, crg_time [0], crg_timecmp [0]);
@@ -229,6 +230,7 @@ module mkTimer (Timer_IFC);
 			// 64b fabric: data is full 64b
 			crg_timecmp [1] <= zeroExtend (wrd.wdata);
 		     crg_interrupted [1] <= False;
+		     f_timer_interrupt_req.enq (False);
 		  end
 	 'h_BFF8: begin
 		     if (valueOf (Wd_Data) == 32)
@@ -244,6 +246,7 @@ module mkTimer (Timer_IFC);
 	 'h_4004: begin
 		     crg_timecmp     [1] <= { wrd.wdata [31:0], crg_timecmp [1] [31:0] };
 		     crg_interrupted [1] <= False;
+		     f_timer_interrupt_req.enq (False);
 		  end
 	 'h_BFFC: begin
 		     crg_time [1] <= { wrd.wdata [31:0], crg_time [1] [31:0] };

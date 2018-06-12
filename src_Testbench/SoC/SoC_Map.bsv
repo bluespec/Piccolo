@@ -77,7 +77,7 @@ Integer bytes_per_TCM = kB_per_TCM * 'h400;
 // ----------------
 // Memory
 
-Integer mB_per_mem0    = 'h10;                      // 16 MB
+Integer mB_per_mem0    = 'h100;                      // 256 MB
 Integer kB_per_mem0    = mB_per_mem0 * 'h400;
 Integer bytes_per_mem0 = kB_per_mem0 * 'h400;
 

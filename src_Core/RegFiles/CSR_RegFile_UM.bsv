@@ -103,7 +103,7 @@ interface CSR_RegFile_IFC;
    (* always_ready *)
    method Action external_interrupt_req;
    (* always_ready *)
-   method Action timer_interrupt_req;
+   method Action timer_interrupt_req (Bool set_not_clear);
    (* always_ready *)
    method Action software_interrupt_req;
 
@@ -220,7 +220,7 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
    Reg #(RF_State) rg_state      <- mkReg (RF_RESET_START);
 
    Reg #(Bool) rg_ei_requested <- mkRegU;    // External interrupt requested
-   Reg #(Bool) rg_ti_requested <- mkRegU;    // Timer    interrupt requested
+   Reg #(Bool) rg_ti_req       <- mkRegU;    // Timer    interrupt request
    Reg #(Bool) rg_si_requested <- mkRegU;    // Software interrupt requested
 
    // Reset
@@ -316,7 +316,7 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
 
    rule rl_reset_start (rg_state == RF_RESET_START);
       rg_ei_requested <= False;
-      rg_ti_requested <= False;
+      rg_ti_req       <= False;
       rg_si_requested <= False;
 
 `ifdef ISA_PRIV_S
@@ -630,22 +630,25 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
       rg_mip <= mip;
       rg_ei_requested <= False;
       
-      $display ("%0d: CSR_RegFile.rl_record_external_interrupt: mip: %0h -> %0h", cur_cycle, old_mip, new_mip);
-      $display ("    Current mie = %0h", mie_to_word (rg_mie));
+      if (cfg_verbosity > 1) begin
+	 $display ("%0d: CSR_RegFile.rl_record_external_interrupt: mip: %0h -> %0h", cur_cycle, old_mip, new_mip);
+	 $display ("    Current mie = %0h", mie_to_word (rg_mie));
+      end
    endrule
 
    (* execution_order = "read_csr,  rl_record_timer_interrupt" *)
    (* execution_order = "write_csr, rl_record_timer_interrupt" *)
-   rule rl_record_timer_interrupt (rg_ti_requested);
+   rule rl_record_timer_interrupt (pack (rg_ti_req) != rg_mip.tips [m_Priv_Mode]);
       let mip = rg_mip;
-      WordXL old_mip = mip_to_word (mip);
-      mip.tips [m_Priv_Mode] = 1'b1;
-      WordXL new_mip = mip_to_word (mip);
+      WordXL old_mip_w = mip_to_word (mip);
+      mip.tips [m_Priv_Mode] = pack (rg_ti_req);
+      WordXL new_mip_w = mip_to_word (mip);
       rg_mip <= mip;
-      rg_ti_requested <= False;
       
-      $display ("%0d: CSR_RegFile.rl_record_timer_interrupt: mip: %0h -> %0h", cur_cycle, old_mip, new_mip);
-      $display ("    Current mie = %0h", mie_to_word (rg_mie));
+      if (cfg_verbosity > 1) begin
+	 $display ("%0d: CSR_RegFile.rl_record_timer_interrupt: mip: %0h -> %0h", cur_cycle, old_mip_w, new_mip_w);
+	 $display ("    Current mie = %0h", mie_to_word (rg_mie));
+      end
    endrule
 
    (* execution_order = "read_csr,  rl_record_software_interrupt" *)
@@ -658,8 +661,10 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
       rg_mip <= mip;
       rg_si_requested <= False;
       
-      $display ("%0d: CSR_RegFile.rl_record_software_interrupt: mip: %0h -> %0h", cur_cycle, old_mip, new_mip);
-      $display ("    Current mie = %0h", mie_to_word (rg_mie));
+      if (cfg_verbosity > 1) begin
+	 $display ("%0d: CSR_RegFile.rl_record_software_interrupt: mip: %0h -> %0h", cur_cycle, old_mip, new_mip);
+	 $display ("    Current mie = %0h", mie_to_word (rg_mie));
+      end
    endrule
 
    // ================================================================
@@ -863,17 +868,20 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
    // Interrupts
    method Action  external_interrupt_req;
       rg_ei_requested <= True;
-      $display ("%0d: CSR_RegFile.external_interrupt_req", cur_cycle);
+      if (cfg_verbosity > 1)
+	 $display ("%0d: CSR_RegFile.external_interrupt_req", cur_cycle);
    endmethod
 
-   method Action  timer_interrupt_req;
-      rg_ti_requested <= True;
-      $display ("%0d: CSR_RegFile.timer_interrupt_req", cur_cycle);
+   method Action  timer_interrupt_req (Bool set_not_clear);
+      rg_ti_req <= set_not_clear;
+      if (cfg_verbosity > 1)
+	 $display ("%0d: CSR_RegFile.timer_interrupt_req: ", cur_cycle, fshow (set_not_clear));
    endmethod
 
    method Action  software_interrupt_req;
       rg_si_requested <= True;
-      $display ("%0d: CSR_RegFile.software_interrupt_req", cur_cycle);
+      if (cfg_verbosity > 1)
+	 $display ("%0d: CSR_RegFile.software_interrupt_req", cur_cycle);
    endmethod
 
    method Maybe #(Exc_Code) interrupt_pending (Priv_Mode cur_priv);
