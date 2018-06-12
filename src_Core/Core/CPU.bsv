@@ -799,15 +799,15 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 	 $display ("    CPU.rl_stage1_WFI");
    endrule: rl_stage1_WFI
 
-   rule rl_WFI_resume (csr_regfile.interrupt_pending (rg_cur_priv) matches tagged Valid .exc_code
-		       &&& (rg_state == CPU_WFI_PAUSED));
-      // Debug
-      fa_emit_instr_trace (rg_inum, rg_cur_priv, stage1.out.data_to_stage2.pc, stage1.out.data_to_stage2.instr);
-      if (cur_verbosity > 1)
-	 $display ("    CPU.rl_WFI_resume at PC 0x%08h, priv %0d interrupt exc_code = %0d",
-		   stage1.out.next_pc, rg_cur_priv, exc_code);
+   // ----------------
 
-      // Resume pipe (it will handle the interrupt)
+   rule rl_WFI_resume ((rg_state == CPU_WFI_PAUSED) && csr_regfile.wfi_resume);
+      // Debug
+      fa_emit_instr_trace (rg_inum, stage1.out.data_to_stage2.pc, stage1.out.data_to_stage2.instr, rg_cur_priv);
+      if (cur_verbosity > 1)
+	 $display ("    CPU.rl_WFI_resume at PC 0x%08h, priv %0d", stage1.out.next_pc, rg_cur_priv);
+
+      // Resume pipe (it will handle the interrupt, if one is pending)
       rg_state <= CPU_RUNNING;
       fa_start_ifetch (stage1.out.next_pc, rg_cur_priv);
       stage1.set_full (True);
@@ -828,8 +828,9 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
                                              };
       f_to_verifier.enq (to_verifier);
 `endif
-   endrule : rl_WFI_resume
+   endrule: rl_WFI_resume
 
+   // ----------------
    rule rl_reset_from_WFI (   (rg_state == CPU_WFI_PAUSED)
 			   && f_reset_reqs.notEmpty);
       rg_state <= CPU_RESET1;

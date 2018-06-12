@@ -110,6 +110,10 @@ interface CSR_RegFile_IFC;
    (* always_ready *)
    method Maybe #(Exc_Code) interrupt_pending (Priv_Mode cur_priv);
 
+   // WFI ignores mstatus ies and ideleg regs
+   (* always_ready *)
+   method Bool wfi_resume;
+
    // ----------------
    // Methods when Debug Module is present
 
@@ -228,8 +232,9 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
 
 `ifdef ISA_PRIV_S
    // sstatus is a restricted view of mstatus
+   // sie     is a restricted view of mie
+   // sip     is a restricted view of mip
 
-   Reg #(MIE)        rg_sie       <- mkRegU;
    Reg #(MTVec)      rg_stvec     <- mkRegU;
    // scounteren hardwired to 0 for now
 
@@ -237,7 +242,6 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
    Reg #(Word)       rg_sepc      <- mkRegU;
    Reg #(MCause)     rg_scause    <- mkRegU;
    Reg #(Word)       rg_stval     <- mkRegU;
-   Reg #(MIP)        rg_sip       <- mkRegU;
 
    Reg #(WordXL)     rg_satp      <- mkRegU;
 
@@ -316,10 +320,8 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
       rg_si_requested <= False;
 
 `ifdef ISA_PRIV_S
-      rg_sie      <= word_to_mie (0);
       rg_stvec    <= word_to_mtvec (mtvec_reset_value);
       rg_scause   <= word_to_mcause (0);    // Supposed to be the cause of the reset.
-      rg_sip      <= word_to_mip (0);
       rg_satp     <= 0;
       //rg_scounteren <= mcounteren_reset_value;
 `endif
@@ -417,7 +419,7 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
 	 csr_sstatus:   m_csr_value = tagged Valid (fn_read_sstatus (rg_mstatus));
 	 csr_sedeleg:   m_csr_value = tagged Valid zeroExtend (sedeleg);
 	 csr_sideleg:   m_csr_value = tagged Valid zeroExtend (sideleg);
-	 csr_sie:       m_csr_value = tagged Valid (mie_to_word (rg_sie));
+	 csr_sie:       m_csr_value = tagged Valid (sie_to_word (rg_mie));
 	 csr_stvec:     m_csr_value = tagged Valid (mtvec_to_word (rg_stvec));
 	 csr_scounteren:m_csr_value = tagged Valid 0;
 
@@ -425,7 +427,7 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
 	 csr_sepc:      m_csr_value = tagged Valid rg_sepc;
 	 csr_scause:    m_csr_value = tagged Valid (mcause_to_word (rg_scause));
 	 csr_stval:     m_csr_value = tagged Valid rg_stval;
-	 csr_sip:       m_csr_value = tagged Valid (mip_to_word (rg_sip));
+	 csr_sip:       m_csr_value = tagged Valid (sip_to_word (rg_mip));
 
 	 csr_satp:      m_csr_value = tagged Valid rg_satp;
 
@@ -451,6 +453,7 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
 	 csr_mtval:     m_csr_value = tagged Valid rg_mtval;
 	 csr_mip:       m_csr_value = tagged Valid (mip_to_word (rg_mip));
 
+	 // TODO: Phys Mem Protection regs
 	 // csr_pmpcfg0:   m_csr_value = tagged Valid rf_pmpcfg.sub (0);
 	 // csr_pmpcfg1:   m_csr_value = tagged Valid rf_pmpcfg.sub (1);
 	 // csr_pmpcfg2:   m_csr_value = tagged Valid rf_pmpcfg.sub (2);
@@ -521,7 +524,7 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
 	    csr_sstatus:    rg_mstatus    <= fn_write_sstatus (rg_mstatus, word);
 	    csr_sedeleg:    noAction;               // Hardwired to 0 (no delegation)
 	    csr_sideleg:    noAction;               // Hardwired to 0 (no delegation)
-	    csr_sie:        rg_sie        <= word_to_mie (word);
+	    csr_sie:        rg_mie        <= word_to_sie (word);
 	    csr_stvec:      rg_stvec      <= word_to_mtvec (word);
 	    csr_scounteren: noAction;
 
@@ -529,7 +532,7 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
 	    csr_sepc:       rg_sepc     <= word;
 	    csr_scause:     rg_scause   <= word_to_mcause (word);
 	    csr_stval:      rg_stval    <= word;
-	    csr_sip:        rg_sip      <= word_to_mip (word);
+	    csr_sip:        rg_mip      <= word_to_sip (word);
 
 	    csr_satp:       rg_satp <= word;
 
@@ -621,27 +624,42 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
    (* execution_order = "write_csr, rl_record_external_interrupt" *)
    rule rl_record_external_interrupt (rg_ei_requested);
       let mip = rg_mip;
+      WordXL old_mip = mip_to_word (mip);
       mip.eips [m_Priv_Mode] = 1'b1;
+      WordXL new_mip = mip_to_word (mip);
       rg_mip <= mip;
       rg_ei_requested <= False;
+      
+      $display ("%0d: CSR_RegFile.rl_record_external_interrupt: mip: %0h -> %0h", cur_cycle, old_mip, new_mip);
+      $display ("    Current mie = %0h", mie_to_word (rg_mie));
    endrule
 
    (* execution_order = "read_csr,  rl_record_timer_interrupt" *)
    (* execution_order = "write_csr, rl_record_timer_interrupt" *)
    rule rl_record_timer_interrupt (rg_ti_requested);
       let mip = rg_mip;
+      WordXL old_mip = mip_to_word (mip);
       mip.tips [m_Priv_Mode] = 1'b1;
+      WordXL new_mip = mip_to_word (mip);
       rg_mip <= mip;
       rg_ti_requested <= False;
+      
+      $display ("%0d: CSR_RegFile.rl_record_timer_interrupt: mip: %0h -> %0h", cur_cycle, old_mip, new_mip);
+      $display ("    Current mie = %0h", mie_to_word (rg_mie));
    endrule
 
    (* execution_order = "read_csr,  rl_record_software_interrupt" *)
    (* execution_order = "write_csr, rl_record_software_interrupt" *)
    rule rl_record_software_interrupt (rg_si_requested);
       let mip = rg_mip;
+      WordXL old_mip = mip_to_word (mip);
       mip.sips [m_Priv_Mode] = 1'b1;
+      WordXL new_mip = mip_to_word (mip);
       rg_mip <= mip;
       rg_si_requested <= False;
+      
+      $display ("%0d: CSR_RegFile.rl_record_software_interrupt: mip: %0h -> %0h", cur_cycle, old_mip, new_mip);
+      $display ("    Current mie = %0h", mie_to_word (rg_mie));
    endrule
 
    // ================================================================
@@ -744,7 +762,7 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
 	 $display ("    from priv %0d  pc 0x%0h  interrupt %0d  exc_code %0d  xtval 0x%0h",
 		   from_priv, pc, pack (interrupt), exc_code, xtval);
 `ifdef ISA_PRIV_S
-	 fa_show_trap_csrs (s_Priv_Mode, rg_sip, rg_sie, 0, 0, rg_scause,
+	 fa_show_trap_csrs (s_Priv_Mode, rg_mip, rg_mie, 0, 0, rg_scause,
 			    word_to_mstatus (fn_read_sstatus (rg_mstatus)),
 			    rg_stvec, rg_sepc, rg_stval);
 `endif
@@ -845,14 +863,17 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
    // Interrupts
    method Action  external_interrupt_req;
       rg_ei_requested <= True;
+      $display ("%0d: CSR_RegFile.external_interrupt_req", cur_cycle);
    endmethod
 
    method Action  timer_interrupt_req;
       rg_ti_requested <= True;
+      $display ("%0d: CSR_RegFile.timer_interrupt_req", cur_cycle);
    endmethod
 
    method Action  software_interrupt_req;
       rg_si_requested <= True;
+      $display ("%0d: CSR_RegFile.software_interrupt_req", cur_cycle);
    endmethod
 
    method Maybe #(Exc_Code) interrupt_pending (Priv_Mode cur_priv);
@@ -860,6 +881,13 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
 				   mip_to_word     (rg_mip),
 				   mie_to_word     (rg_mie),
 				   cur_priv);
+   endmethod
+
+   // WFI ignores mstatus ies and ideleg regs
+   method Bool wfi_resume;
+      WordXL mip_w = mip_to_word (rg_mip);
+      WordXL mie_w = mie_to_word (rg_mie);
+      return ((mip_w & mie_w) != 0);
    endmethod
 
    // ----------------

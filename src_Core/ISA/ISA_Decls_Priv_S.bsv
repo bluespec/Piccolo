@@ -59,7 +59,32 @@ function bit scause_interrupt (WordXL scause_val); return scause_val [xlen-1]; e
 function Bit #(TSub #(XLEN,5)) scause_mbz_5 (WordXL scause_val); return scause_val [xlen-2:4]; endfunction
 function Bit #(4) scause_exception_code (WordXL scause_val); return scause_val [3:0]; endfunction
 
-// ----------------
+// ================================================================
+// SIP and SIE (these are restricted views of MIP and MIE)
+
+function WordXL sip_to_word (MIP sip);
+   WordXL sip_w = extend (pack (sip));
+   return (sip_w & 'h333);
+endfunction
+
+function MIP word_to_sip (WordXL x);
+   return MIP {eips: unpack ( {1'b0, 1'b0, x[9], x[8]} ),
+	       tips: unpack ( {1'b0, 1'b0, x[5], x[4]} ),
+	       sips: unpack ( {1'b0, 1'b0, x[1], x[0]} ) };
+endfunction
+
+function WordXL sie_to_word (MIE sie);
+   WordXL sie_w = extend (pack (sie));
+   return (sie_w & 'h333);
+endfunction
+
+function MIE word_to_sie (WordXL x);
+   return MIE {eies: unpack ( {1'b0, 1'b0, x[9], x[8]} ),
+	       ties: unpack ( {1'b0, 1'b0, x[5], x[4]} ),
+	       sies: unpack ( {1'b0, 1'b0, x[1], x[0]} ) };
+endfunction
+
+// ================================================================
 // SATP (supervisor address translation and protection)
 
 // ----------------
@@ -320,12 +345,12 @@ function PPN_0  fn_PTE_to_PPN_0 (PTE pte);
 endfunction
 
 function PPN_1  fn_PTE_to_PPN_1 (PTE pte);
-   return pte [pte_PPN_2_offset - 1 : pte_PPN_1_offset];
+   return pte [ppn_1_sz + pte_PPN_1_offset - 1 : pte_PPN_1_offset];
 endfunction
 
 `ifdef RV64
 function PPN_2  fn_PTE_to_PPN_2 (PTE pte);
-   return pte [ppn_sz - 1 : pte_PPN_2_offset];
+   return pte [ppn_2_sz + pte_PPN_2_offset - 1 : pte_PPN_2_offset];
 endfunction
 `endif
 

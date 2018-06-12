@@ -165,6 +165,7 @@ module mkTimer (Timer_IFC);
 		      cur_cycle, crg_time [0], crg_timecmp [0]);
       end
 
+      // Increment time, but saturate, do not wrap-around
       if (crg_time [0] != '1)
 	 crg_time [0] <= crg_time [0] + 1;
    endrule
