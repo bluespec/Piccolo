@@ -660,8 +660,28 @@ function ALU_Outputs fv_SYSTEM (ALU_Inputs inputs);
 
       if (inputs.decoded_instr.csr == csr_mstatus) begin
 	 // Ensure legal mstatus values    TODO: trap on illegal?
-	 WordXL mask_in_fs_mpp_pies_ies = 'h_79BB;
-	 csr_val = csr_val & mask_in_fs_mpp_pies_ies;
+	 WordXL mask = {1'h1,      // SD    [XLEN-1]
+			0,         // WPRI  [XLEN-2:23]
+			1'h1,      // TSR   [22]
+			1'h1,      // TW    [21]
+			1'h1,      // TVM   [20]
+			1'h1,      // MXR   [19]
+			1'h1,      // SUM   [18]
+			1'h1,      // MPRV  [17]
+			2'h3,      // XS    [16:15]
+			2'h3,      // FS    [14:13]
+			2'h3,      // MPP   [12:11]
+			2'h0,      // WPRI  [10:9]
+			1'h1,      // SPP   [8]
+			4'hB,      // xPIE  [7:4]
+			4'hB };    // xIE   [3:0]
+`ifdef RV64
+	 mask = (mask | {0,
+			 2'h3,     // SXL   [35:34]
+			 2'h3,     // UXL   [33:32]
+			 32'h0});
+`endif
+	 csr_val = csr_val & mask;
 
 `ifndef ISA_FD
 	 // Force mstatus.FS to 0

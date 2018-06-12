@@ -313,9 +313,10 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 		  && (   (rg_state == CPU_RUNNING)
 		      || (rg_state == CPU_FENCE_I)
 		      || (rg_state == CPU_FENCE)));
+      let mstatus = csr_regfile.read_mstatus;
       $display ("================================================================");
-      $display ("%0d: Pipeline State:  inum:%0d  cur_priv:%0d",
-		cur_cycle, rg_inum, rg_cur_priv);
+      $display ("%0d: Pipeline State:  inum:%0d  cur_priv:%0d  mstatus:%0x", cur_cycle, rg_inum, rg_cur_priv, mstatus);
+      $display ("    ", fshow (word_to_mstatus (mstatus)));
 
       $display ("    Bypass S1 <= S3: ", fshow (stage3.out.bypass));
       $display ("    S3: ", fshow (stage3.out));
@@ -542,6 +543,9 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
    rule rl_stage2_nonpipe (   (rg_state == CPU_RUNNING)
 			   && (stage3.out.ostatus == OSTATUS_EMPTY)
 			   && (stage2.out.ostatus == OSTATUS_NONPIPE));
+      if (cur_verbosity > 1)
+	 $display ("%0d: CPU.rl_stage2_nonpipe");
+
       let epc      = stage2.out.trap_info.epc;
       let exc_code = stage2.out.trap_info.exc_code;
       let badaddr  = stage2.out.trap_info.badaddr;
@@ -562,6 +566,10 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
       stage1.set_full (True);
       stage2.set_full (False);
 
+      // Accounting
+      csr_regfile.csr_minstret_incr;
+      rg_inum <= rg_inum + 1;
+
 `ifdef INCLUDE_TANDEM_VERIF
       // Send trapping instr info to Tandem Verifier
       let to_verifier = Info_CPU_to_Verifier {exc_taken: True,
@@ -575,10 +583,12 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
       f_to_verifier.enq (to_verifier);
 `endif
 
+      fa_emit_instr_trace (rg_inum, epc, instr, rg_cur_priv);
+
       // Debug
       if (cur_verbosity != 0)
-	 $display ("%0d: CPU.rl_stage2_nonpipe; priv:%0d  mcause:0x%0h  epc 0x%0h  tval:0x%0h  new pc 0x%0h, new mstatus 0x%0h",
-		   cur_cycle, rg_cur_priv, mcause, epc, badaddr, next_pc, new_mstatus);
+	 $display ("    mcause:0x%0h  epc 0x%0h  tval:0x%0h  new pc 0x%0h, new mstatus 0x%0h",
+		   mcause, epc, badaddr, next_pc, new_mstatus);
    endrule : rl_stage2_nonpipe
 
    // ================================================================
@@ -864,13 +874,9 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
       fa_start_ifetch (next_pc, new_priv);
       stage1.set_full (True);
 
-      // Accounting: increment instret if ECALL
-      if (   (exc_code >= exc_code_ECALL_FROM_U)
-	  && (exc_code <= exc_code_ECALL_FROM_M))
-	 begin
-	    csr_regfile.csr_minstret_incr;
-	    rg_inum <= rg_inum + 1;
-	 end
+      // Accounting
+      csr_regfile.csr_minstret_incr;
+      rg_inum <= rg_inum + 1;
 
 `ifdef INCLUDE_TANDEM_VERIF
       // Send info on trapping instr Tandem Verifier
@@ -897,9 +903,10 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 
       // Debug
       fa_emit_instr_trace (rg_inum, epc, instr, rg_cur_priv);
-      if (cur_verbosity != 0)
-	 $display ("%0d: CPU.rl_stage1_trap: priv:%0d  mcause:0x%0h  epc:0x%0h  tval:0x%0h  new pc:0x%0h  new mstatus:0x%0h",
-		   cur_cycle, rg_cur_priv, mcause, epc, badaddr, next_pc, new_mstatus);
+      if (cur_verbosity != 0) begin
+	 $display ("%0d: CPU.rl_stage1_trap: priv:%0d  mcause:0x%0h  epc:0x%0h", cur_cycle, rg_cur_priv, mcause, epc);
+	 $display ("    tval:0x%0h  new pc:0x%0h  new mstatus:0x%0h", badaddr, next_pc, new_mstatus);
+      end
    endrule: rl_stage1_trap
 
    // ================================================================

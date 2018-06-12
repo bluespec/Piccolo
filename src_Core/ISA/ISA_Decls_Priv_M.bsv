@@ -270,27 +270,28 @@ instance FShow #(MStatus);
       return (  $format ("MStatus{")
 	      + $format ("sd:%0d", ms.sd)
 `ifdef RV64
-	      + $format (" sxl:'b%b", ms.sxl)
-	      + $format (" uxl:'b%b", ms.uxl)
+	      + $format (" sxl:%0d", ms.sxl)
+	      + $format (" uxl:%0d", ms.uxl)
 `endif
-	      + $format (" tsr:%d",  ms.tsr)
-	      + $format (" tw:%d",   ms.tw)
-	      + $format (" tvm:%d",  ms.tvm)
-	      + $format (" mxr:%d",  ms.mxr)
-	      + $format (" sum:%d",  ms.sum)
-	      + $format (" mprv:%d", ms.mprv)
+	      + $format (" tsr:%0d",  ms.tsr)
+	      + $format (" tw:%0d",   ms.tw)
+	      + $format (" tvm:%0d",  ms.tvm)
+	      + $format (" mxr:%0d",  ms.mxr)
+	      + $format (" sum:%0d",  ms.sum)
+	      + $format (" mprv:%0d", ms.mprv)
 
-	      + $format (" xs:'b%b",   ms.xs)
-	      + $format (" fs:'b%b",   ms.fs)
+	      + $format (" xs:%0d",   ms.xs)
+	      + $format (" fs:%0d",   ms.fs)
 
-	      + $format (" mpp:'b%b",   ms.mpp)
-	      + $format (" spp:'b%b",   ms.spp)
+	      + $format (" mpp:%0d",   ms.mpp)
+	      + $format (" spp:%0d",   ms.spp)
 
-	      + $format (" pies: m %0d s %0d u %0d",
+	      + $format (" pies:%0d_%0d%0d",
 			 ms.pies [m_Priv_Mode], ms.pies [s_Priv_Mode], ms.pies [u_Priv_Mode])
 
-	      + $format (" ies: m %0d s %0d u %0d",
+	      + $format (" ies:%0d_%0d%0d",
 			 ms.ies [m_Priv_Mode], ms.ies [s_Priv_Mode], ms.ies [u_Priv_Mode])
+	      + $format ("}")
 	      );
    endfunction
 endinstance

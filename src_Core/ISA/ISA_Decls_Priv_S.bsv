@@ -315,6 +315,20 @@ function PPN_GIGA  fn_PTE_to_PPN_giga (PTE pte);
 endfunction
 `endif
 
+function PPN_0  fn_PTE_to_PPN_0 (PTE pte);
+   return pte [pte_PPN_1_offset - 1 : pte_PPN_0_offset];
+endfunction
+
+function PPN_1  fn_PTE_to_PPN_1 (PTE pte);
+   return pte [pte_PPN_2_offset - 1 : pte_PPN_1_offset];
+endfunction
+
+`ifdef RV64
+function PPN_2  fn_PTE_to_PPN_2 (PTE pte);
+   return pte [ppn_sz - 1 : pte_PPN_2_offset];
+endfunction
+`endif
+
 // ----------------
 // Check if a PTE is invalid (V bit clear, or improper R/W bits)
 

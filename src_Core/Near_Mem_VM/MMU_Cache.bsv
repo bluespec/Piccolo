@@ -910,6 +910,10 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 
       rg_pte_pa <= lev_1_pte_pa;
       rg_state  <= PTW_LEVEL_1;
+      if (cfg_verbosity > 1) begin
+	 $display ("%0d: %s.rl_start_tlb_refill for eaddr 0x%0h", cur_cycle, d_or_i, rg_addr);
+	 $display ("    Req for level 1 PTE: ", fshow (mem_req));
+      end
 `elsif SV39
       // RV64.Sv39: Page Table top is at Level 2
       PA           vpn_2_pa            = (zeroExtend (vpn_2) << bits_per_byte_in_wordxl);
@@ -921,12 +925,12 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 
       rg_pte_pa <= lev_2_pte_pa;
       rg_state  <= PTW_LEVEL_2;
-`endif
-
       if (cfg_verbosity > 1) begin
 	 $display ("%0d: %s.rl_start_tlb_refill for eaddr 0x%0h", cur_cycle, d_or_i, rg_addr);
-	 $display ("    Req for level 1 PTE: ", fshow (mem_req));
+	 $display ("    Req for level 2 PTE: ", fshow (mem_req));
       end
+`endif
+
    endrule
 `endif
 
@@ -993,18 +997,34 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 	 end
       end
 
-      // Leaf PTE pointing at address-space gigapage; insert in TLB
-      // (permissions will be checked on next TLB hit)
+      // Leaf PTE pointing at address-space gigapage
       else begin
-	 tlb.insert (asid, vpn, pte, /* level */ 2, rg_pte_pa);
-	 rg_state <= CACHE_REREQ;
+	 // Fault if PPN [1] or PPN [0] are not 0
+	 PPN_1 ppn_1 = fn_PTE_to_PPN_1 (pte);
+	 PPN_0 ppn_0 = fn_PTE_to_PPN_0 (pte);
+	 if ((ppn_1 != 0) || (ppn_0 != 0)) begin
+	    rg_exc_code <= page_fault_exc_code;
+	    rg_state    <= MODULE_EXCEPTION_RSP;
 
-	 if (cfg_verbosity > 1) begin
-	    PPN ppn                = fn_PTE_to_PPN (pte);
-	    PA  addr_space_page_pa = fn_PPN_and_Offset_to_PA (ppn, 12'b0);
-	    $display ("%0d: %s.rl_ptw_level_2: for eaddr 0x%0h: pte 0x%0h @ 0x%0h: leaf PTE for megapage",
-		      cur_cycle, d_or_i, rg_addr, pte, rg_pte_pa);
-	    $display ("    Addr Space megapage pa: 0x%0h", addr_space_page_pa);
+	    if (cfg_verbosity > 1)
+	       $display ("%0d: %s.rl_ptw_level_2: for eaddr 0x%0h: gigapage pte 0x%0h @ 0x%0h",
+			 cur_cycle, d_or_i, rg_addr, pte, rg_pte_pa);
+	       $display ("    Invalid PTE: PPN[1] or PPN[0] is not zero; page fault %0d",
+			 page_fault_exc_code);
+	 end
+
+	 // Insert gigapage PTE in TLB (permissions will be checked on subsequent TLB hit)
+	 else begin
+	    tlb.insert (asid, vpn, pte, /* level */ 2, rg_pte_pa);
+	    rg_state <= CACHE_REREQ;
+
+	    if (cfg_verbosity > 1) begin
+	       PPN  ppn                = fn_PTE_to_PPN (pte);
+	       PA   addr_space_page_pa = fn_PPN_and_Offset_to_PA (ppn, 12'b0);
+	       $display ("%0d: %s.rl_ptw_level_2: for eaddr 0x%0h: pte 0x%0h @ 0x%0h: leaf PTE for gigapage",
+			 cur_cycle, d_or_i, rg_addr, pte, rg_pte_pa);
+	       $display ("    Addr Space megapage pa: 0x%0h", addr_space_page_pa);
+	    end
 	 end
       end
    endrule: rl_ptw_level_2
@@ -1073,18 +1093,34 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 	 end
       end
 
-      // Leaf PTE pointing at address-space megapage; insert in TLB
-      // (permissions will be checked on next TLB hit)
+      // Leaf PTE pointing at address-space megapage
+      // (permissions will be checked on subsequent TLB hit)
       else begin
-	 tlb.insert (asid, vpn, pte, /* level */ 1, rg_pte_pa);
-	 rg_state <= CACHE_REREQ;
+	 // Fault if PPN [0] is not 0
+	 PPN_0 ppn_0 = fn_PTE_to_PPN_0 (pte);
+	 if (ppn_0 != 0) begin
+	    rg_exc_code <= page_fault_exc_code;
+	    rg_state    <= MODULE_EXCEPTION_RSP;
 
-	 if (cfg_verbosity > 1) begin
-	    PPN ppn                = fn_PTE_to_PPN (pte);
-	    PA  addr_space_page_pa = fn_PPN_and_Offset_to_PA (ppn, 12'b0);
-	    $display ("%0d: %s.rl_ptw_level_1: for eaddr 0x%0h: pte 0x%0h @ 0x%0h: leaf PTE for megapage",
-		      cur_cycle, d_or_i, rg_addr, pte, rg_pte_pa);
-	    $display ("    Addr Space megapage pa: 0x%0h", addr_space_page_pa);
+	    if (cfg_verbosity > 1)
+	       $display ("%0d: %s.rl_ptw_level_1: for eaddr 0x%0h: megapage pte 0x%0h @ 0x%0h",
+			 cur_cycle, d_or_i, rg_addr, pte, rg_pte_pa);
+	       $display ("    Invalid PTE: PPN [0] is not zero; page fault %0d",
+			 page_fault_exc_code);
+	 end
+
+	 // Insert gigapage PTE in TLB (permissions will be checked on subsequent TLB hit)
+	 else begin
+	    tlb.insert (asid, vpn, pte, /* level */ 1, rg_pte_pa);
+	    rg_state <= CACHE_REREQ;
+
+	    if (cfg_verbosity > 1) begin
+	       PPN ppn                = fn_PTE_to_PPN (pte);
+	       PA  addr_space_page_pa = fn_PPN_and_Offset_to_PA (ppn, 12'b0);
+	       $display ("%0d: %s.rl_ptw_level_1: for eaddr 0x%0h: pte 0x%0h @ 0x%0h: leaf PTE for megapage",
+			 cur_cycle, d_or_i, rg_addr, pte, rg_pte_pa);
+	       $display ("    Addr Space megapage pa: 0x%0h", addr_space_page_pa);
+	    end
 	 end
       end
    endrule: rl_ptw_level_1
@@ -1358,7 +1394,7 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 
    rule rl_io_read_req (   (rg_state == IO_REQ)
 			&& ((rg_op == CACHE_LD) || is_AMO_LR));
-      Fabric_Addr fabric_addr = fn_PA_to_Fabric_Addr (fn_WordXL_to_PA (rg_addr));
+      Fabric_Addr fabric_addr = fn_PA_to_Fabric_Addr (rg_pa);
       let io_req_rd_addr = AXI4_Lite_Rd_Addr {araddr: fabric_addr, arprot: 0, aruser: dummy_user};
       master_xactor.i_rd_addr.enq (io_req_rd_addr);
 
@@ -1370,7 +1406,7 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
       rg_state <= IO_AWAITING_READ_RSP;
 
       if (cfg_verbosity > 1) begin
-	 $display ("%0d: %s.rl_io_read_req; f3 0x%0h addr %0h", cur_cycle, d_or_i, rg_f3, rg_addr);
+	 $display ("%0d: %s.rl_io_read_req; f3 0x%0h vaddr %0h  paddr %0h", cur_cycle, d_or_i, rg_f3, rg_addr, rg_pa);
 	 $display ("    ", io_req_rd_addr);
       end
    endrule
@@ -1381,7 +1417,7 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
    rule rl_io_read_rsp (rg_state == IO_AWAITING_READ_RSP);
       let rd_data <- pop_o (master_xactor.o_rd_data);
       if (cfg_verbosity > 1) begin
-	 $display ("%0d: %s.rl_io_read_rsp: addr 0x%0h", cur_cycle, d_or_i, rg_addr);
+	 $display ("%0d: %s.rl_io_read_rsp: vaddr 0x%0h  paddr 0x%0h", cur_cycle, d_or_i, rg_addr, rg_pa);
 	 $display ("    ", fshow (rd_data));
       end
 
@@ -1420,7 +1456,7 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
    rule rl_io_wr_req ((rg_state == IO_REQ) && (rg_op == CACHE_ST));
       match {.fabric_addr,
 	     .fabric_data,
-	     .fabric_strb } = fn_to_fabric_addr_data_strobe (rg_f3, rg_addr, rg_st_amo_val);
+	     .fabric_strb } = fn_to_fabric_addr_data_strobe (rg_f3, rg_pa, rg_st_amo_val);
       let io_req_wr_addr = AXI4_Lite_Wr_Addr {awaddr: fabric_addr, awprot: 0, awuser: dummy_user};
       let io_req_wr_data = AXI4_Lite_Wr_Data {wdata:  fabric_data, wstrb: fabric_strb};
 
@@ -1432,8 +1468,8 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
       rg_state <= CACHE_ST_AMO_RSP;
 
       if (cfg_verbosity > 1) begin
-	 $display ("%0d: %s: rl_io_wr_req; f3 0x%0h addr %0h word64 0x%0h",
-		   cur_cycle, d_or_i, rg_f3, rg_addr, rg_st_amo_val);
+	 $display ("%0d: %s: rl_io_wr_req; f3 0x%0h  vaddr %0h  paddr %0h  word64 0x%0h",
+		   cur_cycle, d_or_i, rg_f3, rg_addr, rg_pa, rg_st_amo_val);
 	 $display ("    ", fshow (io_req_wr_addr));
 	 $display ("    ", fshow (io_req_wr_data));
 	 $display ("    => rl_ST_AMO_response");
@@ -1449,8 +1485,8 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
       rg_state  <= CACHE_ST_AMO_RSP;
 
       if (cfg_verbosity > 1) begin
-	 $display ("%0d: %s: rl_io_AMO_ST_req; f3 0x%0h addr %0h word64 0x%0h",
-		   cur_cycle, d_or_i, rg_f3, rg_addr, rg_st_amo_val);
+	 $display ("%0d: %s: rl_io_AMO_ST_req; f3 0x%0h  vaddr %0h  paddr %0h  word64 0x%0h",
+		   cur_cycle, d_or_i, rg_f3, rg_addr, rg_pa, rg_st_amo_val);
 	 $display ("    FAIL due to I/O address.");
 	 $display ("    => rl_ST_AMO_response");
       end
@@ -1468,8 +1504,8 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
       rg_state    <= MODULE_EXCEPTION_RSP;
 
       if (cfg_verbosity > 1) begin
-	 $display ("%0d: %s: rl_io_AMO_op_req; f3 0x%0h amo_funct7 0x%0h addr %0h word64 0x%0h",
-		   cur_cycle, d_or_i, rg_f3, rg_amo_funct7, rg_addr, rg_st_amo_val);
+	 $display ("%0d: %s: rl_io_AMO_op_req; f3 0x%0h  amo_funct7 0x%0h  vaddr %0h  p %0h  word64 0x%0h",
+		   cur_cycle, d_or_i, rg_f3, rg_amo_funct7, rg_addr, rg_pa, rg_st_amo_val);
 	 $display ("    FAIL: AMO_ops not supported on I/O addresses.");
 	 $display ("    => rl_drive_exception_rsp");
       end

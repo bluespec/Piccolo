@@ -275,7 +275,7 @@ module mkCPU_Stage1 #(Bit #(4)         verbosity,
 	 csr_regfile.write_csr (csr_addr, csr_val);
 	 wrote_csr_minstret = ((csr_addr == csr_minstret) || (csr_addr == csr_minstreth));
 	 if (verbosity > 1)
-	    $display ("    S2: write CSR 0x%0h, val 0x%0h", csr_addr, csr_val);
+	    $display ("    S1: write CSR 0x%0h, val 0x%0h", csr_addr, csr_val);
       end
    endmethod
 

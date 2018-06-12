@@ -387,14 +387,22 @@ module mkCPU_Stage2 #(Bit #(4)         verbosity,
 	 Bit #(7) amo_funct7 = 0;
 `endif
 	 if ((x.op_stage2 == OP_Stage2_LD) || (x.op_stage2 == OP_Stage2_ST) || op_stage2_amo) begin
+	    WordXL   mstatus     = csr_regfile.read_mstatus;
 	    Bit #(1) sstatus_SUM = (csr_regfile.read_sstatus) [18];
-	    Bit #(1) mstatus_MXR = (csr_regfile.read_mstatus) [19];
+	    Bit #(1) mstatus_MXR = mstatus [19];
+	    Priv_Mode  mem_priv = x.priv;
+	    if (mstatus [17] == 1'b1) begin
+	       mem_priv = mstatus [12:11];
+	       // $display ("    S2.fa_enq: mem_priv %0d => %0d (mstatus.MPP) due to mstatus.MPRV", x.priv, mem_priv);
+	    end
+
 	    CacheOp cache_op = ?;
 	    if      (x.op_stage2 == OP_Stage2_LD)  cache_op = CACHE_LD;
 	    else if (x.op_stage2 == OP_Stage2_ST)  cache_op = CACHE_ST;
 `ifdef ISA_A
 	    else if (x.op_stage2 == OP_Stage2_AMO) cache_op = CACHE_AMO;
 `endif
+
 	    dcache.req (cache_op,
 			instr_funct3 (x.instr),
 `ifdef ISA_A
@@ -402,7 +410,7 @@ module mkCPU_Stage2 #(Bit #(4)         verbosity,
 `endif
 			x.addr,
 			zeroExtend (x.val2),
-			x.priv,
+			mem_priv,
 			sstatus_SUM,
 			mstatus_MXR,
 			csr_regfile.read_satp);
