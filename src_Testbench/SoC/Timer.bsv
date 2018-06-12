@@ -157,18 +157,21 @@ module mkTimer (Timer_IFC);
    // ----------------------------------------------------------------
    // Keep time and generate interrupt
 
-   rule rl_always (rg_state == MODULE_STATE_READY);
-      if ((! crg_interrupted [0]) && (crg_time [0] >= crg_timecmp [0])) begin
-	 crg_interrupted [0] <= True;
-	 f_timer_interrupt_req.enq (True);
-	 if  (cfg_verbosity > 1)
-	    $display ("%0d: Timer.rl_always: raising interrupt. time = %0d, timecmp = %0d",
-		      cur_cycle, crg_time [0], crg_timecmp [0]);
-      end
+   // Increment time, but saturate, do not wrap-around
+   (* fire_when_enabled, no_implicit_conditions *)
+   rule rl_tick_timer ((rg_state == MODULE_STATE_READY) && (crg_time [0] != '1));
+      crg_time [0] <= crg_time [0] + 1;
+   endrule
 
-      // Increment time, but saturate, do not wrap-around
-      if (crg_time [0] != '1)
-	 crg_time [0] <= crg_time [0] + 1;
+   // Compare and generate timer interrupt request
+   rule rl_compare ((rg_state == MODULE_STATE_READY)
+		    && (! crg_interrupted [0])
+		    && (crg_time [0] >= crg_timecmp [0]));
+      crg_interrupted [0] <= True;
+      f_timer_interrupt_req.enq (True);
+      if  (cfg_verbosity > 1)
+	 $display ("%0d: Timer.rl_compare: raising interrupt. time = %0d, timecmp = %0d",
+		   cur_cycle, crg_time [0], crg_timecmp [0]);
    endrule
 
    // ----------------------------------------------------------------

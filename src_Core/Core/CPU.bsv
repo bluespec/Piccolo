@@ -248,7 +248,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 	 Bool take_interrupt = False;
 
 	 // Interrupts
-	 if (interrupt_pending && (cur_verbosity != 0))
+	 if (interrupt_pending && (cur_verbosity > 1))
 	    $display ("    CPU.fa_start_ifetch: interrupt pending");
 
 	 take_interrupt = (take_interrupt || interrupt_pending);
@@ -270,14 +270,14 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 	 if (csr_regfile.read_dcsr_step) begin
 	    rg_step_req <= True;
 	    if (cur_verbosity != 0)
-	       $display ("    CPU: fa_start_ifetch: step request");
+	       $display ("    CPU.fa_start_ifetch: step request");
 	 end
 `endif
 
 	 if (take_interrupt) begin
 	    rg_halt <= True;
-	    if (cur_verbosity != 0)
-	       $display ("    CPU: fa_start_ifetch: setting rg_halt <= True");
+	    if (cur_verbosity > 1)
+	       $display ("    CPU.fa_start_ifetch: rg_halt <= True to take interrupt");
 	 end
       endaction
    endfunction
@@ -803,9 +803,9 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 
    rule rl_WFI_resume ((rg_state == CPU_WFI_PAUSED) && csr_regfile.wfi_resume);
       // Debug
-      fa_emit_instr_trace (rg_inum, stage1.out.data_to_stage2.pc, stage1.out.data_to_stage2.instr, rg_cur_priv);
-      if (cur_verbosity > 1)
-	 $display ("    CPU.rl_WFI_resume at PC 0x%08h, priv %0d", stage1.out.next_pc, rg_cur_priv);
+      if (cur_verbosity >= 1)
+	 $display ("    WFI resume: inum:%0d  PC:0x%0h  instr:0x%0h  priv:%0d",
+		   rg_inum, stage1.out.data_to_stage2.pc, stage1.out.data_to_stage2.instr, rg_cur_priv);
 
       // Resume pipe (it will handle the interrupt, if one is pending)
       rg_state <= CPU_RUNNING;
@@ -1010,9 +1010,9 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 
       // Debug
       fa_emit_instr_trace (rg_inum, epc, instr, rg_cur_priv);
-      if (cur_verbosity > 1)
-	 $display ("    CPU.rl_stage1_interrupt; epc 0x%0h, next PC 0x%0h, new mstatus 0x%0h",
-		   epc, next_pc, new_mstatus);
+      if (cur_verbosity > 0)
+	 $display ("%0d: CPU.rl_stage1_interrupt: epc 0x%0h  next PC 0x%0h  new_priv %0d  new mstatus 0x%0h",
+		   cur_cycle, epc, next_pc, new_priv, new_mstatus);
    endrule : rl_stage1_interrupt
 
    // ----------------

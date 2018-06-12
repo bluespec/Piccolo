@@ -202,8 +202,10 @@ module mkSoC_Top (SoC_Top_IFC);
 
    // Timer interrupt
    rule rl_connect_timer_interrupt_request;
-      let x <- timer0.get_timer_interrupt_req.get;
-      brvf_core.cpu_timer_interrupt_req (x);
+      let req <- timer0.get_timer_interrupt_req.get;
+      brvf_core.cpu_timer_interrupt_req (req);
+      if (verbosity > 1)
+	 $display ("%0d: SoC_Top.rl_connect_timer_interrupt_request: ", cur_cycle, fshow (req));
    endrule
 
    // ================================================================
