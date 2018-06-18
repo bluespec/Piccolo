@@ -991,9 +991,9 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 	 rg_state  <= PTW_LEVEL_1;
 
 	 if (cfg_verbosity > 1) begin
-	    $display ("%0d: %s.rl_rl_ptw_level_2: for eaddr 0x%0h: pte 0x%0h @ 0x%0h: continue to level 0",
+	    $display ("%0d: %s.rl_rl_ptw_level_2: for eaddr 0x%0h: pte 0x%0h @ 0x%0h: continue to level 1",
 		      cur_cycle, d_or_i, rg_addr, pte, rg_pte_pa);
-	    $display ("    Req for level 0 PTE: ", fshow (mem_req));
+	    $display ("    Req for level 1 PTE: ", fshow (mem_req));
 	 end
       end
 
@@ -1670,6 +1670,9 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
    method Action tlb_flush;
 `ifdef ISA_PRIV_S
       tlb.flush;
+      rg_state <= MODULE_READY;
+      if (cfg_verbosity > 1)
+	 $display ("%0d: %s.tlb_flush", cur_cycle, d_or_i);
 `endif
    endmethod
 

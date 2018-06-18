@@ -332,8 +332,10 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
       rg_mtvec      <= word_to_mtvec (mtvec_reset_value);
       rg_mcause     <= word_to_mcause (0);    // Supposed to be the cause of the reset.
       rg_mip        <= word_to_mip (0);
+`ifdef ISA_PRIV_S
       rg_medeleg    <= 0;
       rg_mideleg    <= 0;
+`endif
       rg_mcounteren <= mcounteren_reset_value;
 
       rw_minstret.wset (0);
@@ -527,7 +529,7 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
 	    csr_sstatus:    rg_mstatus    <= fn_write_sstatus (rg_mstatus, word);
 	    csr_sedeleg:    noAction;               // Hardwired to 0 (no delegation)
 	    csr_sideleg:    noAction;               // Hardwired to 0 (no delegation)
-	    csr_sie:        rg_mie        <= word_to_sie (word);
+	    csr_sie:        rg_mie        <= word_to_sie (word, rg_mie);
 	    csr_stvec:      rg_stvec      <= word_to_mtvec (word);
 	    csr_scounteren: noAction;
 
@@ -535,7 +537,7 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
 	    csr_sepc:       rg_sepc     <= word;
 	    csr_scause:     rg_scause   <= word_to_mcause (word);
 	    csr_stval:      rg_stval    <= word;
-	    csr_sip:        rg_mip      <= word_to_sip (word);
+	    csr_sip:        rg_mip      <= word_to_sip (word, rg_mip);
 
 	    csr_satp:       rg_satp <= word;
 

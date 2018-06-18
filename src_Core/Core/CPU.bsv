@@ -78,6 +78,7 @@ typedef enum {CPU_RESET1,
 	      CPU_CSRRX_STALL,
 	      CPU_FENCE_I,      // While waiting for FENCE.I to complete in Near_Mem
 	      CPU_FENCE,        // While waiting for FENCE to complete in Near_Mem
+	      CPU_SFENCE_VMA,
 
 	      CPU_WFI_PAUSED    // On WFI pause
    } CPU_State
@@ -750,10 +751,15 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 			      && (stage2.out.ostatus == OSTATUS_EMPTY)
 			      && (stage1.out.ostatus == OSTATUS_NONPIPE)
 			      && (stage1.out.control == CONTROL_SFENCE_VMA));
-
+      rg_state <= CPU_SFENCE_VMA;
       // Tell Near_Mem to do its SFENCE_VMA
       near_mem.sfence_vma;
 
+      if (cur_verbosity > 1)
+	 $display ("%0d: CPU.rl_stage1_SFENCE_VMA", cur_cycle);
+   endrule: rl_stage1_SFENCE_VMA
+
+   rule rl_finish_SFENCE_VMA (rg_state == CPU_SFENCE_VMA);
       // Resume pipe
       rg_state <= CPU_RUNNING;
       fa_start_ifetch (stage1.out.next_pc, rg_cur_priv);
@@ -779,8 +785,8 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
       // Debug
       fa_emit_instr_trace (rg_inum, stage1.out.data_to_stage2.pc, stage1.out.data_to_stage2.instr, rg_cur_priv);
       if (cur_verbosity > 1)
-	 $display ("    CPU.rl_stage1_SFENCE_VMA");
-   endrule: rl_stage1_SFENCE_VMA
+	 $display ("    CPU.rl_finish_SFENCE_VMA");
+   endrule: rl_finish_SFENCE_VMA
 
    // ================================================================
    // Stage1: nonpipe special: WFI

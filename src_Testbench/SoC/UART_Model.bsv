@@ -173,34 +173,33 @@ module mkUART (UART_IFC);
       Fabric_Data    rdata = 0;
       AXI4_Lite_Resp rresp = AXI4_LITE_OKAY;
 
-      case (byte_addr [7:0])
-         8'h00: begin
+      if (byte_addr [2:0] != 0) begin
+	 $display ("%0d: ERROR: UART.rl_process_rd_req: misaligned addr", cur_cycle);
+	 $display ("            ", fshow (rda));
+	 rresp = AXI4_LITE_SLVERR;
+      end
+      else
+      case (byte_addr [7:3])
+         5'h00: begin
 		   // Drive RX_DATA from the first entry of f_from_console
 		   let ch = f_from_console.first;
 		   f_from_console.deq;
-		   rdata = truncate ({24'b0, rg_ier, 24'b0, ch});
+		   rdata = {0, ch};
 		end
-	 8'h04: rdata = truncate ({ 56'b0, rg_ier });
-	 8'h08: rdata = truncate ({ 24'b0, rg_lcr, 24'b0, rg_iir });
-	 8'h0c: rdata = truncate ({ 56'b0, rg_lcr });
-	 8'h10: begin
+	 5'h01: rdata = {0, rg_ier};
+	 5'h02: rdata = {0, rg_iir};
+	 5'h03: rdata = {0, rg_lcr};
+	 5'h04: rdata = {0, rg_mcr};
+	 5'h05: begin
 		   // Transmit is always ready (from reset).
 		   //  Receive is ready if f_from_console is not empty.
 		   let lsr = (f_from_console.notEmpty
 			      ? (rg_lsr | pack (LSR_DR))
 			      : rg_lsr);
-		   rdata = truncate ({ 24'b0, lsr, 24'b0, rg_mcr });
+		   rdata = {0, lsr};
 		end
-	 8'h14: begin
-		   // Transmit is always ready (from reset).
-		   //  Receive is ready if f_from_console is not empty.
-		   let lsr = (f_from_console.notEmpty
-			      ? (rg_lsr | pack (LSR_DR))
-			      : rg_lsr);
-		   rdata = truncate ({ 56'b0, lsr });
-		end
-	 8'h18: rdata = truncate ({ 24'b0, rg_scr, 24'b0, rg_msr });
-	 8'h1c: rdata = truncate ({ 56'b0, rg_scr });
+	 5'h06: rdata = {0, rg_msr};
+	 5'h07: rdata = {0, rg_scr};
 	 default: begin
 		     $display ("%0d: ERROR: UART.rl_process_rd_req: unrecognized addr", cur_cycle);
 		     $display ("            ", fshow (rda));
@@ -232,38 +231,33 @@ module mkUART (UART_IFC);
 
       AXI4_Lite_Resp bresp = AXI4_LITE_OKAY;
 
-      if ((byte_addr [7:0] == 8'h00) && (wstrb == 'h01)) begin
-	 if ((rg_lcr & pack (LCR_DLAB)) == 0) begin
-	    Bit #(8) ch = wdata [7:0];
-	    rg_thr <= ch;
-	    f_to_console.enq (ch);
-	 end
-      end
-
-      else if ((byte_addr [7:0] == 8'h00) && (wstrb == 'h10))  rg_ier <= wdata [39:32];
-      else if ((byte_addr [7:0] == 8'h04) && (wstrb == 'h01))  rg_ier <= wdata [7:0];
-
-      else if ((byte_addr [7:0] == 8'h08) && (wstrb == 'h01))  rg_iir <= wdata [7:0];
-
-      else if ((byte_addr [7:0] == 8'h08) && (wstrb == 'h10))  rg_lcr <= wdata [39:32];
-      else if ((byte_addr [7:0] == 8'h0c) && (wstrb == 'h01))  rg_lcr <= wdata [7:0];
-
-      else if ((byte_addr [7:0] == 8'h10) && (wstrb == 'h01))  rg_mcr <= wdata [7:0];
-
-      else if ((byte_addr [7:0] == 8'h10) && (wstrb == 'h10))  rg_lsr <= wdata [39:32];
-      else if ((byte_addr [7:0] == 8'h14) && (wstrb == 'h01))  rg_lsr <= wdata [7:0];
-
-      else if ((byte_addr [7:0] == 8'h18) && (wstrb == 'h01))  rg_msr <= wdata [7:0];
-
-      else if ((byte_addr [7:0] == 8'h18) && (wstrb == 'h10))  rg_scr <= wdata [39:32];
-      else if ((byte_addr [7:0] == 8'h1c) && (wstrb == 'h01))  rg_scr <= wdata [7:0];
-
-      else begin
-	 $display ("%0d: ERROR: UART.rl_process_wr_req: unrecognized addr", cur_cycle);
+      if ((byte_addr [2:0] != 0) || (wstrb[0] != 1'b1))  begin
+	 $display ("%0d: ERROR: UART.rl_process_wr_req: misaligned addr", cur_cycle);
 	 $display ("            ", fshow (wra));
 	 $display ("            ", fshow (wrd));
 	 bresp = AXI4_LITE_SLVERR;
       end
+      else
+      case (byte_addr [7:3])
+         5'h00: if ((rg_lcr & pack (LCR_DLAB)) == 0) begin
+		   Bit #(8) ch = wdata [7:0];
+		   rg_thr <= ch;
+		   f_to_console.enq (ch);
+		end
+	 5'h01: rg_ier <= wdata [7:0];
+	 5'h02: rg_iir <= wdata [7:0];
+	 5'h03: rg_lcr <= wdata [7:0];
+	 5'h04: rg_mcr <= wdata [7:0];
+	 5'h05: rg_lsr <= wdata [7:0];
+	 5'h06: rg_msr <= wdata [7:0];
+	 5'h07: rg_scr <= wdata [7:0];
+	 default: begin
+		     $display ("%0d: ERROR: UART.rl_process_wr_req: unrecognized addr", cur_cycle);
+		     $display ("            ", fshow (wra));
+		     $display ("            ", fshow (wrd));
+		     bresp = AXI4_LITE_SLVERR;
+		  end
+      endcase
 
       let wrr = AXI4_Lite_Wr_Resp {bresp: bresp, buser: wra.awuser};
       slave_xactor.i_wr_resp.enq (wrr);

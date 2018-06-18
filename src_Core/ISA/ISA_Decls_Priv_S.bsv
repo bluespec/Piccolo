@@ -67,10 +67,10 @@ function WordXL sip_to_word (MIP sip);
    return (sip_w & 'h333);
 endfunction
 
-function MIP word_to_sip (WordXL x);
-   return MIP {eips: unpack ( {1'b0, 1'b0, x[9], x[8]} ),
-	       tips: unpack ( {1'b0, 1'b0, x[5], x[4]} ),
-	       sips: unpack ( {1'b0, 1'b0, x[1], x[0]} ) };
+function MIP word_to_sip (WordXL x, MIP mip);
+   return MIP {eips: unpack ( {mip.eips[3], mip.eips[2], x[9], x[8]} ),
+	       tips: unpack ( {mip.tips[3], mip.tips[2], x[5], x[4]} ),
+	       sips: unpack ( {mip.sips[3], mip.sips[2], x[1], x[0]} ) };
 endfunction
 
 function WordXL sie_to_word (MIE sie);
@@ -78,10 +78,10 @@ function WordXL sie_to_word (MIE sie);
    return (sie_w & 'h333);
 endfunction
 
-function MIE word_to_sie (WordXL x);
-   return MIE {eies: unpack ( {1'b0, 1'b0, x[9], x[8]} ),
-	       ties: unpack ( {1'b0, 1'b0, x[5], x[4]} ),
-	       sies: unpack ( {1'b0, 1'b0, x[1], x[0]} ) };
+function MIE word_to_sie (WordXL x, MIE mie);
+   return MIE {eies: unpack ( {mie.eies[3], mie.eies[2], x[9], x[8]} ),
+	       ties: unpack ( {mie.ties[3], mie.ties[2], x[5], x[4]} ),
+	       sies: unpack ( {mie.sies[3], mie.sies[2], x[1], x[0]} ) };
 endfunction
 
 // ================================================================

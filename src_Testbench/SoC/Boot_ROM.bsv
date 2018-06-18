@@ -34,11 +34,11 @@ import AXI4_Lite_Types :: *;
 // Include the auto-generated BSV-include file with the ROM function
 
 `ifdef RV32
-`include  "Boot_ROM_Generator/fn_read_ROM_RV32.bsvi"
+`include  "fn_read_ROM_RV32.bsvi"
 `endif
 
 `ifdef RV64
-`include  "Boot_ROM_Generator/fn_read_ROM_RV64.bsvi"
+`include  "fn_read_ROM_RV64.bsvi"
 `endif
 
 // ================================================================
