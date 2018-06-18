@@ -234,6 +234,33 @@ endinstance
 // ================================================================
 // MSTATUS
 
+Integer mstatus_sd_bitpos      = xlen - 1;
+
+Integer mstatus_sxl_bitpos     = 34;
+Integer mstatus_uxl_bitpos     = 32;
+
+Integer mstatus_tsr_bitpos     = 22;
+Integer mstatus_tw_bitpos      = 21;
+Integer mstatus_tvm_bitpos     = 20;
+
+Integer mstatus_mxr_bitpos     = 19;
+Integer mstatus_sum_bitpos     = 18;
+Integer mstatus_mprv_bitpos    = 17;
+
+Integer mstatus_xs_bitpos      = 15;
+Integer mstatus_fs_bitpos      = 13;
+
+Integer mstatus_mpp_bitpos     = 11;
+Integer mstatus_spp_bitpos     =  8;
+
+Integer mstatus_mpie_bitpos    =  7;
+Integer mstatus_spie_bitpos    =  5;
+Integer mstatus_upie_bitpos    =  4;
+
+Integer mstatus_mie_bitpos     =  3;
+Integer mstatus_sie_bitpos     =  1;
+Integer mstatus_uie_bitpos     =  0;
+
 // ----------------
 // Logical view
 
@@ -659,6 +686,18 @@ function MIE word_to_mie (WordXL x);
    };
 endfunction
 
+Integer mip_usip_bitpos =  0;
+Integer mip_ssip_bitpos =  1;
+Integer mip_msip_bitpos =  3;
+
+Integer mip_utip_bitpos =  4;
+Integer mip_stip_bitpos =  5;
+Integer mip_mtip_bitpos =  7;
+
+Integer mip_ueip_bitpos =  8;
+Integer mip_seip_bitpos =  9;
+Integer mip_meip_bitpos = 11;
+
 // ================================================================
 // MCAUSE (reason for exception)
 
@@ -782,34 +821,57 @@ endfunction
 // and if so, corresponding exception code
 
 function Maybe #(Exc_Code) fn_interrupt_pending (WordXL mstatus, WordXL mip, WordXL mie, Priv_Mode cur_priv);
-   Bit #(1) ip = 0;
-   Exc_Code exc_code = ?;
-   for (Integer j = 0; j < valueOf (Num_Priv_Modes); j = j + 1) begin
+    // From mie and mip, find which interrupts are pending
+   WordXL mi_p_and_e = (mip & mie);
+   Bool meip = (mi_p_and_e [mip_meip_bitpos] == 1);
+   Bool seip = (mi_p_and_e [mip_seip_bitpos] == 1);
+   Bool ueip = (mi_p_and_e [mip_ueip_bitpos] == 1);
 
-      // Interrupts enabled if mstatus [j] is set for cur_priv or higher privs
-      Bit #(1) ipj = 0;
-      for (Integer k = 0; k < valueOf (Num_Priv_Modes); k = k + 1)
-	 if (fromInteger (k) >= cur_priv)
-	    ipj = ipj | mstatus [k];
+   Bool mtip = (mi_p_and_e [mip_mtip_bitpos] == 1);
+   Bool stip = (mi_p_and_e [mip_stip_bitpos] == 1);
+   Bool utip = (mi_p_and_e [mip_utip_bitpos] == 1);
 
-      // Interrupt-pending/enable in mip and mie
-      if (ipj == 1) begin
-	 // Spec: prioritize external > software > timer
-	 Integer j_external = 8;
-	 Integer j_sw       = 0;
-	 Integer j_timer    = 4;
-	 if ((mip [j + j_external] & mie [j + j_external]) == 1)
-	    exc_code = fromInteger (j + j_external);
-	 else if ((mip [j + j_sw] & mie [j + j_sw]) == 1)
-	    exc_code = fromInteger (j + j_sw);
-	 else if ((mip [j + j_timer] & mie [j + j_timer]) == 1)
-	    exc_code = fromInteger (j + j_timer);
-	 else
-	    ipj = 1'b0;
-      end
-      ip = ip | ipj;
-   end
-   return ((ip == 1) ? tagged Valid exc_code : tagged Invalid);
+   Bool msip = (mi_p_and_e [mip_msip_bitpos] == 1);
+   Bool ssip = (mi_p_and_e [mip_ssip_bitpos] == 1);
+   Bool usip = (mi_p_and_e [mip_usip_bitpos] == 1);
+
+    // Priotitize 'external' > 'software' > 'timer'
+   Exc_Code  exc_code_m = (meip ? exc_code_MACHINE_EXTERNAL_INTERRUPT
+			   : (msip ? exc_code_MACHINE_SW_INTERRUPT
+			      : /* mtip */ exc_code_MACHINE_TIMER_INTERRUPT));
+
+   Exc_Code  exc_code_s = (seip ? exc_code_SUPERVISOR_EXTERNAL_INTERRUPT
+			   : (ssip ? exc_code_SUPERVISOR_SW_INTERRUPT
+			      : /* stip */ exc_code_SUPERVISOR_TIMER_INTERRUPT));
+
+   Exc_Code  exc_code_u = (ueip ? exc_code_USER_EXTERNAL_INTERRUPT
+			   : (usip ? exc_code_USER_SW_INTERRUPT
+			      : /* utip */ exc_code_USER_TIMER_INTERRUPT));
+
+   Bool mstatus_mie = (mstatus [mstatus_mie_bitpos] == 1);
+   Bool mstatus_sie = (mstatus [mstatus_sie_bitpos] == 1);
+   Bool mstatus_uie = (mstatus [mstatus_uie_bitpos] == 1);
+
+   Maybe #(Exc_Code) m_ec = tagged Invalid;
+
+   if ((cur_priv == m_Priv_Mode) && mstatus_mie && (meip || mtip || msip))
+      m_ec = tagged Valid exc_code_m;
+   else if ((cur_priv == m_Priv_Mode) && mstatus_mie && (seip || stip || ssip))
+      m_ec = tagged Valid exc_code_s;
+   else if ((cur_priv == m_Priv_Mode) && mstatus_mie && (ueip || utip || usip))
+      m_ec = tagged Valid exc_code_u;
+
+   // TODO: the following should use 'sstatus', not 'mstatus'?
+   else if ((cur_priv == s_Priv_Mode) && mstatus_sie && (seip || stip || ssip))
+      m_ec = tagged Valid exc_code_s;
+   else if ((cur_priv == s_Priv_Mode) && mstatus_sie && (ueip || utip || usip))
+      m_ec = tagged Valid exc_code_u;
+
+   // TODO: the following should use 'ustatus', not 'mstatus'?
+   else if ((cur_priv == u_Priv_Mode) && mstatus_uie && (ueip || utip || usip))
+      m_ec = tagged Valid exc_code_u;
+
+   return m_ec;
 endfunction
 
 // ================================================================

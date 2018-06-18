@@ -42,6 +42,7 @@ typedef struct {
    WordXL         rs2_val;
    Bool           csr_valid;
    WordXL         csr_val;
+   WordXL         mstatus;
    } ALU_Inputs
 deriving (Bits, FShow);
 
@@ -561,7 +562,9 @@ function ALU_Outputs fv_SYSTEM (ALU_Inputs inputs);
 `ifdef ISA_PRIV_S
       // SFENCE.VMA instruction
       if (   (inputs.decoded_instr.rd  == 0)
-	  && (inputs.cur_priv >= s_Priv_Mode)
+	  && (   (inputs.cur_priv == m_Priv_Mode)
+	      || (   (inputs.cur_priv == s_Priv_Mode)
+		  && (inputs.mstatus [mstatus_tvm_bitpos] == 0)))
 	  && (inputs.decoded_instr.funct7 == f7_SFENCE_VMA))
 	 begin
 	    alu_outputs.control = CONTROL_SFENCE_VMA;
@@ -596,7 +599,9 @@ function ALU_Outputs fv_SYSTEM (ALU_Inputs inputs);
 
 	    // SRET instruction
 	    // TODO: If MSTATUS.TSR bit is set, mode must be >= m_Priv_Mode
-	    else if (   (inputs.cur_priv >= s_Priv_Mode)
+	    else if (   (   (inputs.cur_priv == m_Priv_Mode)
+			 || (   (inputs.cur_priv == s_Priv_Mode)
+			     && (inputs.mstatus [mstatus_tsr_bitpos] == 0)))
 		     && (inputs.decoded_instr.imm12_I == f12_SRET))
 	       begin
 		  alu_outputs.control = CONTROL_SRET;
@@ -610,12 +615,14 @@ function ALU_Outputs fv_SYSTEM (ALU_Inputs inputs);
 	       end
 
 	    // WFI instruction
-	    // TODO: also enable if MISA.N is set
+	    // TODO: also enable if u_Priv_Mode and MISA.N and is set
 	    else if (   (   (inputs.cur_priv == m_Priv_Mode)
-			 || (inputs.cur_priv == s_Priv_Mode))
-		     && (inputs.decoded_instr.imm12_I == f12_WFI)) begin
-	       alu_outputs.control = CONTROL_WFI;
-	    end
+			 || (   (inputs.cur_priv == s_Priv_Mode)
+			     && (inputs.mstatus [mstatus_tw_bitpos] == 0)))
+		     && (inputs.decoded_instr.imm12_I == f12_WFI))
+	       begin
+		  alu_outputs.control = CONTROL_WFI;
+	       end
 
 	    else begin
 	       alu_outputs.control = CONTROL_TRAP;
@@ -642,7 +649,9 @@ function ALU_Outputs fv_SYSTEM (ALU_Inputs inputs);
       // New value of Rd = old value of csr
       WordXL rd_val = ((inputs.decoded_instr.rd == 0) ? 0 : csr_val);
 
-      Bool trap      = (! inputs.csr_valid);
+      Bool trap      = (   (! inputs.csr_valid)
+			|| (   (inputs.decoded_instr.csr == csr_satp)
+			    && (inputs.mstatus [mstatus_tvm_bitpos] == 1)));
       Bool write_csr = True;
 
       // New value of CSR

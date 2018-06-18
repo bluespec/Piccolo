@@ -175,7 +175,8 @@ module mkCPU_Stage1 #(Bit #(4)         verbosity,
 				   rs1_val:        rs1_val_bypassed,
 				   rs2_val:        rs2_val_bypassed,
 				   csr_valid:      csr_valid,
-				   csr_val:        csr_val };
+				   csr_val:        csr_val,
+				   mstatus:        csr_regfile.read_mstatus};
       let alu_outputs = fv_ALU (alu_inputs);
 
       Output_Stage1 output_stage1 = ?;
