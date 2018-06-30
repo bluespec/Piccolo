@@ -820,56 +820,84 @@ endfunction
 //     whether or not an interrupt is pending,
 // and if so, corresponding exception code
 
-function Maybe #(Exc_Code) fn_interrupt_pending (WordXL mstatus, WordXL mip, WordXL mie, Priv_Mode cur_priv);
-    // From mie and mip, find which interrupts are pending
-   WordXL mi_p_and_e = (mip & mie);
-   Bool meip = (mi_p_and_e [mip_meip_bitpos] == 1);
-   Bool seip = (mi_p_and_e [mip_seip_bitpos] == 1);
-   Bool ueip = (mi_p_and_e [mip_ueip_bitpos] == 1);
+function Maybe #(Exc_Code) fn_interrupt_pending (MISA       misa,
+						 WordXL     mstatus,
+						 WordXL     mip,
+						 WordXL     mie,
+						 Bit #(12)  mideleg,
+						 Bit #(12)  sideleg,
+						 Priv_Mode  cur_priv);
 
-   Bool mtip = (mi_p_and_e [mip_mtip_bitpos] == 1);
-   Bool stip = (mi_p_and_e [mip_stip_bitpos] == 1);
-   Bool utip = (mi_p_and_e [mip_utip_bitpos] == 1);
+   function Maybe #(Exc_Code) fn_interrupt_i_pending (Exc_Code i);
+      Bool intr_pending = ((mip [i] == 1) && (mie [i] == 1));
+      Priv_Mode handler_priv;
+      if (mideleg [i] == 1)
+	 if (misa.u == 1)
+	    if (misa.s == 1)
+	       // System with M, S, U
+	       if (sideleg [i] == 1)
+		  if (misa.n == 1)
+		     // M->S->U delegation
+		     handler_priv = u_Priv_Mode;
+		  else
+		     // Error: SIDELEG [i] should not be 1 if MISA.N is 0
+		     handler_priv = m_Priv_Mode;
+	       else
+                  // M->S delegation
+		  handler_priv = s_Priv_Mode;
+	    else
+	       // System with M, U
+	       if (misa.n == 1)
+		  // M->U delegation
+		  handler_priv = u_Priv_Mode;
+	       else
+		  // Error: MIDELEG [i] should not be 1 if MISA.N is 0
+		  handler_priv = m_Priv_Mode;
+	 else
+	    // Error: System with M only; MIDELEG [i] should not be 1
+	    handler_priv = m_Priv_Mode;
+      else
+	 // no delegation
+	 handler_priv = m_Priv_Mode;
 
-   Bool msip = (mi_p_and_e [mip_msip_bitpos] == 1);
-   Bool ssip = (mi_p_and_e [mip_ssip_bitpos] == 1);
-   Bool usip = (mi_p_and_e [mip_usip_bitpos] == 1);
+      Bool xie;
+      if (cur_priv == u_Priv_Mode)
+         xie = (mstatus [mstatus_uie_bitpos] == 1);
+      else if (cur_priv == s_Priv_Mode)
+         xie = (mstatus [mstatus_sie_bitpos] == 1);
+      else if (cur_priv == m_Priv_Mode)
+         xie = (mstatus [mstatus_mie_bitpos] == 1);
+      else
+         // Error: unexpected mode
+	 xie = False;
 
-    // Priotitize 'external' > 'software' > 'timer'
-   Exc_Code  exc_code_m = (meip ? exc_code_MACHINE_EXTERNAL_INTERRUPT
-			   : (msip ? exc_code_MACHINE_SW_INTERRUPT
-			      : /* mtip */ exc_code_MACHINE_TIMER_INTERRUPT));
+      Bool glob_enabled = (   (cur_priv < handler_priv)
+			   || ((cur_priv == handler_priv) && xie));
 
-   Exc_Code  exc_code_s = (seip ? exc_code_SUPERVISOR_EXTERNAL_INTERRUPT
-			   : (ssip ? exc_code_SUPERVISOR_SW_INTERRUPT
-			      : /* stip */ exc_code_SUPERVISOR_TIMER_INTERRUPT));
+      return ((intr_pending && glob_enabled) ? (tagged Valid i) : (tagged Invalid));
+   endfunction
 
-   Exc_Code  exc_code_u = (ueip ? exc_code_USER_EXTERNAL_INTERRUPT
-			   : (usip ? exc_code_USER_SW_INTERRUPT
-			      : /* utip */ exc_code_USER_TIMER_INTERRUPT));
+   // Check all interrupts in the following decreasing priority order
+   Maybe #(Exc_Code) m_ec;
+   m_ec = fn_interrupt_i_pending (exc_code_MACHINE_EXTERNAL_INTERRUPT);
+   if (m_ec matches tagged Invalid)
+      m_ec = fn_interrupt_i_pending (exc_code_MACHINE_SW_INTERRUPT);
+   if (m_ec matches tagged Invalid)
+      m_ec = fn_interrupt_i_pending (exc_code_MACHINE_TIMER_INTERRUPT);
 
-   Bool mstatus_mie = (mstatus [mstatus_mie_bitpos] == 1);
-   Bool mstatus_sie = (mstatus [mstatus_sie_bitpos] == 1);
-   Bool mstatus_uie = (mstatus [mstatus_uie_bitpos] == 1);
+   if (m_ec matches tagged Invalid)
+      m_ec = fn_interrupt_i_pending (exc_code_SUPERVISOR_EXTERNAL_INTERRUPT);
+   if (m_ec matches tagged Invalid)
+      m_ec = fn_interrupt_i_pending (exc_code_SUPERVISOR_SW_INTERRUPT);
+   if (m_ec matches tagged Invalid)
+      m_ec = fn_interrupt_i_pending (exc_code_SUPERVISOR_TIMER_INTERRUPT);
 
-   Maybe #(Exc_Code) m_ec = tagged Invalid;
-
-   if ((cur_priv == m_Priv_Mode) && mstatus_mie && (meip || mtip || msip))
-      m_ec = tagged Valid exc_code_m;
-   else if ((cur_priv == m_Priv_Mode) && mstatus_mie && (seip || stip || ssip))
-      m_ec = tagged Valid exc_code_s;
-   else if ((cur_priv == m_Priv_Mode) && mstatus_mie && (ueip || utip || usip))
-      m_ec = tagged Valid exc_code_u;
-
-   // TODO: the following should use 'sstatus', not 'mstatus'?
-   else if ((cur_priv == s_Priv_Mode) && mstatus_sie && (seip || stip || ssip))
-      m_ec = tagged Valid exc_code_s;
-   else if ((cur_priv == s_Priv_Mode) && mstatus_sie && (ueip || utip || usip))
-      m_ec = tagged Valid exc_code_u;
-
-   // TODO: the following should use 'ustatus', not 'mstatus'?
-   else if ((cur_priv == u_Priv_Mode) && mstatus_uie && (ueip || utip || usip))
-      m_ec = tagged Valid exc_code_u;
+   if (m_ec matches tagged Invalid)
+      m_ec = fn_interrupt_i_pending (exc_code_USER_EXTERNAL_INTERRUPT);
+   if (m_ec matches tagged Invalid)
+      m_ec = fn_interrupt_i_pending (exc_code_USER_SW_INTERRUPT);
+   if (m_ec matches tagged Invalid)
+      m_ec = fn_interrupt_i_pending (exc_code_USER_TIMER_INTERRUPT);
 
    return m_ec;
 endfunction

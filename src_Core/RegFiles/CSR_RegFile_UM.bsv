@@ -896,9 +896,12 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
    endmethod
 
    method Maybe #(Exc_Code) interrupt_pending (Priv_Mode cur_priv);
-      return fn_interrupt_pending (mstatus_to_word (rg_mstatus),
+      return fn_interrupt_pending (misa,
+				   mstatus_to_word (rg_mstatus),
 				   mip_to_word     (rg_mip),
 				   mie_to_word     (rg_mie),
+				   rg_mideleg,
+				   sideleg,
 				   cur_priv);
    endmethod
 
