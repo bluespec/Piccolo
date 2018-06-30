@@ -608,12 +608,15 @@ function ALU_Outputs fv_SYSTEM (ALU_Inputs inputs);
 		  alu_outputs.control = CONTROL_SRET;
 	       end
 
-	    // URET instruction
+
+	    /*
+	    // URET instruction (future: Piccolo does not support 'N' extension)
 	    else if (   (inputs.cur_priv >= u_Priv_Mode)
 		     && (inputs.decoded_instr.imm12_I == f12_URET))
 	       begin
 		  alu_outputs.control = CONTROL_URET;
 	       end
+	    */
 
 	    // WFI instruction
 	    else if (   (   (inputs.cur_priv == m_Priv_Mode)

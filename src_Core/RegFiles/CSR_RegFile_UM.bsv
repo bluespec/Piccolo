@@ -541,7 +541,13 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
 	    csr_sepc:       rg_sepc     <= word;
 	    csr_scause:     rg_scause   <= word_to_mcause (word);
 	    csr_stval:      rg_stval    <= word;
-	    csr_sip:        rg_mip      <= word_to_sip (word, rg_mip);
+	    csr_sip:        begin
+			       // Only UIEP and SSIP, USIP are writeable
+			       let mask    = 'h103;
+			       let old_mip = mip_to_word (rg_mip);
+			       let new_mip = ((old_mip & (~ mask)) | (word & mask));
+			       rg_mip <= word_to_mip (new_mip);
+			    end
 
 	    csr_satp:       rg_satp <= word;
 
@@ -562,10 +568,16 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
 	    csr_mcounteren:rg_mcounteren <= word_to_mcounteren(word);
 
 	    csr_mscratch:  rg_mscratch <= word;
-	    csr_mepc:      rg_mepc <= word;
-	    csr_mcause:    rg_mcause <= word_to_mcause (word);
-	    csr_mtval:     rg_mtval <= word;
-	    csr_mip:       rg_mip <= word_to_mip (word);
+	    csr_mepc:      rg_mepc     <= word;
+	    csr_mcause:    rg_mcause   <= word_to_mcause (word);
+	    csr_mtval:     rg_mtval    <= word;
+	    csr_mip:       begin
+			      // Only SEIP, UEIP, STIP, UTIP and SSIP, USIP are writeable
+			      let mask    = 'h333;
+			      let old_mip = mip_to_word (rg_mip);
+			      let new_mip = ((old_mip & (~ mask)) | (word & mask));
+			      rg_mip <= word_to_mip (new_mip);
+			   end
 
 	    // csr_pmpcfg0:   rf_pmpcfg.upd (0, word);
 	    // csr_pmpcfg1:   rf_pmpcfg.upd (1, word);

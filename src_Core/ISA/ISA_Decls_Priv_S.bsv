@@ -68,6 +68,7 @@ function WordXL sip_to_word (MIP sip);
 endfunction
 
 function MIP word_to_sip (WordXL x, MIP mip);
+   // Only update SEIP, UEIP, STIP, UTIP, SSIP, USIP; preserve rest of mip
    return MIP {eips: unpack ( {mip.eips[3], mip.eips[2], x[9], x[8]} ),
 	       tips: unpack ( {mip.tips[3], mip.tips[2], x[5], x[4]} ),
 	       sips: unpack ( {mip.sips[3], mip.sips[2], x[1], x[0]} ) };

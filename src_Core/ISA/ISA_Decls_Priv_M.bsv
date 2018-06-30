@@ -401,8 +401,14 @@ function MStatus word_to_mstatus (MISA misa, WordXL x);
 		   fs: (((misa.f == 1) || (misa.d == 1)) ? x [14:13] : 0),
 		   mpp: x [12:11],
 		   spp: (x[8] == 0) ? u_Priv_Mode : s_Priv_Mode,
-		   pies: unpack ({ x[7], 1'b0, x[5], x[4] }),
-		   ies:  unpack ({ x[3], 1'b0, x[1], x[0] })
+		   pies: unpack ({x[7],
+				  1'b0,
+				  ((misa.s == 0) ? 0 : x[5]),
+				  ((misa.n == 0) ? 0 : x[4]) }),
+		   ies:  unpack ({x[3],
+				  1'b0,
+				  ((misa.s == 0) ? 0 : x[1]),
+				  ((misa.n == 0) ? 0 : x[0]) })
 		};
 endfunction
 
