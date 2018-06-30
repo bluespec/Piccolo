@@ -43,6 +43,7 @@ typedef struct {
    Bool           csr_valid;
    WordXL         csr_val;
    WordXL         mstatus;
+   MISA           misa;
    } ALU_Inputs
 deriving (Bits, FShow);
 
@@ -615,10 +616,11 @@ function ALU_Outputs fv_SYSTEM (ALU_Inputs inputs);
 	       end
 
 	    // WFI instruction
-	    // TODO: also enable if u_Priv_Mode and MISA.N and is set
 	    else if (   (   (inputs.cur_priv == m_Priv_Mode)
 			 || (   (inputs.cur_priv == s_Priv_Mode)
-			     && (inputs.mstatus [mstatus_tw_bitpos] == 0)))
+			     && (inputs.mstatus [mstatus_tw_bitpos] == 0))
+			 || (   (inputs.cur_priv == u_Priv_Mode)
+			     && (inputs.misa.n == 1)))
 		     && (inputs.decoded_instr.imm12_I == f12_WFI))
 	       begin
 		  alu_outputs.control = CONTROL_WFI;
@@ -692,42 +694,38 @@ function ALU_Outputs fv_SYSTEM (ALU_Inputs inputs);
 `endif
 	 csr_val = csr_val & mask;
 
-`ifndef ISA_FD
-	 // Force mstatus.FS to 0
-	 WordXL mask_in_fs = 'h_6000;
-	 csr_val = (csr_val & (~ mask_in_fs));
-`endif
+	 if ((inputs.misa.f == 0) && (inputs.misa.d == 0)) begin
+	    // Force mstatus.FS to 0
+	    WordXL mask_in_fs = 'h_6000;
+	    csr_val = (csr_val & (~ mask_in_fs));
+	 end
 
 	 // If mpp is not supported, force the value to a supported value
-	 // TODO: Make misa an input
-	 MISA misa;
-	 misa.s = 1'b0;
-	 misa.u = 1'b0;
-`ifdef ISA_PRIV_S
-	 misa.s = 1'b1;
-`else
-         // Disable spp, spie, sie
-	 WordXL mask_in_s = 'h_0122;
-	 csr_val = (csr_val & (~ mask_in_s));
-`endif
-`ifdef ISA_PRIV_U
-	 misa.u = 1'b1;
-`ifndef ISA_N
-         // Disable upie, uie
-	 WordXL mask_in_u = 'h_0011;
-	 csr_val = (csr_val & (~ mask_in_u));
-`endif
-`else
-         // Disable upie, uie
-	 WordXL mask_in_u = 'h_0011;
-	 csr_val = (csr_val & (~ mask_in_u));
-`endif
+	 if (inputs.misa.s == 0) begin
+            // Disable spp, spie, sie
+	    WordXL mask_in_s = 'h_0122;
+	    csr_val = (csr_val & (~ mask_in_s));
+	 end
+
+	 if (inputs.misa.u == 1) begin
+	    if (inputs.misa.n == 0) begin
+               // Disable upie, uie
+	       WordXL mask_in_u = 'h_0011;
+	       csr_val = (csr_val & (~ mask_in_u));
+	    end
+	 end
+	 else begin
+            // Disable upie, uie
+	    WordXL mask_in_u = 'h_0011;
+	    csr_val = (csr_val & (~ mask_in_u));
+	 end
+
 	 Priv_Mode mpp = csr_val [12:11];
-	 if (misa.u == 1'b0) begin
+	 if (inputs.misa.u == 1'b0) begin
 	    // Only M supported
 	    mpp = m_Priv_Mode;
 	 end
-	 else if (misa.s == 1'b0) begin
+	 else if (inputs.misa.s == 1'b0) begin
 	    // Only M and U supported
 	    if (mpp != m_Priv_Mode)
 	       mpp = u_Priv_Mode;
@@ -740,9 +738,8 @@ function ALU_Outputs fv_SYSTEM (ALU_Inputs inputs);
 	 csr_val [12:11] = mpp;
 
 	 // If spp is not supported, force the value
-	 // TODO: consult misa
 	 Priv_Mode spp = {0, csr_val [8]};
-	 if (misa.s == 1'b0)
+	 if (inputs.misa.s == 1'b0)
 	    spp = u_Priv_Mode;
 	 csr_val [8] = spp [0];
 

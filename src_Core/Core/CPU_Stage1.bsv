@@ -176,7 +176,9 @@ module mkCPU_Stage1 #(Bit #(4)         verbosity,
 				   rs2_val:        rs2_val_bypassed,
 				   csr_valid:      csr_valid,
 				   csr_val:        csr_val,
-				   mstatus:        csr_regfile.read_mstatus};
+				   mstatus:        csr_regfile.read_mstatus,
+				   misa:           csr_regfile.read_misa};
+
       let alu_outputs = fv_ALU (alu_inputs);
 
       Output_Stage1 output_stage1 = ?;
@@ -269,6 +271,7 @@ module mkCPU_Stage1 #(Bit #(4)         verbosity,
       // Writeback CSR if valid
       let data_to_stage2 = fv_out.data_to_stage2;
 
+      // TODO: do we suppress MINSTRET increment if we write minstret here?
       Bool wrote_csr_minstret = False;
       if (data_to_stage2.csr_valid) begin
 	 CSR_Addr csr_addr = truncate (data_to_stage2.addr);

@@ -385,19 +385,11 @@ function WordXL mstatus_to_word (MStatus ms);
 endfunction
 
 // TODO: this should take current privilege mode and misa into account (see Cissr code, e.g.)
-function MStatus word_to_mstatus (WordXL x);
+function MStatus word_to_mstatus (MISA misa, WordXL x);
    return MStatus {sd: msb (x),
 `ifdef RV64
-`ifdef ISA_PRIV_S
-                   sxl: 2'b10,                   // sxl: x [35:34],
-`else
-                   sxl: 0,
-`endif
-`ifdef ISA_PRIV_U
-                   uxl: 2'b10,                   // uxl: x [33:32],
-`else
-                   uxl: 0,
-`endif
+		   sxl: ((misa.s == 1) ? misa.mxl : 0),    // sxl: x [35:34], WARL field
+		   uxl: ((misa.u == 1) ? misa.mxl : 0),    // sxl: x [35:34], WARL field
 `endif
 		   tsr:  x [22],
 		   tw:  x [21],
@@ -406,11 +398,7 @@ function MStatus word_to_mstatus (WordXL x);
 		   sum:  x [18],
 		   mprv: x [17],
 		   xs:   x [16:15],
-`ifdef ISA_FD
-		   fs:   x [14:13],
-`else
-		   fs:   0,
-`endif
+		   fs: (((misa.f == 1) || (misa.d == 1)) ? x [14:13] : 0),
 		   mpp: x [12:11],
 		   spp: (x[8] == 0) ? u_Priv_Mode : s_Priv_Mode,
 		   pies: unpack ({ x[7], 1'b0, x[5], x[4] }),
@@ -456,9 +444,9 @@ function WordXL fn_read_sstatus (MStatus x);
    return sstatus_w;
 endfunction
 
-function MStatus fn_write_sstatus (MStatus mstatus, WordXL x);
+function MStatus fn_write_sstatus (MISA misa,  MStatus mstatus,  WordXL x);
   MStatus res = mstatus;
-  MStatus mx = word_to_mstatus (x);
+  MStatus mx = word_to_mstatus (misa, x);
   // Update the fields which are not WPRI
   res.sd   = mx.sd;
 `ifdef RV64
@@ -816,7 +804,7 @@ function Fmt fshow_trap_Exc_Code (Exc_Code exc_code);
 endfunction
 
 // ================================================================
-// Function from mstatus, mip, mie and current privilege to:
+// Function from various CSRs and current privilege to:
 //     whether or not an interrupt is pending,
 // and if so, corresponding exception code
 

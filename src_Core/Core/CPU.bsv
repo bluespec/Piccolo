@@ -319,9 +319,10 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 		      || (rg_state == CPU_FENCE_I)
 		      || (rg_state == CPU_FENCE)));
       let mstatus = csr_regfile.read_mstatus;
+      let misa    = csr_regfile.read_misa;
       $display ("================================================================");
       $display ("%0d: Pipeline State:  inum:%0d  cur_priv:%0d  mstatus:%0x", cur_cycle, rg_inum, rg_cur_priv, mstatus);
-      $display ("    ", fshow (word_to_mstatus (mstatus)));
+      $display ("    ", fshow (word_to_mstatus (misa, mstatus)));
 
       $display ("    Bypass S1 <= S3: ", fshow (stage3.out.bypass));
       $display ("    S3: ", fshow (stage3.out));

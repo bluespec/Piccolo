@@ -67,6 +67,6 @@ $(BUILD_SRC_DIR)/boot_ROM_$(RV).memhex: $(BUILD_SRC_DIR)  $(BUILD_SRC_DIR)/gen_b
 	$(BUILD_SRC_DIR)/gen_bootrom_$(RV).exe  "$(RV)"  "$(ISA_STRING)"  >  $@
 
 $(BUILD_SRC_DIR)/gen_bootrom_$(RV).exe: $(BUILD_SRC_DIR)  $(GEN_BOOTROM_DIR)/gen_bootrom.cc
-	$(CXX)  -o $@  $(CXXFLAGS)  -std=c++11  -D $(RV)  $(GEN_BOOTROM_DIR)/gen_bootrom.cc
+	$(CXX)  -o $@  $(CXXFLAGS)  -std=c++11  $(GEN_BOOTROM_DIR)/gen_bootrom.cc
 
 # ----------------------------------------------------------------

@@ -56,9 +56,9 @@ interface CSR_RegFile_IFC;
    (* always_ready *)
    method Action write_csr (CSR_Addr csr_addr, Word word);
 
-   // Read SATP
+   // Read MISA
    (* always_ready *)
-   method WordXL read_satp;
+   method MISA read_misa;
 
    // Read MSTATUS
    (* always_ready *)
@@ -67,6 +67,10 @@ interface CSR_RegFile_IFC;
    // Read SSTATUS
    (* always_ready *)
    method WordXL read_sstatus;
+
+   // Read SATP
+   (* always_ready *)
+   method WordXL read_satp;
 
    // CSR trap actions
    method ActionValue #(Tuple4 #(Addr, Word, Word, Priv_Mode))
@@ -526,7 +530,7 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
 `endif
 
 `ifdef ISA_PRIV_S
-	    csr_sstatus:    rg_mstatus    <= fn_write_sstatus (rg_mstatus, word);
+	    csr_sstatus:    rg_mstatus    <= fn_write_sstatus (misa, rg_mstatus, word);
 	    csr_sedeleg:    noAction;               // Hardwired to 0 (no delegation)
 	    csr_sideleg:    noAction;               // Hardwired to 0 (no delegation)
 	    csr_sie:        rg_mie        <= word_to_sie (word, rg_mie);
@@ -551,7 +555,7 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
 	    csr_mimpid:    noAction;
 	    csr_mhartid:   noAction;
 
-	    csr_mstatus:   rg_mstatus    <= word_to_mstatus (word);
+	    csr_mstatus:   rg_mstatus    <= word_to_mstatus (misa, word);
 	    csr_misa:      noAction;
 	    csr_mie:       rg_mie        <= word_to_mie (word);
 	    csr_mtvec:     rg_mtvec      <= word_to_mtvec (word);
@@ -748,6 +752,11 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
       fav_write_csr (csr_addr, word);
    endmethod
 
+   // Read MISA
+   method MISA read_misa;
+      return misa;
+   endmethod
+
    // Read MSTATUS
    method WordXL read_mstatus;
       return  mstatus_to_word (rg_mstatus);
@@ -781,7 +790,7 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
 		   from_priv, pc, pack (interrupt), exc_code, xtval);
 `ifdef ISA_PRIV_S
 	 fa_show_trap_csrs (s_Priv_Mode, rg_mip, rg_mie, 0, 0, rg_scause,
-			    word_to_mstatus (fn_read_sstatus (rg_mstatus)),
+			    word_to_mstatus (misa,  fn_read_sstatus (rg_mstatus)),
 			    rg_stvec, rg_sepc, rg_stval);
 `endif
 	 fa_show_trap_csrs (m_Priv_Mode, rg_mip, rg_mie, rg_medeleg, rg_mideleg, rg_mcause,
