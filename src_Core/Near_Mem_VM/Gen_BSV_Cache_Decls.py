@@ -336,7 +336,7 @@ def generate_BSV_file (BSV_package_name, items):
 
     fout.write ("\n" +
                 "function  CTag  fn_PA_to_CTag (Bit #(n)  pa);\n" +
-                "   return  pa [{0} : addr_lo_ctag ];\n".format (sel (items, "Bits_per_PA") - 1) +
+                "   return  pa [(valueOf (n) - 1) : addr_lo_ctag ];\n" +
                 "endfunction\n")
 
     fout.write ("\n" +

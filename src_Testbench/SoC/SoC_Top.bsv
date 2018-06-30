@@ -65,6 +65,8 @@ import External_Control :: *;    // Control requests/responses from HSFE
 import Debug_Module     :: *;
 `endif
 
+import Axi4LRegFile ::*;
+
 // ================================================================
 // PC reset value
 
@@ -184,6 +186,12 @@ module mkSoC_Top (SoC_Top_IFC);
 `ifdef INCLUDE_ACCEL0
    // Fabric to accel_aes0
    mkConnection (fabric.v_to_slaves [accel0_slave_num],          accel_aes0.slave);
+`endif
+
+`ifdef HTIF_MEMORY
+   AXI4_Lite_Slave_IFC#(Wd_Addr, Wd_Data, Wd_User) htif <- mkAxi4LRegFile(bytes_per_htif);
+
+   mkConnection (fabric.v_to_slaves [htif_slave_num], htif);
 `endif
 
    // ----------------

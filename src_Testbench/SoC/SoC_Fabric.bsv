@@ -66,6 +66,12 @@ module mkFabric (Fabric_IFC);
 	       && (addr < soc_map.m_timer0_addr_lim))
 	 return tuple2 (True, fromInteger (timer0_slave_num));
 
+`ifdef HTIF_MEMORY
+      else if (   (soc_map.m_htif_addr_base <= addr)
+	       && (addr < soc_map.m_htif_addr_lim))
+	 return tuple2 (True, fromInteger (htif_slave_num));
+`endif
+
 `ifdef INCLUDE_ACCEL0
       // Accelerator 0
       else if (   (soc_map.m_accel0_addr_base <= addr)

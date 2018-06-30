@@ -204,7 +204,7 @@ endfunction
 // ================================================================
 // mtvec reset value    TODO: still relevant? No longer part of the spec?
 
-Word mtvec_reset_value = 'h0100;    // TODO: this is no longer standard?
+Word mtvec_reset_value = 'h1000;    // TODO: this is no longer standard?
 
 // ================================================================
 // Major states of mkCSR_RegFile module
@@ -294,7 +294,7 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
 
    // Debug
    Reg #(Bit #(32)) rg_dcsr      <- mkRegU;    // Is 32b even in RV64
-   Reg #(WordXL)    rg_dpc       <- mkRegU;
+   Reg #(WordXL)    rg_dpc       <- mkReg(mtvec_reset_value);
    Reg #(WordXL)    rg_dscratch0 <- mkRegU;
    Reg #(WordXL)    rg_dscratch1 <- mkRegU;
 

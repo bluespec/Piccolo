@@ -36,13 +36,13 @@ TOPMODULE = mkTop_HW_Side
 BSC_FLAGS += -keep-fires -aggressive-conditions -no-warn-action-shadowing \
 		-suppress-warnings G0020 \
 		-D RV32 \
-		-D FABRIC64 \
+		-D SHIFT_BARREL \
+		-D CSR_REGFILE_UM \
 		-D ISA_PRIV_M \
 		-D ISA_PRIV_U \
 		-D ISA_M \
 		-D Near_Mem_Caches \
-		-D SHIFT_BARREL \
-		-D CSR_REGFILE_UM \
+		-D FABRIC64 \
 		+RTS -K64M -RTS  -show-range-conflict
 
 # ================================================================

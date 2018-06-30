@@ -262,14 +262,16 @@ void make_dtb(int xlen, char *isa_string)
       printf ("WARNING: last bytes of ROM omitted (incomplete word)\n");
 }
 
-void usage() {
-    printf("usage: %s <xlen> <isa>\n");
-    printf("example: %s 64 imafdcus\n");
+void usage(char *progname) {
+    printf("usage: %s <xlen> <isa>\n", progname);
+    printf("example: %s 64 imafdcus\n", progname);
 }
 
 int main(int argc, char *argv[]) {
+    char *progname = argv[0];
+
     if (argc != 3) {
-	usage();
+	usage(progname);
 	exit(1);
     }
 
@@ -280,7 +282,7 @@ int main(int argc, char *argv[]) {
     } else if (strcmp(rv_str,"RV64") == 0) {
 	xlen = 64;
     } else {
-	usage();
+	usage(progname);
 	exit(1);
     }
 

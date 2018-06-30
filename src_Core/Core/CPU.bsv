@@ -7,6 +7,10 @@ package CPU;
 // RV32I, Privilege Levels U and M.
 // This is a simple 3-stage in order pipeline.
 
+`ifdef EXTERNAL_DEBUG_MODULE
+`undef INCLUDE_GDB_CONTROL
+`endif
+
 // ================================================================
 // Exports
 
@@ -545,7 +549,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 			   && (stage3.out.ostatus == OSTATUS_EMPTY)
 			   && (stage2.out.ostatus == OSTATUS_NONPIPE));
       if (cur_verbosity > 1)
-	 $display ("%0d: CPU.rl_stage2_nonpipe");
+	 $display ("%0d: CPU.rl_stage2_nonpipe", cur_cycle);
 
       let epc      = stage2.out.trap_info.epc;
       let exc_code = stage2.out.trap_info.exc_code;

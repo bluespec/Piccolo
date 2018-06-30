@@ -84,6 +84,7 @@ function MIE word_to_sie (WordXL x, MIE mie);
 	       sies: unpack ( {mie.sies[3], mie.sies[2], x[1], x[0]} ) };
 endfunction
 
+`ifdef ISA_PRIV_S
 // ================================================================
 // SATP (supervisor address translation and protection)
 
@@ -123,6 +124,7 @@ Bit #(4)  satp_mode_RV64_sv64 = 4'd_11;
 // Virtual and Physical addresses, page numbers, offsets
 // Page table (PT) fields and entries (PTEs)
 // For Sv32 and Sv39
+
 
 // ----------------
 // RV32.Sv32
@@ -214,7 +216,7 @@ function PA fn_WordXL_to_PA (WordXL  eaddr);
 `endif
 endfunction
 
-// Virtual addrs
+// Virtual addrs -- derived types and values
 Integer  va_sz = valueOf (VA_sz);  typedef Bit #(VA_sz)      VA;
 
 function VA fn_WordXL_to_VA (WordXL  eaddr);
@@ -411,6 +413,20 @@ function Exc_Code  fn_page_fault_exc_code (Bool dmem_not_imem, Bool read_not_wri
 	   :(read_not_write  ? exc_code_LOAD_PAGE_FAULT
 	     :                 exc_code_STORE_AMO_PAGE_FAULT));
 endfunction   
+
+`else // ifdef ISA_PRIV_S
+// The below definitions are valid for cases where there is no VM
+// Physical addrs -- without VM, PA is same as WordXL
+typedef XLEN PA_sz;
+
+// Physical addrs
+Integer  pa_sz = valueOf (PA_sz);  typedef Bit #(PA_sz)     PA;
+
+function PA fn_WordXL_to_PA (WordXL  eaddr);
+   return eaddr;
+endfunction
+
+`endif   // else-ifdef ISA_PRIV_S
 
 // ----------------
 // Choose particular kind of access fault

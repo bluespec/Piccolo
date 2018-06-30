@@ -52,6 +52,11 @@ export  accel0_master_num;
 export  accel0_slave_num;
 `endif
 
+`ifdef HTIF_MEMORY
+export  bytes_per_htif;
+export  htif_slave_num;
+`endif
+
 // ================================================================
 // Local definitions
 
@@ -98,6 +103,10 @@ Integer bytes_per_timer0 = 'hc000;
 Integer bytes_per_accel0 = 'h40;
 `endif
 
+`ifdef HTIF_MEMORY
+Integer bytes_per_htif = 128;
+`endif
+
 // ================================================================
 // Interface and module for the address map
 
@@ -126,6 +135,12 @@ interface SoC_Map_IFC;
    (* always_ready *)   method  Fabric_Addr  m_accel0_addr_size;
    (* always_ready *)   method  Fabric_Addr  m_accel0_addr_base;
    (* always_ready *)   method  Fabric_Addr  m_accel0_addr_lim;
+`endif
+
+`ifdef HTIF_MEMORY
+   (* always_ready *)   method  Fabric_Addr  m_htif_addr_size;
+   (* always_ready *)   method  Fabric_Addr  m_htif_addr_base;
+   (* always_ready *)   method  Fabric_Addr  m_htif_addr_lim;
 `endif
 
    (* always_ready *)
@@ -205,6 +220,16 @@ module mkSoC_Map (SoC_Map_IFC);
    endfunction
 `endif
 
+`ifdef HTIF_MEMORY
+   Fabric_Addr htif_addr_size = fromInteger (bytes_per_htif);
+   Fabric_Addr htif_addr_base = 'h_6000_0000;
+   Fabric_Addr htif_addr_lim  = htif_addr_base + htif_addr_size;
+
+   function Bool is_htif_addr (Fabric_Addr addr);
+      return ((htif_addr_base <= addr) && (addr < htif_addr_lim));
+   endfunction
+`endif
+
    // ----------------------------------------------------------------
    // I/O address predicate
    // Identifies I/O addresses in the Fabric.
@@ -215,6 +240,9 @@ module mkSoC_Map (SoC_Map_IFC);
 	      || is_timer0_addr (addr)
 `ifdef INCLUDE_ACCEL0
 	      || is_accel0_addr (addr)
+`endif
+`ifdef HTIF_MEMORY
+	      || is_htif_addr (addr)
 `endif
 	      );
    endfunction
@@ -248,6 +276,12 @@ module mkSoC_Map (SoC_Map_IFC);
    method  Fabric_Addr  m_accel0_addr_lim  = accel0_addr_lim;
 `endif
 
+`ifdef HTIF_MEMORY
+   method  Fabric_Addr  m_htif_addr_size = htif_addr_size;
+   method  Fabric_Addr  m_htif_addr_base = htif_addr_base;
+   method  Fabric_Addr  m_htif_addr_lim  = htif_addr_lim;
+`endif
+
    method  Bool  m_is_IO_addr (Fabric_Addr addr) = fn_is_IO_addr (addr);
 endmodule
 
@@ -277,10 +311,18 @@ Integer accel0_master_num       = 3;
 // ================================================================
 // Count and slave-numbers of slaves in the fabric.
 
+`ifdef HTIF_MEMORY
+`ifdef INCLUDE_ACCEL0
+typedef 7 Num_Slaves;
+`else
+typedef 6 Num_Slaves;
+`endif
+`else
 `ifdef INCLUDE_ACCEL0
 typedef 6 Num_Slaves;
 `else
 typedef 5 Num_Slaves;
+`endif
 `endif
 
 Integer tcm_back_door_slave_num   = 0;
@@ -291,6 +333,14 @@ Integer timer0_slave_num          = 4;
 
 `ifdef INCLUDE_ACCEL0
 Integer accel0_slave_num          = 5;
+`endif
+
+`ifdef HTIF_MEMORY
+`ifdef INCLUDE_ACCEL0
+Integer htif_slave_num            = 6;
+`else
+Integer htif_slave_num            = 5;
+`endif
 `endif
 
 // ================================================================

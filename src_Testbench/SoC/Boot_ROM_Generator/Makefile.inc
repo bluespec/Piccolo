@@ -10,7 +10,7 @@
 #
 # ----------------------------------------------------------------
 
-BUILD_DIR ?= build
+BUILD_SRC_DIR ?= build_src
 
 # ----------------------------------------------------------------
 
@@ -58,15 +58,15 @@ ISA_STRING = $(ISA_BASE)$(ISA_M)$(ISA_A)$(ISA_FD)$(ISA_C)$(ISA_U)$(ISA_S)
 
 # ----------------------------------------------------------------
 
-BSV_DEPENDENCIES += $(BUILD_DIR)/fn_read_ROM_$(RV).bsvi
+BSV_DEPENDENCIES += $(BUILD_SRC_DIR)/fn_read_ROM_$(RV).bsvi
 
-$(BUILD_DIR)/fn_read_ROM_$(RV).bsvi: $(BUILD_DIR)  $(BUILD_DIR)/boot_ROM_$(RV).memhex  $(GEN_BOOTROM_DIR)/Gen_BSV_fn_read_ROM.py
-	$(GEN_BOOTROM_DIR)/Gen_BSV_fn_read_ROM.py  $(BUILD_DIR)/boot_ROM_$(RV).memhex  $@
+$(BUILD_SRC_DIR)/fn_read_ROM_$(RV).bsvi: $(BUILD_SRC_DIR)  $(BUILD_SRC_DIR)/boot_ROM_$(RV).memhex  $(GEN_BOOTROM_DIR)/Gen_BSV_fn_read_ROM.py
+	$(GEN_BOOTROM_DIR)/Gen_BSV_fn_read_ROM.py  $(BUILD_SRC_DIR)/boot_ROM_$(RV).memhex  $@
 
-$(BUILD_DIR)/boot_ROM_$(RV).memhex: $(BUILD_DIR)  $(BUILD_DIR)/gen_bootrom_$(RV).exe
-	$(BUILD_DIR)/gen_bootrom_$(RV).exe  "$(RV)"  "$(ISA_STRING)"  >  $@
+$(BUILD_SRC_DIR)/boot_ROM_$(RV).memhex: $(BUILD_SRC_DIR)  $(BUILD_SRC_DIR)/gen_bootrom_$(RV).exe
+	$(BUILD_SRC_DIR)/gen_bootrom_$(RV).exe  "$(RV)"  "$(ISA_STRING)"  >  $@
 
-$(BUILD_DIR)/gen_bootrom_$(RV).exe: $(BUILD_DIR)  $(GEN_BOOTROM_DIR)/gen_bootrom.cc
-	$(CXX)  -o $@  $(CXXFLAGS)  -std=c++11  -D RV32  $(GEN_BOOTROM_DIR)/gen_bootrom.cc
+$(BUILD_SRC_DIR)/gen_bootrom_$(RV).exe: $(BUILD_SRC_DIR)  $(GEN_BOOTROM_DIR)/gen_bootrom.cc
+	$(CXX)  -o $@  $(CXXFLAGS)  -std=c++11  -D $(RV)  $(GEN_BOOTROM_DIR)/gen_bootrom.cc
 
 # ----------------------------------------------------------------

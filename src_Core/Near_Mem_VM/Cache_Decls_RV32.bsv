@@ -126,7 +126,7 @@ function  Word64_Set_in_Cache  fn_Addr_to_Word64_Set_in_Cache (Bit #(n)  addr);
 endfunction
 
 function  CTag  fn_PA_to_CTag (Bit #(n)  pa);
-   return  pa [33 : addr_lo_ctag ];
+   return  pa [(valueOf (n) - 1) : addr_lo_ctag ];
 endfunction
 
 // Align to start of CLine

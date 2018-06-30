@@ -42,6 +42,11 @@
 
 // Internally, the data RAM width is fixed at 64b.
 
+// VM-SYNTH-OPT: Comments beginning with this indicates that the following state
+// elements are unused in non-VM mode, and ought to be optimized away by
+// gate-level synthesis tools. If this is not happening, we might need to encase
+// them using ifdefs
+
 package MMU_Cache;
 
 // ================================================================
@@ -69,7 +74,9 @@ import Fabric_Defs  :: *;
 import ISA_Decls    :: *;
 import Near_Mem_IFC :: *;
 
+`ifdef ISA_PRIV_S
 import TLB          :: *;
+`endif
 
 `ifdef RV32
 import Cache_Decls_RV32 :: *;
@@ -173,6 +180,24 @@ typedef enum {REQUESTOR_RESET_IFC, REQUESTOR_FLUSH_IFC} Requestor
 deriving (Bits, Eq, FShow);
 
 Bit #(Wd_User) dummy_user = ?;    // For AXI4-Lite 'user' field (here unused)
+
+`ifndef ISA_PRIV_S
+
+// VM Xlate related definitions which are only for the case where there is no
+// VM, effectively making the following definitions, dummy ones. If VM, these
+// definitions are taken from the TLB package, and include fields like the PTE
+
+typedef enum { VM_XLATE_OK, VM_XLATE_TLB_MISS, VM_XLATE_EXCEPTION } VM_Xlate_Outcome
+deriving (Bits, Eq, FShow);
+
+typedef struct {
+   VM_Xlate_Outcome   outcome;
+   PA                 pa;            // phys addr, if VM_XLATE_OK
+   Exc_Code           exc_code;      // if VM_XLATE_EXC
+   } VM_Xlate_Result
+deriving (Bits, FShow);
+
+`endif
 
 // ================================================================
 // Check if addr is aligned
@@ -317,6 +342,15 @@ function Action fa_display_word64_set (CSet_in_Cache    cset_in_cache,
    endaction
 endfunction
 
+function Reg #(t) fn_genNullRegIfc (t x) provisos (Literal#(t));
+   return (
+      interface Reg;
+         method _read = 0;
+         method _write (x) = noAction;
+      endinterface
+   );
+endfunction
+
 // ================================================================
                 
 (* synthesize *)
@@ -341,8 +375,10 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
    // Fabric request/response
    AXI4_Lite_Master_Xactor_IFC #(Wd_Addr, Wd_Data, Wd_User) master_xactor <- mkAXI4_Lite_Master_Xactor_2;
 
+`ifdef ISA_PRIV_S
    // The TLB
    TLB_IFC  tlb <- mkTLB (dmem_not_imem);
+`endif
 
    // For discarding write-responses
    CreditCounter_IFC #(4) ctr_wr_rsps_pending <- mkCreditCounter; // Max 15 writes outstanding
@@ -368,23 +404,32 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 `endif
    Reg #(WordXL)     rg_addr        <- mkRegU;    // VA or PA
    Reg #(Bit #(64))  rg_st_amo_val  <- mkRegU;    // Store-value for ST, SC, AMO
+
    // The following are needed for VM
+`ifdef ISA_PRIV_S
    Reg #(Priv_Mode)  rg_priv        <- mkRegU;    // Privilege level for this request
    Reg #(Bit #(1))   rg_sstatus_SUM <- mkRegU;    // SUM bit in SSTATUS CSR
    Reg #(Bit #(1))   rg_mstatus_MXR <- mkRegU;    // MXR bit in MSTATUS CSR
 
-`ifdef ISA_PRIV_S
    Reg #(WordXL)     rg_satp        <- mkRegU;    // Copy of value in SATP CSR { VM_Mode, ASID, PPN }
 `else
-   Reg #(WordXL)     rg_satp        = interface Reg;
-					 method _read  = 0;
-					 method _write (x) = noAction;
-				      endinterface;
+   // VM-SYNTH-OPT
+   // Dummy registers in non-VM mode
+   Priv_Mode x = ?;
+   Reg #(Priv_Mode)  rg_priv        = fn_genNullRegIfc (x);
+
+   Bit #(1) y = ?;
+   Reg #(Bit #(1))   rg_sstatus_SUM = fn_genNullRegIfc (y);
+   Reg #(Bit #(1))   rg_mstatus_MXR = fn_genNullRegIfc (y);
+
+   WordXL z = ?;
+   Reg #(WordXL)     rg_satp        = fn_genNullRegIfc (z);
 `endif
 
    // Phys addr (initially taken from rg_addr; VM xlation may replace it)
    Reg #(PA)  rg_pa <- mkRegU;
 
+`ifdef ISA_PRIV_S
    // Derivations from rg_addr (virtual addr)
    VA      va     = fn_WordXL_to_VA (rg_addr);
    VPN     vpn    = fn_Addr_to_VPN (va);
@@ -394,12 +439,14 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
    VPN_J   vpn_1  = fn_Addr_to_VPN_1 (va);
    VPN_J   vpn_0  = fn_Addr_to_VPN_0 (va);
    Offset  offset = fn_Addr_to_Offset (rg_addr);
+`endif
 
    CSet_in_Cache        cset_in_cache       = fn_Addr_to_CSet_in_Cache   (rg_addr);
    Word64_Set_in_Cache  word64_set_in_cache = fn_Addr_to_Word64_Set_in_Cache (rg_addr);
    Word64_in_CLine      word64_in_cline     = fn_Addr_to_Word64_in_CLine (rg_addr);
    Bit #(3)             byte_in_word64      = fn_Addr_to_Byte_in_Word64  (rg_addr);
 
+`ifdef ISA_PRIV_S
    // Derivations from rg_satp
    VM_Mode  vm_mode  = fn_satp_to_VM_Mode (rg_satp);
    ASID     asid     = fn_satp_to_ASID    (rg_satp);
@@ -407,7 +454,6 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
    PA       satp_pa  = fn_PPN_and_Offset_to_PA (satp_ppn, 12'b0);
 
    // We continuously probe the TLB with (asid, vpn)
-`ifdef ISA_PRIV_S
    TLB_Lookup_Result  tlb_result = tlb.lookup (asid, vpn);
 `endif
 
@@ -605,6 +651,8 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
       // Print some initial information for debugging
       if (cfg_verbosity > 1) begin
 	 $display ("%0d: %s: rl_probe_and_immed_rsp; eaddr %0h", cur_cycle, d_or_i, rg_addr);
+
+`ifdef ISA_PRIV_S
 `ifdef RV32
 	 if (vm_mode != satp_mode_RV32_bare)
 	    $display ("        Priv:%0d  SATP:{mode %0d asid %0h pa %0h}  VA:%0h.%0h.%0h",
@@ -613,6 +661,7 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 	 if (vm_mode != satp_mode_RV64_bare)
 	    $display ("        Priv:%0d  SATP:{mode %0d asid %0h pa %0h}  VA:%0h.%0h.%0h",
 		      rg_priv, vm_mode, asid, satp_pa, vpn_1, vpn_0, offset);
+`endif
 `endif
 	 $display ("        eaddr = {CTag 0x%0h  CSet 0x%0h  Word64 0x%0h  Byte 0x%0h}",
 		   fn_PA_to_CTag (fn_WordXL_to_PA (rg_addr)),
@@ -636,13 +685,9 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 						       rg_sstatus_SUM,
 						       rg_mstatus_MXR);
 `else
-`ifdef RV32
-      PA   pa    = zeroExtend (rg_addr);    // TODO: or should this be signExtend?
-`elsif RV64
-      PA   pa    = truncate (rg_addr);
-`endif
+      // In non-VM, PA is always WordXL
       VM_Xlate_Result vm_xlate_result = VM_Xlate_Result {outcome:      VM_XLATE_OK,
-							 pa:           pa,
+							 pa:           rg_addr,
 							 exc_code:     ?};
 `endif
 
@@ -890,13 +935,13 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
       end
    endrule: rl_probe_and_immed_rsp
 
+`ifdef ISA_PRIV_S
    // ****************************************************************
    // TLB REFILLS (Page Table Walks)
    // ****************************************************************
 
    // TODO: should this rule be merged into rl_probe_and_immed_rsp, to avoid losing a cycle?
 
-`ifdef ISA_PRIV_S
    rule rl_start_tlb_refill ((rg_state == PTW_START) && (ctr_wr_rsps_pending.value == 0));
 
 `ifdef RV32
@@ -914,7 +959,7 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 	 $display ("%0d: %s.rl_start_tlb_refill for eaddr 0x%0h", cur_cycle, d_or_i, rg_addr);
 	 $display ("    Req for level 1 PTE: ", fshow (mem_req));
       end
-`elsif SV39
+`elsif SV39    // ifdef RV32
       // RV64.Sv39: Page Table top is at Level 2
       PA           vpn_2_pa            = (zeroExtend (vpn_2) << bits_per_byte_in_wordxl);
       PA           lev_2_pte_pa        = satp_pa + vpn_2_pa;
@@ -929,15 +974,13 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 	 $display ("%0d: %s.rl_start_tlb_refill for eaddr 0x%0h", cur_cycle, d_or_i, rg_addr);
 	 $display ("    Req for level 2 PTE: ", fshow (mem_req));
       end
-`endif
+`endif         // elsif SV39
 
    endrule
-`endif
 
    // ----------------
    // Receive Level 2 PTE and process it
 
-`ifdef ISA_PRIV_S
 `ifdef SV39
    rule rl_ptw_level_2 (rg_state == PTW_LEVEL_2);
       // Memory read-response is a level 1 PTE
@@ -945,17 +988,17 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 
       Bit #(64) x64 = zeroExtend (mem_rsp.rdata);
       WordXL pte;
-`ifdef RV32
+`ifdef RV32    // TODO: we can't have RV32 inside ifdef SV39!
       // PTE is lower or upper 32b word of 64b mem response
       pte = x64 [31:0];
       if ((valueOf (Wd_Data) == 64) && (rg_pte_pa [2] == 1'b1))
 	 pte = x64 [63:32];
-`else
+`else       // ifdef RV32
       // PTE is 64b response
       // TODO: this is ok only when Wd_Data == 64
       // When Wd_Data == 32, have to do two transactions to get a PTE
       pte = mem_rsp.rdata;
-`endif
+`endif      // ifndef RV32
 
       // Bus error
       if (mem_rsp.rresp != AXI4_LITE_OKAY) begin
@@ -1028,13 +1071,11 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 	 end
       end
    endrule: rl_ptw_level_2
-`endif
-`endif
+`endif      // ifdef SV39
 
    // ----------------
    // Receive Level 1 PTE and process it
 
-`ifdef ISA_PRIV_S
    rule rl_ptw_level_1 (rg_state == PTW_LEVEL_1);
       // Memory read-response is a level 1 PTE
       let  mem_rsp <- pop_o (master_xactor.o_rd_data);
@@ -1046,12 +1087,12 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
       pte = x64 [31:0];
       if ((valueOf (Wd_Data) == 64) && (rg_pte_pa [2] == 1'b1))
 	 pte = x64 [63:32];
-`else
+`else       // ifdef RV32
       // PTE is 64b response
       // TODO: this is ok only when Wd_Data == 64
       // When Wd_Data == 32, have to do two transactions to get a PTE
       pte = mem_rsp.rdata;
-`endif
+`endif      // ifndef RV32
 
       // Bus error
       if (mem_rsp.rresp != AXI4_LITE_OKAY) begin
@@ -1124,12 +1165,10 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 	 end
       end
    endrule: rl_ptw_level_1
-`endif
 
    // ----------------
    // Receive Level 0 PTE and process it
 
-`ifdef ISA_PRIV_S
    rule rl_ptw_level_0 (rg_state == PTW_LEVEL_0);
       // Memory read-response is a level 0 PTE
       let mem_rsp <- pop_o (master_xactor.o_rd_data);
@@ -1141,12 +1180,12 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
       pte = x64 [31:0];
       if ((valueOf (Wd_Data) == 64) && (rg_pte_pa [2] == 1'b1))
 	 pte = x64 [63:32];
-`else
+`else       // ifdef RV32
       // PTE is 64b response
       // TODO: this is ok only when Wd_Data == 64
       // When Wd_Data == 32, have to do two transactions to get a PTE
       pte = mem_rsp.rdata;
-`endif
+`endif      // ifndef RV32
 
       // Bus error
       if (mem_rsp.rresp != AXI4_LITE_OKAY) begin
@@ -1192,7 +1231,7 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 	 end
       end
    endrule
-`endif
+`endif      // ifdef ISA_PRIV_S
 
    // ****************************************************************
    // CACHE REFILLS
@@ -1637,11 +1676,9 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
       return dw_output_ld_val;
    endmethod
 
-`ifdef ISA_A
    method Bit #(64)  st_amo_val;
       return dw_output_st_amo_val;
    endmethod
-`endif
 
    method Bool  exc;
       return dw_exc;
@@ -1673,6 +1710,8 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
       rg_state <= MODULE_READY;
       if (cfg_verbosity > 1)
 	 $display ("%0d: %s.tlb_flush", cur_cycle, d_or_i);
+`else
+      noAction;
 `endif
    endmethod
 
