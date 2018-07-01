@@ -126,44 +126,29 @@ module mkCPU_Stage1 #(Bit #(4)         verbosity,
       Bool rs2_busy = (busy2a || busy2b);
       Word rs2_val_bypassed = ((rs2 == 0) ? 0 : rs2b);
 
+      // ----------------
       // CSR address-based protection checks
-      Bool is_csrrx          = (   (decoded_instr.opcode == op_SYSTEM)
-                                && f3_is_CSRR_any (funct3));
-      Bool csr_priv_fault    = (is_csrrx && (cur_priv < csr [9:8]));        // wrong privilege
+      Bool is_csrrx = ((decoded_instr.opcode == op_SYSTEM) && f3_is_CSRR_any (funct3));
 
-      // When accessing the performance counters, the MCounteren register bits
-      // should be factored in before declaring a CSR privilege fault
-      let mc = csr_regfile.read_csr_mcounteren;
-      Bool csr_ctr_fault     = (   csr_priv_fault
-                                && (   (csr == csr_mcycle) && (mc.cy == 1'b0)
-				    || (csr == csr_minstret) && (mc.ir == 1'b0)
-`ifdef RV32
-				    || (csr == csr_mcycleh) && (mc.cy == 1'b0)
-				    || (csr == csr_minstreth) && (mc.ir == 1'b0)
-`endif
-				   ));
-      Bool csr_ctr_access    = (   is_csrrx
-                                && (   (csr == csr_mcycle)
-				    || (csr == csr_minstret)
-`ifdef RV32
-				    || (csr == csr_minstreth)
-				    || (csr == csr_mcycleh)
-`endif
-				   ));
+      // CSR accessible at this privilege?
+      Bool csr_priv_fault = (cur_priv < csr [9:8]);
 
-      csr_priv_fault = csr_ctr_access ? csr_ctr_fault : csr_priv_fault;
+      // CSR hpm counter read allowed?
+      Bool csr_ctr_fault = csr_regfile.csr_counter_read_fault (cur_priv, csr);
 
-      Bool csr_write_fault   = (   is_csrrx
-				&& (f3_is_CSRR_W (funct3) || (rs1 != 0))    // attempting write
-				&& (csr [11:10] == 2'b11));                 // read-only csr
+      // CSR writing a read-only CSR?
+      Bool csr_write_fault = (   (f3_is_CSRR_W (funct3) || (rs1 != 0))    // attempting write
+			      && (csr [11:10] == 2'b11));                 // read-only csr
 
       // CSR reads
       // Note: csr should not be read for CSRRW[I] if Rd=0 (i.e., don't cause its side-effects).
       // But currently csr_reads are pure (no side effects), so we omit this check.
       let m_csr_val = csr_regfile.read_csr (csr);
-      let csr_valid = (   isValid (m_csr_val)
+      let csr_valid = (   is_csrrx
+		       && isValid (m_csr_val)
 		       && (! csr_priv_fault)
-		       && (!csr_write_fault));
+		       && (! csr_ctr_fault)
+		       && (! csr_write_fault));
 
       let csr_val   = fromMaybe (?, m_csr_val);
 
@@ -208,7 +193,7 @@ module mkCPU_Stage1 #(Bit #(4)         verbosity,
       end
 
       // Trap on CSR access fault
-      else if (csr_priv_fault || csr_write_fault)
+      else if (is_csrrx && ((! isValid (m_csr_val)) || csr_priv_fault || csr_ctr_fault || csr_write_fault))
 	 begin
 	    output_stage1.ostatus   = OSTATUS_NONPIPE;
 	    output_stage1.control   = CONTROL_TRAP;
