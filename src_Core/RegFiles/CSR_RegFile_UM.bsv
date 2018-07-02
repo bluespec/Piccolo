@@ -103,14 +103,14 @@ interface CSR_RegFile_IFC;
    (* always_ready *)
    method Bool csr_counter_read_fault (Priv_Mode  priv, CSR_Addr  csr_addr);
 
+   // Read MIP
+   (* always_ready *)
+   method MIP read_csr_mip;
+
    // Interrupts
-   (* always_ready *)
-   method Action external_interrupt_req;
-
-   method Action timer_interrupt_req (Bool set_not_clear);
-
-   (* always_ready *)
-   method Action software_interrupt_req;
+   method Action external_interrupt_req (Bool set_not_clear);
+   method Action timer_interrupt_req    (Bool set_not_clear);
+   method Action software_interrupt_req (Bool set_not_clear);
 
    (* always_ready *)
    method Maybe #(Exc_Code) interrupt_pending (Priv_Mode cur_priv);
@@ -224,9 +224,9 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
    Reg #(Bit #(4)) cfg_verbosity <- mkConfigReg (0);
    Reg #(RF_State) rg_state      <- mkReg (RF_RESET_START);
 
-   Reg #(Bool) rg_ei_requested <- mkRegU;    // External interrupt requested
-   FIFOF #(Bool) f_ti_reqs     <- mkFIFOF;   // Timer    interrupt requests
-   Reg #(Bool) rg_si_requested <- mkRegU;    // Software interrupt requested
+   FIFOF #(Bool) f_ei_reqs   <- mkFIFOF;   // External interrupt requested
+   FIFOF #(Bool) f_ti_reqs   <- mkFIFOF;   // Timer    interrupt requests
+   FIFOF #(Bool) f_si_reqs   <- mkFIFOF;   // Software interrupt requested
 
    // Reset
    FIFOF #(Token) f_reset_rsps <- mkFIFOF;
@@ -320,9 +320,9 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
    // Initialize some CSRs.
 
    rule rl_reset_start (rg_state == RF_RESET_START);
-      rg_ei_requested <= False;
+      f_ei_reqs.clear;
       f_ti_reqs.clear;
-      rg_si_requested <= False;
+      f_si_reqs.clear;
 
 `ifdef ISA_PRIV_S
       rg_stvec    <= word_to_mtvec (mtvec_reset_value);
@@ -677,17 +677,21 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
 
    (* execution_order = "read_csr,  rl_record_external_interrupt" *)
    (* execution_order = "write_csr, rl_record_external_interrupt" *)
-   rule rl_record_external_interrupt (rg_ei_requested);
-      let mip = rg_mip;
-      WordXL old_mip = mip_to_word (mip);
-      mip.eips [m_Priv_Mode] = 1'b1;
-      WordXL new_mip = mip_to_word (mip);
-      rg_mip <= mip;
-      rg_ei_requested <= False;
+   rule rl_record_external_interrupt;
+      let ei_req <- pop (f_ei_reqs);
+
+      // Set or clear mip.mtip
+      let old_mip = rg_mip;
+      let new_mip = old_mip;
+      new_mip.eips [m_Priv_Mode] = (ei_req ? 1'b1 : 1'b0);
+      rg_mip <= new_mip;
+
+      WordXL old_mip_w = mip_to_word (old_mip);
+      WordXL new_mip_w = mip_to_word (new_mip);
       
       if (cfg_verbosity > 1) begin
 	 $display ("%0d: CSR_RegFile.rl_record_external_interrupt: mip: %0h -> %0h",
-		   cur_cycle, old_mip, new_mip);
+		   cur_cycle, old_mip_w, new_mip_w);
 	 $display ("    Current mie = %0h", mie_to_word (rg_mie));
       end
    endrule
@@ -715,17 +719,21 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
 
    (* execution_order = "read_csr,  rl_record_software_interrupt" *)
    (* execution_order = "write_csr, rl_record_software_interrupt" *)
-   rule rl_record_software_interrupt (rg_si_requested);
-      let mip = rg_mip;
-      WordXL old_mip = mip_to_word (mip);
-      mip.sips [m_Priv_Mode] = 1'b1;
-      WordXL new_mip = mip_to_word (mip);
-      rg_mip <= mip;
-      rg_si_requested <= False;
-      
+   rule rl_record_software_interrupt;
+      let si_req <- pop (f_si_reqs);
+
+      // Set or clear mip.msip
+      let old_mip = rg_mip;
+      let new_mip = old_mip;
+      new_mip.sips [m_Priv_Mode] = (si_req ? 1'b1 : 1'b0);
+      rg_mip <= new_mip;
+
+      WordXL old_mip_w = mip_to_word (old_mip);
+      WordXL new_mip_w = mip_to_word (new_mip);
+
       if (cfg_verbosity > 1) begin
 	 $display ("%0d: CSR_RegFile.rl_record_software_interrupt: mip: %0h -> %0h",
-		   cur_cycle, old_mip, new_mip);
+		   cur_cycle, old_mip_w, new_mip_w);
 	 $display ("    Current mie = %0h", mie_to_word (rg_mie));
       end
    endrule
@@ -870,11 +878,8 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
       rg_xepc        <= pc;
       let xcause      = MCause {interrupt: pack (interrupt), exc_code: exc_code};
       rg_xcause      <= xcause;
+      rg_xtval       <= xtval;
 
-      // xTVal is recorded only for exceptions
-      if (! interrupt)
-	 rg_xtval <= xtval;
-      
       // Compute the exception PC based on the xTVEC mode bits
       Addr exc_pc     = (extend (rg_xtvec.base)) << 2;
       Addr vector_offset = (extend (exc_code)) << 2;
@@ -941,21 +946,28 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
 		  ));
    endmethod
 
+   // Read MIP
+   method MIP read_csr_mip;
+      return rg_mip;
+   endmethod
+
    // Interrupts
-   method Action  external_interrupt_req;
-      rg_ei_requested <= True;
+   method Action external_interrupt_req (Bool set_not_clear);
+      f_ei_reqs.enq (set_not_clear);
       if (cfg_verbosity > 1)
-	 $display ("%0d: CSR_RegFile.external_interrupt_req", cur_cycle);
+	 $display ("%0d: CSR_RegFile: external_interrupt_req: %x", cur_cycle, set_not_clear);
    endmethod
 
    method Action timer_interrupt_req (Bool set_not_clear);
       f_ti_reqs.enq (set_not_clear);
+      if (cfg_verbosity > 1)
+	 $display ("%0d: CSR_RegFile: timer_interrupt_req: %x", cur_cycle, set_not_clear);
    endmethod      
 
-   method Action  software_interrupt_req;
-      rg_si_requested <= True;
+   method Action software_interrupt_req (Bool set_not_clear);
+      f_si_reqs.enq (set_not_clear);
       if (cfg_verbosity > 1)
-	 $display ("%0d: CSR_RegFile.software_interrupt_req", cur_cycle);
+	 $display ("%0d: CSR_RegFile: software_interrupt_req: %x", cur_cycle, set_not_clear);
    endmethod
 
    method Maybe #(Exc_Code) interrupt_pending (Priv_Mode cur_priv);

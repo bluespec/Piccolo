@@ -51,12 +51,9 @@ interface BRVF_Core_IFC;
    interface AXI4_Lite_Slave_IFC #(Wd_Addr, Wd_Data, Wd_User) cpu_slave;
 
    // Interrupts
-   (* always_ready *)
-   method Action cpu_external_interrupt_req;
-   (* always_ready *)
-   method Action cpu_software_interrupt_req;
-
+   method Action cpu_external_interrupt_req (Bool set_not_clear);
    method Action cpu_timer_interrupt_req (Bool set_not_clear);
+   method Action cpu_software_interrupt_req (Bool set_not_clear);
 
 `ifdef INCLUDE_TANDEM_VERIF
    // ----------------------------------------------------------------

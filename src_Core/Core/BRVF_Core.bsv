@@ -165,9 +165,9 @@ module mkBRVF_Core #(parameter Bit #(64)  pc_reset_value)  (BRVF_Core_IFC);
    // ----------------
    // Interrupts
 
-   method Action  cpu_external_interrupt_req  = cpu.external_interrupt_req;
-   method Action  cpu_software_interrupt_req  = cpu.software_interrupt_req;
-   method Action  cpu_timer_interrupt_req (x) = cpu.timer_interrupt_req (x);
+   method Action  cpu_external_interrupt_req (x) = cpu.external_interrupt_req (x);
+   method Action  cpu_software_interrupt_req (x) = cpu.software_interrupt_req (x);
+   method Action  cpu_timer_interrupt_req (x)    = cpu.timer_interrupt_req (x);
 
 `ifdef INCLUDE_TANDEM_VERIF
    // ----------------

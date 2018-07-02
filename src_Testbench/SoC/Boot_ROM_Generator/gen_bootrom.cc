@@ -60,8 +60,8 @@
 #define  NUM_PROCS  1
 
 // 1 GHz
-#define  CPU_HZ              1000000000lu
-#define  INSNS_PER_RTC_TICK  100
+#define  CPU_HZ              50000lu
+#define  INSNS_PER_RTC_TICK  1
 
 // ================================================================
 

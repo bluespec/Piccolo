@@ -89,9 +89,12 @@ typedef enum {CPU_RESET1,
 deriving (Eq, Bits, FShow);
 
 function Bool fn_is_running (CPU_State  cpu_state);
-   return (   (cpu_state == CPU_RUNNING)
-	   || (cpu_state == CPU_FENCE_I)
-	   || (cpu_state == CPU_FENCE)
+   return (   (cpu_state != CPU_RESET1)
+	   && (cpu_state != CPU_RESET2)
+`ifdef INCLUDE_GDB_CONTROL
+	   && (cpu_state != CPU_GDB_PAUSING)
+	   && (cpu_state != CPU_DEBUG_MODE)
+`endif
 	   );
 endfunction
 
@@ -197,7 +200,23 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 
 `ifdef INCLUDE_TANDEM_VERIF
    FIFOF #(Info_CPU_to_Verifier)  f_to_verifier <- mkFIFOF;
+
+   // State for deciding when a new MIP command needs to be sent
+   Reg #(MIP) rg_prev_mip <- mkRegU;
 `endif
+
+   function Bool mip_cmd_needed ();
+`ifdef INCLUDE_TANDEM_VERIF
+      // If the MTIP, MSIP, or xEIP bits of MIP have changed, then send a MIP update
+      MIP new_mip = csr_regfile.read_csr_mip;
+      Bool mip_has_changed = ((new_mip.tips[m_Priv_Mode] != rg_prev_mip.tips[m_Priv_Mode]) ||
+	                      (new_mip.sips[m_Priv_Mode] != rg_prev_mip.sips[m_Priv_Mode]) ||
+	                      (new_mip.eips              != rg_prev_mip.eips));
+      return mip_has_changed;
+`else
+      return False;
+`endif
+   endfunction: mip_cmd_needed
 
    // ================================================================
    // Debugging: print instruction trace info
@@ -236,8 +255,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
    // ================================================================
    // Feed a new PC into Stage1
    // Feed a new PC into IMem (to do an instruction fetch).
-   // Set rg_halt on external interrupt request, debugger stop request,
-   // or dcsr.step step request
+   // Set rg_halt on debugger stop request or dcsr.step step request
 
    function Action fa_start_ifetch (Word next_pc, Priv_Mode priv);
       action
@@ -250,26 +268,20 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 		     csr_regfile.read_satp);
 
 	 // Set rg_halt if requested.
-	 Bool take_interrupt = False;
-
-	 // Interrupts
-	 if (interrupt_pending && (cur_verbosity > 1))
-	    $display ("    CPU.fa_start_ifetch: interrupt pending");
-
-	 take_interrupt = (take_interrupt || interrupt_pending);
+	 Bool do_halt = False;
 
 `ifdef INCLUDE_GDB_CONTROL
 	 // Debugger stop-request
-	 if ((! take_interrupt) && (rg_stop_req || rg_self_stop_req) && (cur_verbosity != 0))
+	 if ((! do_halt) && (rg_stop_req || rg_self_stop_req) && (cur_verbosity != 0))
 	    $display ("    CPU.fa_start_ifetch: debugger/self stop-request: PC = 0x%08h", next_pc);
 
-	 take_interrupt = (take_interrupt || rg_stop_req || rg_self_stop_req);
+	 do_halt = (do_halt || rg_stop_req || rg_self_stop_req);
 
 	 // dcsr.step step-request
-	 if ((! take_interrupt) && rg_step_req && (cur_verbosity != 0))
+	 if ((! do_halt) && rg_step_req && (cur_verbosity != 0))
 	    $display ("    CPU.fa_start_ifetch: dcsr.step-request");
 
-	 take_interrupt = (take_interrupt || rg_step_req);
+	 do_halt = (do_halt || rg_step_req);
 
 	 // If single-step mode, set step-request to cause a stop at next fetch
 	 if (csr_regfile.read_dcsr_step) begin
@@ -279,10 +291,10 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 	 end
 `endif
 
-	 if (take_interrupt) begin
+	 if (do_halt) begin
 	    rg_halt <= True;
 	    if (cur_verbosity > 1)
-	       $display ("    CPU.fa_start_ifetch: rg_halt <= True to take interrupt");
+	       $display ("    CPU.fa_start_ifetch: rg_halt <= True");
 	 end
       endaction
    endfunction
@@ -315,9 +327,8 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 
    (* no_implicit_conditions, fire_when_enabled *)
    rule rl_show_pipe (   (cur_verbosity > 1)
-		  && (   (rg_state == CPU_RUNNING)
-		      || (rg_state == CPU_FENCE_I)
-		      || (rg_state == CPU_FENCE)));
+		      && fn_is_running (rg_state)
+		      && (rg_state != CPU_WFI_PAUSED));
       let mstatus = csr_regfile.read_mstatus;
       let misa    = csr_regfile.read_misa;
       $display ("================================================================");
@@ -383,6 +394,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
       to_verifier.pc = fromInteger(pc_tv_cmd);
       to_verifier.instr = fromInteger(tv_cmd_reset);
       f_to_verifier.enq (to_verifier);
+      rg_prev_mip <= word_to_mip (0);
 `endif
    endrule
 
@@ -433,14 +445,37 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 				 || (   (stage2.out.ostatus == OSTATUS_EMPTY)
 				     && (stage3.out.ostatus == OSTATUS_PIPE)));
 
-   Bool stage1_take_interrupt = (   rg_halt
-				 && (   (stage1.out.ostatus == OSTATUS_PIPE)
-				     || (stage1.out.ostatus == OSTATUS_NONPIPE))
-				 && (stage2.out.ostatus == OSTATUS_EMPTY)
-				 && (stage3.out.ostatus == OSTATUS_EMPTY));
+   Bool halting = (rg_halt || mip_cmd_needed || interrupt_pending);
+   Bool stage1_halted = (   halting
+			 && (   (stage1.out.ostatus == OSTATUS_PIPE)
+			     || (stage1.out.ostatus == OSTATUS_NONPIPE))
+			 && (stage2.out.ostatus == OSTATUS_EMPTY)
+			 && (stage3.out.ostatus == OSTATUS_EMPTY));
+   Bool stage1_send_mip_cmd = stage1_halted && mip_cmd_needed;
+   Bool stage1_take_interrupt = stage1_halted && (! mip_cmd_needed) && interrupt_pending;
+   Bool stage1_stop = stage1_halted && (! mip_cmd_needed) && (! interrupt_pending);
 
    Bool stage1_is_csrrx = ((stage1.out.ostatus == OSTATUS_PIPE)
 			   && fn_instr_is_csrrx (stage1.out.data_to_stage2.instr));
+
+   // ================================================================
+
+`ifdef INCLUDE_TANDEM_VERIF
+   rule rl_stage1_mip_cmd (   (rg_state == CPU_RUNNING)
+			   && stage1_send_mip_cmd);
+      MIP new_mip = csr_regfile.read_csr_mip;
+      rg_prev_mip <= new_mip;
+
+      Info_CPU_to_Verifier to_verifier = ?;
+      to_verifier.pc = fromInteger(pc_tv_cmd);
+      to_verifier.instr = fromInteger(tv_cmd_mip);
+      to_verifier.data1 = zeroExtend (mip_to_word (new_mip));
+      f_to_verifier.enq (to_verifier);
+
+      if (cur_verbosity > 1)
+	 $display ("%0d: CPU.rl_stage1_mip_cmd: new MIP = ", cur_cycle, fshow(new_mip));
+   endrule
+`endif
 
    // ================================================================
    // PIPELINE BEHAVIOR (excluding nonpipe special instructions and exceptions)
@@ -456,7 +491,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
    rule rl_pipe (   (rg_state == CPU_RUNNING)
 		 && (! pipe_is_empty)
 		 && (! pipe_has_nonpipe)
-		 && (! stage1_take_interrupt));
+		 && (! stage1_halted));
 
       Bool stage3_full = (stage3.out.ostatus != OSTATUS_EMPTY);
       Bool stage2_full = (stage2.out.ostatus != OSTATUS_EMPTY);
@@ -490,7 +525,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
       // Move instruction from Stage1 to Stage2
       // (but stall if Stage1 is CSRRx and rest of pipe is not empty)
 
-      if (   (! rg_halt)
+      if (   (! halting)
 	  && (! stage2_full)
 	  && (stage1.out.ostatus == OSTATUS_PIPE)
 	  && (! (stage1_is_csrrx && (   (stage2.out.ostatus != OSTATUS_EMPTY)
@@ -513,7 +548,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
       // ----------------
       // Feed Stage 1
 
-      if (   (! rg_halt)
+      if (   (! halting)
 	  && (! stage1_full))
 	 begin
 	    if (stage1_is_csrrx) begin
@@ -601,7 +636,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
    // Stage1: nonpipe special: MRET/SRET/URET
 
    rule rl_stage1_xRET (   (rg_state== CPU_RUNNING)
-			&& (! rg_halt)
+			&& (! halting)
 			&& (stage3.out.ostatus == OSTATUS_EMPTY)
 			&& (stage2.out.ostatus == OSTATUS_EMPTY)
 			&& (stage1.out.ostatus == OSTATUS_NONPIPE)
@@ -647,7 +682,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
    // Stage1: nonpipe special: FENCE.I
 
    rule rl_stage1_FENCE_I (   (rg_state== CPU_RUNNING)
-			   && (! rg_halt)
+			   && (! halting)
 			   && (stage3.out.ostatus == OSTATUS_EMPTY)
 			   && (stage2.out.ostatus == OSTATUS_EMPTY)
 			   && (stage1.out.ostatus == OSTATUS_NONPIPE)
@@ -698,7 +733,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
    // Stage1: nonpipe special: FENCE
 
    rule rl_stage1_FENCE (   (rg_state== CPU_RUNNING)
-			 && (! rg_halt)
+			 && (! halting)
 			 && (stage3.out.ostatus == OSTATUS_EMPTY)
 			 && (stage2.out.ostatus == OSTATUS_EMPTY)
 			 && (stage1.out.ostatus == OSTATUS_NONPIPE)
@@ -751,7 +786,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
    // Stage1: nonpipe special: SFENCE.VMA
 
    rule rl_stage1_SFENCE_VMA (   (rg_state== CPU_RUNNING)
-			      && (! rg_halt)
+			      && (! halting)
 			      && (stage3.out.ostatus == OSTATUS_EMPTY)
 			      && (stage2.out.ostatus == OSTATUS_EMPTY)
 			      && (stage1.out.ostatus == OSTATUS_NONPIPE)
@@ -797,7 +832,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
    // Stage1: nonpipe special: WFI
 
    rule rl_stage1_WFI (   (rg_state== CPU_RUNNING)
-		       && (! rg_halt)
+		       && (! halting)
 		       && (stage3.out.ostatus == OSTATUS_EMPTY)
 		       && (stage2.out.ostatus == OSTATUS_EMPTY)
 		       && (stage1.out.ostatus == OSTATUS_NONPIPE)
@@ -861,7 +896,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 			     && (stage1.out.trap_info.exc_code == exc_code_BREAKPOINT));
 
    rule rl_stage1_trap (   (rg_state == CPU_RUNNING)
-			&& (! rg_halt)
+			&& (! halting)
 			&& (stage3.out.ostatus == OSTATUS_EMPTY)
 			&& (stage2.out.ostatus == OSTATUS_EMPTY)
 			&& (stage1.out.ostatus == OSTATUS_NONPIPE)
@@ -927,7 +962,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 
 `ifdef INCLUDE_GDB_CONTROL
    rule rl_trap_BREAK_to_Debug_Mode (   (rg_state == CPU_RUNNING)
-				     && (! rg_halt)
+				     && (! halting)
 				     && (stage3.out.ostatus == OSTATUS_EMPTY)
 				     && (stage2.out.ostatus == OSTATUS_EMPTY)
 				     && (stage1.out.ostatus == OSTATUS_NONPIPE)
@@ -990,10 +1025,10 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 							    epc,
 							    True,           // interrupt_req,
 							    exc_code,
-							    ?);             // badaddr
+							    0);             // badaddr
       rg_cur_priv <= new_priv;
 
-      // Just enq the next_pc into stage1, and clear the rg_halt flag
+      // Just enq the next_pc into stage1,
       // as the interrupt is taken
       Bit #(1) sstatus_SUM = new_mstatus [18];    // TODO: project new_mstatus to new_sstatus?
       Bit #(1) mstatus_MXR = new_mstatus [19];
@@ -1002,7 +1037,6 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 		  mstatus_MXR,
 		  csr_regfile.read_satp);
       stage1.set_full (True);
-      rg_halt <= False;
 
       // Accounting: none (instruction is abandoned)
 
@@ -1035,8 +1069,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 
 `ifdef INCLUDE_GDB_CONTROL
    rule rl_stage1_stop (   (rg_state== CPU_RUNNING)
-			&& stage1_take_interrupt
-			&& (! interrupt_pending)
+			&& stage1_stop
 			&& (rg_stop_req || rg_step_req || rg_self_stop_req));
 
       let pc    = stage1.out.data_to_stage2.pc;    // We'll retry this instruction on 'continue'
@@ -1108,6 +1141,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
       f_run_halt_reqs.deq;
 
       $display ("%0d: CPU.rl_debug_halt_ignore: ignoring 'halt' (CPU already halted)", cur_cycle);
+      $display ("    state = ", fshow (rg_state));
    endrule
 
    // ----------------
@@ -1179,9 +1213,9 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
    // ----------------
    // Interrupts
 
-   method Action  external_interrupt_req  = csr_regfile.external_interrupt_req;
-   method Action  software_interrupt_req  = csr_regfile.software_interrupt_req;
-   method Action  timer_interrupt_req (x) = csr_regfile.timer_interrupt_req (x);
+   method Action  external_interrupt_req (x) = csr_regfile.external_interrupt_req (x);
+   method Action  software_interrupt_req (x) = csr_regfile.software_interrupt_req (x);
+   method Action  timer_interrupt_req (x)    = csr_regfile.timer_interrupt_req (x);
 
    // ----------------
    // Optional interface to Tandem Verifier

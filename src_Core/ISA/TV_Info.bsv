@@ -107,6 +107,7 @@ Integer tv_cmd_mem_write16 = 2;
 Integer tv_cmd_mem_write32 = 3;
 Integer tv_cmd_mem_write64 = 4;
 Integer tv_cmd_reg_write = 5;
+Integer tv_cmd_mip = 6;
 
 // ================================================================
 

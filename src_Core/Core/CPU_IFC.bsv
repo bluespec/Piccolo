@@ -43,12 +43,9 @@ interface CPU_IFC;
    // ----------------
    // Interrupts
 
-   (* always_ready *)
-   method Action  external_interrupt_req;
-
+   method Action  external_interrupt_req (Bool set_not_clear);
    method Action  timer_interrupt_req (Bool set_not_clear);
-   (* always_ready *)
-   method Action  software_interrupt_req;
+   method Action  software_interrupt_req (Bool set_not_clear);
 
    // ----------------
    // Optional interface to Tandem Verifier

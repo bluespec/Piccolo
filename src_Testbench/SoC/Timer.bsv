@@ -84,7 +84,7 @@ interface Timer_IFC;
    interface Get #(Bool)  get_timer_interrupt_req;
 
    // Software interrupt
-   interface Get #(Bit #(0))  get_sw_interrupt_req;
+   interface Get #(Bool)  get_sw_interrupt_req;
 endinterface
 
 // ================================================================
@@ -111,7 +111,8 @@ module mkTimer (Timer_IFC);
 
    Reg #(Bit #(64)) crg_time [2]        <- mkCRegU (2);
    Reg #(Bit #(64)) crg_timecmp [2]     <- mkCRegU (2);
-   Reg #(Bool)      crg_interrupted [2] <- mkCRegU (2);
+
+   Reg #(Bool) rg_mtip <- mkRegU;
 
    // Timer interrupt queue
    FIFOF #(Bool) f_timer_interrupt_req <- mkFIFOF;
@@ -119,10 +120,10 @@ module mkTimer (Timer_IFC);
    // ----------------
    // Software-interrupt registers
 
-   // None: as soon as we write 1 to the MSIP addr, we enqueue a sw interrupt req.
+   Reg #(Bool) rg_msip <- mkRegU;
 
    // Software interrupt queue
-   FIFOF #(Bit #(0)) f_sw_interrupt_req <- mkFIFOF;
+   FIFOF #(Bool) f_sw_interrupt_req <- mkFIFOF;
 
    // ================================================================
    // BEHAVIOR
@@ -144,9 +145,10 @@ module mkTimer (Timer_IFC);
       f_sw_interrupt_req.clear;
 
       rg_state            <= MODULE_STATE_READY;
-      crg_time [0]        <= 1;
-      crg_timecmp [0]     <= 0;
-      crg_interrupted [0] <= True;
+      crg_time [1]        <= 1;
+      crg_timecmp [1]     <= 0;
+      rg_mtip             <= False;
+      rg_msip             <= False;
 
       f_reset_rsps.enq (?);
 
@@ -164,14 +166,14 @@ module mkTimer (Timer_IFC);
    endrule
 
    // Compare and generate timer interrupt request
+   Bool new_mtip = (crg_time [0] >= crg_timecmp [0]);
    rule rl_compare ((rg_state == MODULE_STATE_READY)
-		    && (! crg_interrupted [0])
-		    && (crg_time [0] >= crg_timecmp [0]));
-      crg_interrupted [0] <= True;
-      f_timer_interrupt_req.enq (True);
-      if  (cfg_verbosity > 1)
-	 $display ("%0d: Timer.rl_compare: raising interrupt. time = %0d, timecmp = %0d",
-		   cur_cycle, crg_time [0], crg_timecmp [0]);
+		    && (rg_mtip != new_mtip));
+      rg_mtip <= new_mtip;
+      f_timer_interrupt_req.enq (new_mtip);
+      if (cfg_verbosity > 1)
+	 $display ("%0d: Timer.rl_compare: new MTIP = %0d, time = %0d, timecmp = %0d",
+		   cur_cycle, new_mtip, crg_time [0], crg_timecmp [0]);
    endrule
 
    // ----------------------------------------------------------------
@@ -186,12 +188,12 @@ module mkTimer (Timer_IFC);
       AXI4_Lite_Resp rresp = AXI4_LITE_OKAY;
 
       case (byte_addr)
-	 'h_0000: rdata = 0;                             // MSIP reads as zero
+	 'h_0000: rdata = zeroExtend (rg_msip ? 1'b1 : 1'b0);
 	 'h_4000: rdata = truncate (crg_timecmp [0]);    // truncates for 32b fabrics
 	 'h_BFF8: rdata = truncate (crg_time [0]);       // truncates for 32b fabrics
 
 	 // The following ALIGN4B reads are only needed for 32b fabrics
-	 'h_0004: rdata = 0;    // MSIP reads as zero
+	 'h_0004: rdata = 0;
 	 'h_4004: rdata = zeroExtend (crg_timecmp [0] [63:32]);    // extends for 64b fabrics
 	 'h_BFFC: rdata = zeroExtend (crg_time    [0] [63:32]);    // extends for 64b fabrics
 	 default: begin
@@ -224,34 +226,43 @@ module mkTimer (Timer_IFC);
       AXI4_Lite_Resp bresp = AXI4_LITE_OKAY;
 
       case (byte_addr)
-	 'h_0000: if (wrd.wdata [0] == 1'b1) f_sw_interrupt_req.enq (?);
+	 'h_0000: begin
+	             Bool new_msip = (wrd.wdata [0] == 1'b1);
+		     if (rg_msip != new_msip) begin
+			rg_msip <= new_msip;
+			f_sw_interrupt_req.enq (new_msip);
+			if (cfg_verbosity > 1)
+			   $display ("%0d: Timer.rl_process_wr_req: new MSIP = %0d",
+			             cur_cycle, new_msip);
+		     end
+		  end
 	 'h_4000: begin
+		     // XXX Consult the actual size of the request?
 		     if (valueOf (Wd_Data) == 32)
 			// 32b fabric: data is only lower 32b
 			crg_timecmp [1] <= { crg_timecmp [1] [63:32], wrd.wdata [31:0] };
 		     else
 			// 64b fabric: data is full 64b
 			crg_timecmp [1] <= zeroExtend (wrd.wdata);
-		     crg_interrupted [1] <= False;
-		     f_timer_interrupt_req.enq (False);
 		  end
 	 'h_BFF8: begin
+		     // XXX Consult the actual size of the request?
 		     if (valueOf (Wd_Data) == 32)
 			// 32b fabric: data is only lower 32b
 			crg_time [1] <= { crg_time [1] [63:32], wrd.wdata [31:0] };
 		     else
 			// 64b fabric: data is full 64b
 			crg_time [1] <= zeroExtend (wrd.wdata);
-		       end
+		  end
 
 	 // The following ALIGN4B reads are only needed for 32b fabrics
 	 'h_0004: noAction;
 	 'h_4004: begin
-		     crg_timecmp     [1] <= { wrd.wdata [31:0], crg_timecmp [1] [31:0] };
-		     crg_interrupted [1] <= False;
-		     f_timer_interrupt_req.enq (False);
+		     // XXX Consult the actual size of the request?
+		     crg_timecmp [1] <= { wrd.wdata [31:0], crg_timecmp [1] [31:0] };
 		  end
 	 'h_BFFC: begin
+		     // XXX Consult the actual size of the request?
 		     crg_time [1] <= { wrd.wdata [31:0], crg_time [1] [31:0] };
 		  end
 
@@ -299,10 +310,22 @@ module mkTimer (Timer_IFC);
    interface  slave = slave_xactor.axi_side;
 
    // External interrupt
-   interface get_timer_interrupt_req = toGet (f_timer_interrupt_req);
+   interface Get get_timer_interrupt_req;
+     method ActionValue#(Bool) get();
+       let x <- toGet (f_timer_interrupt_req).get;
+       $display ("%0d: Timer: get_timer_interrupt_req: %x", cur_cycle, x);
+       return x;
+     endmethod
+   endinterface
 
    // Software interrupt
-   interface get_sw_interrupt_req = toGet (f_sw_interrupt_req);
+   interface Get get_sw_interrupt_req;
+     method ActionValue#(Bool) get();
+       let x <- toGet (f_sw_interrupt_req).get;
+       $display ("%0d: Timer: get_sw_interrupt_req: %x", cur_cycle, x);
+       return x;
+     endmethod
+   endinterface
 endmodule
 
 // ================================================================
