@@ -660,12 +660,16 @@ function WordXL mip_to_word (MIP mip);
    return extend (pack (mip));
 endfunction
 
-function MIP word_to_mip (WordXL x);
-   return MIP {
-      eips: unpack ( {x[11], 1'b0, x[9], x[8]} ),
-      tips: unpack ( {x[7] , 1'b0, x[5], x[4]} ),
-      sips: unpack ( {x[3] , 1'b0, x[1], x[0]} )
-   };
+function MIP word_to_mip (WordXL x, MIP mip);
+   // MEIP, MTIP, and MSIP are externally controlled
+   Bit #(12) mask = 'h333;
+   Bit #(12) unchanged_bits = pack (mip) & (~ mask);
+   Bit #(12) changed_bits = truncate (x) & mask;
+   return unpack (unchanged_bits | changed_bits);
+endfunction
+
+function MIP mip_reset_value;
+   return unpack (0);
 endfunction
 
 function WordXL mie_to_word (MIE mie);
@@ -678,6 +682,10 @@ function MIE word_to_mie (WordXL x);
       ties: unpack ( {x[7] , 1'b0, x[5], x[4]} ),
       sies: unpack ( {x[3] , 1'b0, x[1], x[0]} )
    };
+endfunction
+
+function MIE mie_reset_value;
+   return unpack (0);
 endfunction
 
 Integer mip_usip_bitpos =  0;

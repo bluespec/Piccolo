@@ -394,7 +394,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
       to_verifier.pc = fromInteger(pc_tv_cmd);
       to_verifier.instr = fromInteger(tv_cmd_reset);
       f_to_verifier.enq (to_verifier);
-      rg_prev_mip <= word_to_mip (0);
+      rg_prev_mip <= mip_reset_value;
 `endif
    endrule
 

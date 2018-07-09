@@ -332,10 +332,10 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
 `endif
 
       rg_mstatus    <= mstatus_reset_value;
-      rg_mie        <= word_to_mie (0);
+      rg_mie        <= mie_reset_value;
       rg_mtvec      <= word_to_mtvec (mtvec_reset_value);
       rg_mcause     <= word_to_mcause (0);    // Supposed to be the cause of the reset.
-      rg_mip        <= word_to_mip (0);
+      rg_mip        <= mip_reset_value;
 `ifdef ISA_PRIV_S
       rg_medeleg    <= 0;
       rg_mideleg    <= 0;
@@ -432,11 +432,11 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
 `endif
 
 	    csr_cycle:     m_csr_value = tagged Valid (truncate (rg_mcycle));
-	    csr_time:      m_csr_value = tagged Valid (truncate (rg_mcycle));
+	    csr_time:      m_csr_value = tagged Invalid;
 	    csr_instret:   m_csr_value = tagged Valid (truncate (rg_minstret));
 `ifdef RV32
 	    csr_cycleh:    m_csr_value = tagged Valid (rg_mcycle   [63:32]);
-	    csr_timeh:     m_csr_value = tagged Valid (rg_mcycle   [63:32]);
+	    csr_timeh:     m_csr_value = tagged Invalid;
 	    csr_instreth:  m_csr_value = tagged Valid (rg_minstret [63:32]);
 `endif
 
@@ -445,7 +445,7 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
 	    csr_sstatus:   m_csr_value = tagged Valid (fn_read_sstatus (rg_mstatus));
 	    csr_sedeleg:   m_csr_value = tagged Valid zeroExtend (sedeleg);
 	    csr_sideleg:   m_csr_value = tagged Valid zeroExtend (sideleg);
-	    csr_sie:       m_csr_value = tagged Valid (sie_to_word (rg_mie));
+	    csr_sie:       m_csr_value = tagged Valid (sie_to_word (rg_mie, rg_mideleg));
 	    csr_stvec:     m_csr_value = tagged Valid (mtvec_to_word (rg_stvec));
 	    csr_scounteren:m_csr_value = tagged Valid 0;
 
@@ -453,7 +453,7 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
 	    csr_sepc:      m_csr_value = tagged Valid rg_sepc;
 	    csr_scause:    m_csr_value = tagged Valid (mcause_to_word (rg_scause));
 	    csr_stval:     m_csr_value = tagged Valid rg_stval;
-	    csr_sip:       m_csr_value = tagged Valid (sip_to_word (rg_mip));
+	    csr_sip:       m_csr_value = tagged Valid (sip_to_word (rg_mip, rg_mideleg));
 
 	    csr_satp:      m_csr_value = tagged Valid rg_satp;
 
@@ -561,7 +561,7 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
 	       csr_sstatus:    rg_mstatus    <= fn_write_sstatus (misa, rg_mstatus, word);
 	       csr_sedeleg:    noAction;               // Hardwired to 0 (no delegation)
 	       csr_sideleg:    noAction;               // Hardwired to 0 (no delegation)
-	       csr_sie:        rg_mie        <= word_to_sie (word, rg_mie);
+	       csr_sie:        rg_mie        <= word_to_sie (word, rg_mie, rg_mideleg);
 	       csr_stvec:      rg_stvec      <= word_to_mtvec (word);
 	       csr_scounteren: noAction;
 
@@ -569,13 +569,7 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
 	       csr_sepc:       rg_sepc     <= word;
 	       csr_scause:     rg_scause   <= word_to_mcause (word);
 	       csr_stval:      rg_stval    <= word;
-	       csr_sip:        begin
-				  // Only UIEP and SSIP, USIP are writeable
-				  let mask    = 'h103;
-				  let old_mip = mip_to_word (rg_mip);
-				  let new_mip = ((old_mip & (~ mask)) | (word & mask));
-				  rg_mip <= word_to_mip (new_mip);
-			       end
+	       csr_sip:        rg_mip      <= word_to_sip (word, rg_mip, rg_mideleg);
 
 	       csr_satp:       rg_satp <= word;
 
@@ -599,13 +593,7 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
 	       csr_mepc:      rg_mepc     <= word;
 	       csr_mcause:    rg_mcause   <= word_to_mcause (word);
 	       csr_mtval:     rg_mtval    <= word;
-	       csr_mip:       begin
-				 // Only SEIP, UEIP, STIP, UTIP and SSIP, USIP are writeable
-				 let mask    = 'h333;
-				 let old_mip = mip_to_word (rg_mip);
-				 let new_mip = ((old_mip & (~ mask)) | (word & mask));
-				 rg_mip <= word_to_mip (new_mip);
-			      end
+	       csr_mip:       rg_mip      <= word_to_mip (word, rg_mip);
 
 	       // TODO: PMPs
 	       // csr_pmpcfg0:   rf_pmpcfg.upd (0, word);

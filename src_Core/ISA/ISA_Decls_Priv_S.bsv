@@ -62,27 +62,28 @@ function Bit #(4) scause_exception_code (WordXL scause_val); return scause_val [
 // ================================================================
 // SIP and SIE (these are restricted views of MIP and MIE)
 
-function WordXL sip_to_word (MIP sip);
-   WordXL sip_w = extend (pack (sip));
-   return (sip_w & 'h333);
+function WordXL sip_to_word (MIP sip, Bit #(12) mideleg);
+   Bit #(12) mask = 'h333 & mideleg;
+   return extend (pack (sip) & mask);
 endfunction
 
-function MIP word_to_sip (WordXL x, MIP mip);
-   // Only update SEIP, UEIP, STIP, UTIP, SSIP, USIP; preserve rest of mip
-   return MIP {eips: unpack ( {mip.eips[3], mip.eips[2], x[9], x[8]} ),
-	       tips: unpack ( {mip.tips[3], mip.tips[2], x[5], x[4]} ),
-	       sips: unpack ( {mip.sips[3], mip.sips[2], x[1], x[0]} ) };
+function MIP word_to_sip (WordXL x, MIP mip, Bit #(12) mideleg);
+   Bit #(12) mask = 'h333 & mideleg;
+   Bit #(12) unchanged_bits = pack (mip) & (~ mask);
+   Bit #(12) changed_bits = truncate (x) & mask;
+   return unpack (unchanged_bits | changed_bits);
 endfunction
 
-function WordXL sie_to_word (MIE sie);
-   WordXL sie_w = extend (pack (sie));
-   return (sie_w & 'h333);
+function WordXL sie_to_word (MIE sie, Bit #(12) mideleg);
+   Bit #(12) mask = 'h333 & mideleg;
+   return extend (pack (sie) & mask);
 endfunction
 
-function MIE word_to_sie (WordXL x, MIE mie);
-   return MIE {eies: unpack ( {mie.eies[3], mie.eies[2], x[9], x[8]} ),
-	       ties: unpack ( {mie.ties[3], mie.ties[2], x[5], x[4]} ),
-	       sies: unpack ( {mie.sies[3], mie.sies[2], x[1], x[0]} ) };
+function MIE word_to_sie (WordXL x, MIE mie, Bit #(12) mideleg);
+   Bit #(12) mask = 'h333 & mideleg;
+   Bit #(12) unchanged_bits = pack (mie) & (~ mask);
+   Bit #(12) changed_bits = truncate (x) & mask;
+   return unpack (unchanged_bits | changed_bits);
 endfunction
 
 `ifdef ISA_PRIV_S
