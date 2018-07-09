@@ -216,12 +216,23 @@ void c_mem_load_elf (char *elf_filename,
 }
 
 // ================================================================
+// Min and max byte addrs for various mem sizes
+
+#define BASE_ADDR_B  0x80000000lu
+
+// For 16 MB memory at 0x_8000_0000
+#define MIN_MEM_ADDR_16MB  BASE_ADDR_B
+#define MAX_MEM_ADDR_16MB  (BASE_ADDR_B + 0x1000000lu)
+
+// For 16 MB memory at 0x_8000_0000
+#define MIN_MEM_ADDR_256MB  BASE_ADDR_B
+#define MAX_MEM_ADDR_256MB  (BASE_ADDR_B + 0x10000000lu)
+
+// ================================================================
 
 // Write out from word containing addr1 to word containing addr2
 void write_mem_hex_file (FILE *fp, uint64_t addr1, uint64_t addr2)
 {
-    const uint64_t  BASE_ADDR_B = 0x80000000u;
-
     const uint64_t bits_per_raw_mem_word   = 256;
     uint64_t bytes_per_raw_mem_word  = bits_per_raw_mem_word / 8;    // 32
     uint64_t raw_mem_word_align_mask = (~ ((uint64_t) (bytes_per_raw_mem_word - 1)));
@@ -236,9 +247,23 @@ void write_mem_hex_file (FILE *fp, uint64_t addr1, uint64_t addr2)
 	     ((a1 - BASE_ADDR_B) / bytes_per_raw_mem_word),
 	     a1 - BASE_ADDR_B);
 	     
-    for (uint64_t addr = a1; addr < a2; addr += bytes_per_raw_mem_word) {
+    uint64_t addr;
+    for (addr = a1; addr < a2; addr += bytes_per_raw_mem_word) {
 	for (int j = (bytes_per_raw_mem_word - 1); j >= 0; j--)
 	    fprintf (fp, "%02x", mem_buf [addr+j]);
+	fprintf (fp, "    // raw_mem addr %08" PRIx64 ";  byte addr %08" PRIx64 "\n",
+		 ((addr - BASE_ADDR_B) / bytes_per_raw_mem_word),
+		 (addr  - BASE_ADDR_B));
+    }
+
+    // Write last word, if necessary, to avoid warnings about missing locations
+    if (addr < (MAX_MEM_ADDR_256MB - bytes_per_raw_mem_word)) {
+	addr = MAX_MEM_ADDR_256MB - bytes_per_raw_mem_word;
+	fprintf (fp, "@%07" PRIx64 "    // last raw_mem addr;  byte addr: %08" PRIx64 "\n",
+		 ((addr - BASE_ADDR_B) / bytes_per_raw_mem_word),
+		 addr - BASE_ADDR_B);
+	for (int j = (bytes_per_raw_mem_word - 1); j >= 0; j--)
+	    fprintf (fp, "%02x", 0);
 	fprintf (fp, "    // raw_mem addr %08" PRIx64 ";  byte addr %08" PRIx64 "\n",
 		 ((addr - BASE_ADDR_B) / bytes_per_raw_mem_word),
 		 (addr  - BASE_ADDR_B));
@@ -253,14 +278,10 @@ void print_usage (FILE *fp, int argc, char *argv [])
     fprintf (fp, "    %s  --help\n", argv [0]);
     fprintf (fp, "    %s  <ELF filename>  <mem hex filename>\n", argv [0]);
     fprintf (fp, "Reads ELF file and writes a Verilog Hex Memory image file\n");
+    fprintf (fp, "ELF file should have addresses within this range:\n");
+    fprintf (fp, "<  Max: 0x%8" PRIx64 "\n", MAX_MEM_ADDR_256MB);
+    fprintf (fp, ">= Min: 0x%8" PRIx64 "\n", MIN_MEM_ADDR_256MB);
 }
-
-// ================================================================
-// Min and max byte addrs for various mem sizes
-
-// For 16 MB memory at 0x_8000_0000
-#define MIN_MEM_ADDR_16MB  0x80000000
-#define MAX_MEM_ADDR_16MB  (0x80000000 + 0x1000000)
 
 // ================================================================
 
@@ -286,8 +307,13 @@ int main (int argc, char *argv [])
 	return 1;
     }
 
+    if ((min_addr < BASE_ADDR_B) || (MAX_MEM_ADDR_256MB <= max_addr)) {
+	print_usage (stderr, argc, argv);
+	exit (1);
+    }
+
     fprintf (stdout, "Writing mem hex to file '%s'\n", argv [2]);
-    write_mem_hex_file (fp_out, MIN_MEM_ADDR_16MB, MAX_MEM_ADDR_16MB);
+    write_mem_hex_file (fp_out, BASE_ADDR_B, max_addr);
 
     fclose (fp_out);
 }

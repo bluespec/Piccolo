@@ -202,6 +202,40 @@ module mkCPU_Stage1 #(Bit #(4)         verbosity,
 						 badaddr:  zeroExtend(instr)}; // v1.10 - mtval
 	 end
 
+      // Special case: a read to CSR TIME (not MTIME!) is here converted into
+      // a load from the MTIME memory-mapped location
+      else if (is_csrrx && ((csr == csr_time) || (csr == csr_timeh))) begin
+	 // Create the substituted load instruction. Only its f3 field really matters.
+	 // TODO: Tandem Verif must be aware of this substitution.
+	 // TODO: Replace this ad hoc MTIME eaddr with something principled and VM-safe.
+	 Bit #(3) f3  = f3_LD;
+	 WordXL eaddr = 'h_0200_0000 + 'h_BFF8;
+	 if (rv_version == RV32) begin
+	    f3 = f3_LW;
+	    if (csr == csr_timeh)
+	       eaddr = eaddr + 4;
+	 end
+	 let ld_instr = { csr, 0, f3, decoded_instr.rd, op_LOAD };
+
+	 let data_to_stage2 = Data_Stage1_to_Stage2 {priv:      cur_priv,
+						     pc:        pc,
+						     instr:     ld_instr,
+						     op_stage2: OP_Stage2_LD,
+						     rd:        decoded_instr.rd,
+						     addr:      eaddr,
+
+						     // Remaining fields are irrelevant
+						     csr_valid: False,
+						     val1:      0,
+						     val2:      0 };
+
+	 output_stage1.ostatus        = OSTATUS_PIPE;
+	 output_stage1.trap_info      = ?;
+	 output_stage1.control        = CONTROL_STRAIGHT;
+	 output_stage1.next_pc        = pc + 4;    // TODO: need to handle 'C' variant?
+	 output_stage1.data_to_stage2 = data_to_stage2;
+      end
+
       // ALU outputs: normal, trap, and non-pipe instrs (CSR, MRET, FENCE.I, FENCE, WPI)
       else begin
 	 let ostatus = (  (   (alu_outputs.control == CONTROL_STRAIGHT)

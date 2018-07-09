@@ -56,4 +56,14 @@ To generate variants with other parameter choices, the user will need Bluespec's
 
   - In the `sim_iverilog/` or `sim_verilator/` directories, `$ make gen_RTL` will compile the BSV sources into fresh RTL.
 
+#### Tool dependencies:
+
+We build with the following versions of iVerilog and Verilator.  Later versions are probably ok; we have observed some problems with earlier versions.
+
+        $ iverilog -v
+        Icarus Verilog version 10.1 (stable) ()
+
+        $ verilator --version
+        Verilator 3.922 2018-03-17 rev verilator_3_920-32-gdf3d1a4
+
 ----------------------------------------------------------------

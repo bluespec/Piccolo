@@ -59,9 +59,18 @@
 
 #define  NUM_PROCS  1
 
-// 1 GHz
+// -------------------------
+// Timer configuration
+
+// For Piccolo Sim
+//
 #define  CPU_HZ              50000lu
 #define  INSNS_PER_RTC_TICK  1
+
+// For Cissr
+//
+//#define  CPU_HZ              100000000lu
+//#define  INSNS_PER_RTC_TICK  1
 
 // ================================================================
 

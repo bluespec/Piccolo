@@ -43,7 +43,7 @@ module mkMem_Model (Mem_Model_IFC);
 
    Integer verbosity = 0;    // 0 = quiet; 1 = verbose
 
-   Raw_Mem_Addr alloc_size = 'h_80_000;    // 512K raw mem words, or 16MB
+   Raw_Mem_Addr alloc_size = 'h_80_0000;    // 8M raw mem words, or 256MB
                    
    RegFile #(Raw_Mem_Addr, Bit #(Bits_per_Raw_Mem_Word)) rf <- mkRegFileLoad ("Mem.hex", 0, alloc_size - 1);
 

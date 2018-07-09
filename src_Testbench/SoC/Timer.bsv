@@ -313,7 +313,8 @@ module mkTimer (Timer_IFC);
    interface Get get_timer_interrupt_req;
      method ActionValue#(Bool) get();
        let x <- toGet (f_timer_interrupt_req).get;
-       $display ("%0d: Timer: get_timer_interrupt_req: %x", cur_cycle, x);
+       if (cfg_verbosity > 1)
+          $display ("%0d: Timer: get_timer_interrupt_req: %x", cur_cycle, x);
        return x;
      endmethod
    endinterface
@@ -322,7 +323,8 @@ module mkTimer (Timer_IFC);
    interface Get get_sw_interrupt_req;
      method ActionValue#(Bool) get();
        let x <- toGet (f_sw_interrupt_req).get;
-       $display ("%0d: Timer: get_sw_interrupt_req: %x", cur_cycle, x);
+       if (cfg_verbosity > 1)
+          $display ("%0d: Timer: get_sw_interrupt_req: %x", cur_cycle, x);
        return x;
      endmethod
    endinterface
