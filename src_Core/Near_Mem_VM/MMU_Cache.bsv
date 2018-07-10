@@ -168,7 +168,9 @@ typedef enum {MODULE_PRERESET,              // After power on reset, before soft
 
               IO_REQ,                       // For memory-mapped I/O requests
               IO_AWAITING_READ_RSP,         // No caching
-              IO_READ_RSP                   // Provide IO-read response
+              IO_READ_RSP,                  // Provide IO-read response
+
+	      IO_AWAITING_AMO_READ_RSP
    } Module_State
 deriving (Bits, Eq, FShow);
 
@@ -856,44 +858,18 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 		     $display ("        AMO Miss: -> CACHE_START_REFILL.");
 	       end
 	       else begin
-		  // w1 (from word64) is the (old) value loaded from mem, destined for reg Rd
-		  // w2 is the value that was in reg Rs2
-		  // st_val is new value to be stored back to mem (w1 op w2)
-		  Bit #(64) st_val = ?;
-		  Bit #(5)  f5     = rg_amo_funct7 [6:2];
-		  Bit #(64) w1     = fn_extract_and_extend_bytes (rg_f3, rg_addr, word64);
-		  Bit #(64) w2     = rg_st_amo_val;
-		  Int #(64) i1     = unpack (w1);
-		  Int #(64) i2     = unpack (w2);
-		  if (rg_f3 == f3_AMO_W) begin
-		     w1 = zeroExtend (w1 [31:0]);
-		     w2 = zeroExtend (w2 [31:0]);
-		     i1 = unpack (signExtend (w1 [31:0]));
-		     i2 = unpack (signExtend (w2 [31:0]));
-		  end
-		  case (f5)
-		     f5_AMO_SWAP: st_val = w2;
-		     f5_AMO_ADD:  st_val = pack (i1 + i2);
-		     f5_AMO_XOR:  st_val = w1 ^ w2;
-		     f5_AMO_AND:  st_val = w1 & w2;
-		     f5_AMO_OR:   st_val = w1 | w2;
-		     f5_AMO_MINU: st_val = ((w1 < w2) ? w1 : w2);
-		     f5_AMO_MAXU: st_val = ((w1 > w2) ? w1 : w2);
-		     f5_AMO_MIN:  st_val = ((i1 < i2) ? w1 : w2);
-		     f5_AMO_MAX:  st_val = ((i1 > i2) ? w1 : w2);
-		  endcase
-
-		  if (rg_f3 == f3_AMO_W)
-		     st_val = zeroExtend (st_val [31:0]);
+		  // Do the AMO op on the loaded value and the store value
+		  match {.new_ld_val,
+			 .new_st_val} = fn_amo_op (rg_f3, rg_amo_funct7, rg_addr, word64, rg_st_amo_val);
 
 		  // Update cache line in cache
-		  let new_word64_set = fn_update_word64_set (word64_set, way_hit, vm_xlate_result.pa, rg_f3, st_val);
+		  let new_word64_set = fn_update_word64_set (word64_set, way_hit, vm_xlate_result.pa, rg_f3, new_st_val);
 		  ram_word64_set.a.put (bram_cmd_write, word64_set_in_cache, new_word64_set);
 
 		  // Writeback data to memory (so cache remains clean)
 		  match {.fabric_addr,
 			 .fabric_data,
-			 .fabric_strb } = fn_to_fabric_addr_data_strobe (rg_f3, vm_xlate_result.pa, st_val);
+			 .fabric_strb } = fn_to_fabric_addr_data_strobe (rg_f3, vm_xlate_result.pa, new_st_val);
 		  let mem_req_wr_addr = AXI4_Lite_Wr_Addr {awaddr: fabric_addr, awprot: 0, awuser: dummy_user};
 		  let mem_req_wr_data = AXI4_Lite_Wr_Data {wdata:  fabric_data, wstrb: fabric_strb};
 		  master_xactor.i_wr_addr.enq (mem_req_wr_addr);
@@ -914,15 +890,16 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 
 		  // Provide amo response after 1-cycle delay (thus locking the cset for 1 cycle),
 		  // in case the next incoming request tries to read from the same address.
-		  rg_ld_val     <= truncate (pack (i1));
-		  rg_st_amo_val <= st_val;
-		  rg_state  <= CACHE_ST_AMO_RSP;
+		  rg_ld_val     <= new_ld_val;
+		  rg_st_amo_val <= new_st_val;
+		  rg_state      <= CACHE_ST_AMO_RSP;
 
 		  if (cfg_verbosity > 1) begin
-		     $display ("        AMO: addr 0x%0h amo_f5 0x%0h f3 %0d rs2_val 0x%0h", rg_addr, f5, rg_f3, w2);
+		     $display ("        AMO: addr 0x%0h amo_f7 0x%0h f3 %0d rs2_val 0x%0h",
+			       rg_addr, rg_amo_funct7, rg_f3, rg_st_amo_val);
 		     $display ("          PA 0x%0h ", vm_xlate_result.pa);
-		     $display ("          Cache word64 0x%0h, load-result 0x%0h", word64, w1);
-		     $display ("          0x%0h  op  0x%0h -> 0x%0h", w1, w2, st_val);
+		     $display ("          Cache word64 0x%0h, load-result 0x%0h", word64, word64);
+		     $display ("          0x%0h  op  0x%0h -> 0x%0h", word64, word64, new_st_val);
 		     $write   ("          New Word64_Set:");
 		     fa_display_word64_set (cset_in_cache, word64_in_cline, new_word64_set);
 		     $display ("          To fabric: ", fshow (mem_req_wr_addr));
@@ -1475,7 +1452,8 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 	 rg_state    <= MODULE_EXCEPTION_RSP;
 	 rg_exc_code <= exc_code_LOAD_ACCESS_FAULT;
 	 if (cfg_verbosity > 1)
-	    $display ("%0d: %s.rl_io_read_rsp: FABRIC_RSP_ERR: raising trap FAULT_LOAD", cur_cycle, d_or_i);
+	    $display ("%0d: %s.rl_io_read_rsp: FABRIC_RSP_ERR: raising trap LOAD_ACCESS_FAULT",
+		      cur_cycle, d_or_i);
       end
    endrule
 
@@ -1539,14 +1517,72 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 
 `ifdef ISA_A
    rule rl_io_AMO_op_req ((rg_state == IO_REQ) && is_AMO && (! is_AMO_LR) && (! is_AMO_SC));
-      rg_exc_code <= exc_code_STORE_AMO_ACCESS_FAULT;
-      rg_state    <= MODULE_EXCEPTION_RSP;
+      Fabric_Addr fabric_addr = fn_PA_to_Fabric_Addr (rg_pa);
+      let io_req_rd_addr = AXI4_Lite_Rd_Addr {araddr: fabric_addr, arprot: 0, aruser: dummy_user};
+      master_xactor.i_rd_addr.enq (io_req_rd_addr);
+
+      rg_state <= IO_AWAITING_AMO_READ_RSP;
 
       if (cfg_verbosity > 1) begin
-	 $display ("%0d: %s: rl_io_AMO_op_req; f3 0x%0h  amo_funct7 0x%0h  vaddr %0h  p %0h  word64 0x%0h",
-		   cur_cycle, d_or_i, rg_f3, rg_amo_funct7, rg_addr, rg_pa, rg_st_amo_val);
-	 $display ("    FAIL: AMO_ops not supported on I/O addresses.");
-	 $display ("    => rl_drive_exception_rsp");
+	 $display ("%0d: %s.rl_io_AMO_op_req; f3 0x%0h vaddr %0h  paddr %0h",
+		   cur_cycle, d_or_i, rg_f3, rg_addr, rg_pa);
+	 $display ("    ", io_req_rd_addr);
+      end
+   endrule
+`endif
+
+   // ----------------
+   // Receive I/O AMO read response from fabric,
+   // Do the AMO op, and send store to fabric
+
+`ifdef ISA_A
+   rule rl_io_AMO_read_rsp (rg_state == IO_AWAITING_AMO_READ_RSP);
+      let rd_data <- pop_o (master_xactor.o_rd_data);
+      if (cfg_verbosity > 1) begin
+	 $display ("%0d: %s.rl_io_AMO_read_rsp: vaddr 0x%0h  paddr 0x%0h", cur_cycle, d_or_i, rg_addr, rg_pa);
+	 $display ("    ", fshow (rd_data));
+      end
+
+      let fabric_word = rd_data.rdata;
+      let ld_val      = zeroExtend (fabric_word);
+
+      // Bus error for AMO read
+      if (rd_data.rresp != AXI4_LITE_OKAY) begin
+	 rg_state    <= MODULE_EXCEPTION_RSP;
+	 rg_exc_code <= exc_code_STORE_AMO_ACCESS_FAULT;
+	 if (cfg_verbosity > 1)
+	    $display ("%0d: %s.rl_io_AMO_read_rsp: FABRIC_RSP_ERR: raising trap STORE_AMO_ACCESS_FAULT",
+		      cur_cycle, d_or_i);
+      end
+      // Successful AMO read
+      else begin
+	 // Do the AMO op on the loaded value and the store value
+	 match {.new_ld_val,
+		.new_st_val} = fn_amo_op (rg_f3, rg_amo_funct7, rg_addr, ld_val, rg_st_amo_val);
+
+	 // Write back new st_val to fabric
+	 match {.fabric_addr,
+		.fabric_data,
+		.fabric_strb } = fn_to_fabric_addr_data_strobe (rg_f3, rg_pa, new_st_val);
+	 let io_req_wr_addr = AXI4_Lite_Wr_Addr {awaddr: fabric_addr, awprot: 0, awuser: dummy_user};
+	 let io_req_wr_data = AXI4_Lite_Wr_Data {wdata:  fabric_data, wstrb: fabric_strb};
+
+	 master_xactor.i_wr_addr.enq (io_req_wr_addr);
+	 master_xactor.i_wr_data.enq (io_req_wr_data);
+
+	 ctr_wr_rsps_pending.incr;            // Expect a fabric response
+
+	 fa_drive_IO_read_rsp (rg_f3, rg_addr, new_ld_val);
+	 rg_ld_val <= new_ld_val;
+	 rg_state  <= IO_READ_RSP;
+
+	 if (cfg_verbosity > 1) begin
+	    $display ("%0d: %s: rl_io_wr_req; f3 0x%0h  vaddr %0h  paddr %0h  word64 0x%0h",
+		      cur_cycle, d_or_i, rg_f3, rg_addr, rg_pa, rg_st_amo_val);
+	    $display ("    ", fshow (io_req_wr_addr));
+	    $display ("    ", fshow (io_req_wr_data));
+	    $display ("    => rl_ST_AMO_response");
+	 end
       end
    endrule
 `endif
@@ -1719,6 +1755,49 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
    interface mem_master = master_xactor.axi_side;
 
 endmodule: mkMMU_Cache
+
+// ================================================================
+// ALU for AMO ops.
+// Returns the value to be stored back to mem.
+
+`ifdef ISA_A
+function Tuple2 #(WordXL,
+		  WordXL) fn_amo_op (Bit #(3) funct3,    // encodes data size (.W or .D)
+				     Bit #(7) funct7,    // encodes the AMO op
+				     WordXL   addr,      // lsbs indicate which 32b W in 64b D (.W)
+				     WordXL   ld_val,    // 64b value loaded from mem
+				     WordXL   st_val);   // 64b value from CPU reg Rs2
+   Bit #(64) w1     = fn_extract_and_extend_bytes (funct3, addr, ld_val);
+   Bit #(64) w2     = st_val;
+   Int #(64) i1     = unpack (w1);    // Signed, for signed ops
+   Int #(64) i2     = unpack (w2);    // Signed, for signed ops
+   if (funct3 == f3_AMO_W) begin
+      w1 = zeroExtend (w1 [31:0]);
+      w2 = zeroExtend (w2 [31:0]);
+      i1 = unpack (signExtend (w1 [31:0]));
+      i2 = unpack (signExtend (w2 [31:0]));
+   end
+   Bit #(5)  f5     = funct7 [6:2];
+   // new_st_val is new value to be stored back to mem (w1 op w2)
+   Bit #(64) new_st_val = ?;
+   case (f5)
+      f5_AMO_SWAP: new_st_val = w2;
+      f5_AMO_ADD:  new_st_val = pack (i1 + i2);
+      f5_AMO_XOR:  new_st_val = w1 ^ w2;
+      f5_AMO_AND:  new_st_val = w1 & w2;
+      f5_AMO_OR:   new_st_val = w1 | w2;
+      f5_AMO_MINU: new_st_val = ((w1 < w2) ? w1 : w2);
+      f5_AMO_MAXU: new_st_val = ((w1 > w2) ? w1 : w2);
+      f5_AMO_MIN:  new_st_val = ((i1 < i2) ? w1 : w2);
+      f5_AMO_MAX:  new_st_val = ((i1 > i2) ? w1 : w2);
+   endcase
+
+   if (funct3 == f3_AMO_W)
+      new_st_val = zeroExtend (new_st_val [31:0]);
+
+   return tuple2 (truncate (pack (i1)), new_st_val);
+endfunction: fn_amo_op
+`endif
 
 // ================================================================
 

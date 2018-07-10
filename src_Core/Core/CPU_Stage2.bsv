@@ -292,7 +292,7 @@ module mkCPU_Stage2 #(Bit #(4)         verbosity,
 	 output_stage2 = Output_Stage2 {ostatus:         ostatus,
 					trap_info:       ?,
 					data_to_stage3:  data_to_stage3,
-					bypass:          bypass,
+					bypass:          bypass
 `ifdef INCLUDE_TANDEM_VERIF
 					, to_verifier:     to_verifier
 `endif
