@@ -92,6 +92,7 @@ endinterface
 (* synthesize *)
 module mkTimer (Timer_IFC);
 
+   // Verbosity: 0: quiet; 1: reset; 2: timer interrupts, all reads and writes
    Reg #(Bit #(4)) cfg_verbosity <- mkConfigReg (0);
 
    Reg #(Module_State) rg_state     <- mkReg (MODULE_STATE_START);
@@ -244,6 +245,10 @@ module mkTimer (Timer_IFC);
 		     else
 			// 64b fabric: data is full 64b
 			crg_timecmp [1] <= zeroExtend (wrd.wdata);
+
+		     if (cfg_verbosity > 1)
+			$display ("%0d: Timer.rl_process_wr_req: Setting MTIMECMP = %0d (MTIME = %0d); delta = %0d",
+				  cur_cycle, wrd.wdata, crg_time [1], wrd.wdata - crg_time [1]);
 		  end
 	 'h_BFF8: begin
 		     // XXX Consult the actual size of the request?
@@ -253,6 +258,10 @@ module mkTimer (Timer_IFC);
 		     else
 			// 64b fabric: data is full 64b
 			crg_time [1] <= zeroExtend (wrd.wdata);
+
+		     if (cfg_verbosity > 1)
+			$display ("%0d: Timer.rl_process_wr_req: Setting MTIME = %0d (old: %0d)",
+				  cur_cycle, wrd.wdata, crg_time [1]);
 		  end
 
 	 // The following ALIGN4B reads are only needed for 32b fabrics
@@ -264,6 +273,12 @@ module mkTimer (Timer_IFC);
 	 'h_BFFC: begin
 		     // XXX Consult the actual size of the request?
 		     crg_time [1] <= { wrd.wdata [31:0], crg_time [1] [31:0] };
+
+		     if (cfg_verbosity > 1)
+			$display ("%0d: Timer.rl_process_wr_req: Setting [MTIMEH (old %0h) <= new %0h]; [MTIMEL = %0h]",
+				  cur_cycle,
+				  crg_time [1] [63:32], wrd.wdata [31:0],
+				  crg_time [1] [31:0]);
 		  end
 
 	 default: begin

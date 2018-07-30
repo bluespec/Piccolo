@@ -156,9 +156,6 @@ CSR_Addr   csr_addr_dpc       = 12'h7B1;    // Debug PC
 CSR_Addr   csr_addr_dscratch0 = 12'h7B2;    // Debug scratch0
 CSR_Addr   csr_addr_dscratch1 = 12'h7B3;    // Debug scratch1
 
-CSR_Addr   csr_addr_watch_n     = 12'hBC0;    // When a watchpoint is hit, this reg holds the watchpoint number that was hit (1..)
-CSR_Addr   csr_addr_watchpoint1 = 12'hBC1;    // Watchpoint 1 (contains an address being watched)
-
 // ================================================================
 // Logical view of csr_misa register
 
@@ -265,7 +262,7 @@ Integer mstatus_uie_bitpos     =  0;
 // Logical view
 
 typedef struct {
-   Bit #(1)   sd;     // Some dirty in XS or FS
+   // Bit #(1)   sd;     // Some dirty in XS or FS    TODO: read-only bit computes from FS and XS; delete
 `ifdef RV64
    Bit #(2)   sxl;    // XLEN in S Priv
    Bit #(2)   uxl;    // XLEN in U Priv
@@ -285,17 +282,23 @@ typedef struct {
    } MStatus
 deriving (Bits);
 
-// Valus for FS and XS
+// Values for FS and XS
 
 Bit #(2) fs_xs_off      = 2'h0;
 Bit #(2) fs_xs_initial  = 2'h1;
 Bit #(2) fs_xs_clean    = 2'h2;
 Bit #(2) fs_xs_dirty    = 2'h3;
 
+// Virtual field SD is computed from FS and XS
+
+function Bit #(1) fn_mstatus_sd (MStatus  mstatus);
+   return pack ((mstatus.xs == fs_xs_dirty) || (mstatus.fs == fs_xs_dirty));
+endfunction
+
 instance FShow #(MStatus);
    function Fmt fshow (MStatus ms);
       return (  $format ("MStatus{")
-	      + $format ("sd:%0d", ms.sd)
+	      + $format ("sd:%0d", fn_mstatus_sd (ms))
 `ifdef RV64
 	      + $format (" sxl:%0d", ms.sxl)
 	      + $format (" uxl:%0d", ms.uxl)
@@ -351,7 +354,7 @@ endfunction
 // Conversion from logical view of mstatus to/from bit-representation
 
 function WordXL mstatus_to_word (MStatus ms);
-   return {ms.sd,
+   return {fn_mstatus_sd (ms),
 `ifdef RV64
 	   0,        // WPRI field, expands appropriately for RV64
 	   ms.sxl,
@@ -386,21 +389,21 @@ endfunction
 
 // TODO: this should take current privilege mode and misa into account (see Cissr code, e.g.)
 function MStatus word_to_mstatus (MISA misa, WordXL x);
-   return MStatus {sd: msb (x),
+   return MStatus {
 `ifdef RV64
 		   sxl: ((misa.s == 1) ? misa.mxl : 0),    // sxl: x [35:34], WARL field
-		   uxl: ((misa.u == 1) ? misa.mxl : 0),    // sxl: x [35:34], WARL field
+		   uxl: ((misa.u == 1) ? misa.mxl : 0),    // uxl: x [33:32], WARL field
 `endif
 		   tsr:  x [22],
-		   tw:  x [21],
+		   tw:   x [21],
 		   tvm:  x [20],
 		   mxr:  x [19],
 		   sum:  x [18],
 		   mprv: x [17],
 		   xs:   x [16:15],
-		   fs: (((misa.f == 1) || (misa.d == 1)) ? x [14:13] : 0),
-		   mpp: x [12:11],
-		   spp: (x[8] == 0) ? u_Priv_Mode : s_Priv_Mode,
+		   fs:   x [14:13],     // TODO: OLD: (((misa.f == 1) || (misa.d == 1)) ? x [14:13] : 0),
+		   mpp:  x [12:11],
+		   spp:  (x[8] == 0) ? u_Priv_Mode : s_Priv_Mode,
 		   pies: unpack ({x[7],
 				  1'b0,
 				  ((misa.s == 0) ? 0 : x[5]),
@@ -454,7 +457,7 @@ function MStatus fn_write_sstatus (MISA misa,  MStatus mstatus,  WordXL x);
   MStatus res = mstatus;
   MStatus mx = word_to_mstatus (misa, x);
   // Update the fields which are not WPRI
-  res.sd   = mx.sd;
+  // res.sd   = mx.sd;
 `ifdef RV64
   res.uxl  = mx.uxl;
 `endif

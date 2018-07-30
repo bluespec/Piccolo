@@ -697,7 +697,7 @@ function ALU_Outputs fv_SYSTEM (ALU_Inputs inputs);
 `endif
 	 csr_val = csr_val & mask;
 
-	 if ((inputs.misa.f == 0) && (inputs.misa.d == 0)) begin
+	 if ((inputs.misa.s == 0) && (inputs.misa.f == 0) && (inputs.misa.d == 0)) begin
 	    // Force mstatus.FS to 0
 	    WordXL mask_in_fs = 'h_6000;
 	    csr_val = (csr_val & (~ mask_in_fs));

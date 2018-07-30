@@ -24,7 +24,6 @@ import ClientServer :: *;
 
 // BSV additional libs
 
-import Cur_Cycle  :: *;
 import GetPut_Aux :: *;
 
 // ================================================================
@@ -139,11 +138,6 @@ interface CSR_RegFile_IFC;
    (* always_ready *)
    method Action write_dcsr_cause (DCSR_Cause cause);
 
-   (* always_ready *)
-   method WordXL watchpoint_hit (WordXL addr);
-
-   (* always_ready *)
-   method Action set_watch_n (WordXL n);
 `endif
 
 endinterface
@@ -231,6 +225,11 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
    // Reset
    FIFOF #(Token) f_reset_rsps <- mkFIFOF;
 
+   // CSRs
+   // User-mode CSRs
+   Reg #(Bit #(5)) rg_fflags <- mkRegU;    // floating point flags
+   Reg #(Bit #(3)) rg_frm    <- mkRegU;    // floating point rounding mode
+
    // Supervisor-mode CSRs
    Bit #(16)  sedeleg = 0;    // hardwired to 0
    Bit #(12)  sideleg = 0;    // hardwired to 0
@@ -257,7 +256,6 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
    Bit #(12)         rg_mideleg   = 0;
 `endif
 
-   // CSRs
    // Machine-mode CSRs
    Word mvendorid   = 0;    // Not implemented
    Word marchid     = 0;    // Not implemented
@@ -279,7 +277,7 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
    // RegFile #(Bit #(2), WordXL)  rf_pmpcfg   <- mkRegFileFull;
    // Vector #(16, Reg #(WordXL))  vrg_pmpaddr <- replicateM (mkRegU);
 
-   // mcycle is needed even for user-mode instructions
+   // mcycle is needed even for user-mode RDCYCLE instruction
    // It can be updated by a CSR instruction (in Priv_M), and by the clock
    Reg #(Bit #(64))   rg_mcycle <- mkReg (0);
    RWire #(Bit #(64)) rw_mcycle <- mkRWire;    // Driven on CSRRx write to mcycle
@@ -302,19 +300,6 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
    Reg #(WordXL)    rg_dscratch0 <- mkRegU;
    Reg #(WordXL)    rg_dscratch1 <- mkRegU;
 
-   // ----------------
-   // Non-standard 'watchpoint' CSRs
-   // rg_watchpoint1, 2, ..  contain mem addrs to be watched for accesses
-   // On a watchpoint hit, rg_watch_n holds the watchpoint reg number (1..) that matched
-   // rg_watch_n is a read-only register, and resets to 0
-
-   // TODO: Each watchpoint should have a status of disarmed/armed
-   // (for now, '1 is just an 'unlikely' watchpoint, so is disarmed)
-   Reg #(WordXL)  rg_watch_n     <- mkReg (0);
-
-   Reg #(WordXL)  rg_watchpoint1 <- mkReg ('1);
-   // Reg #(WordXL)  rg_watchpoint1 <- mkReg ('hC000_0000);   // UART tx, for testing
-
    // ----------------------------------------------------------------
    // Reset.
    // Initialize some CSRs.
@@ -324,6 +309,11 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
       f_ti_reqs.clear;
       f_si_reqs.clear;
 
+      // User-level CSRs
+      rg_fflags <= 0;
+      rg_frm    <= 0;
+
+      // Supervisoer-level CSRs
 `ifdef ISA_PRIV_S
       rg_stvec    <= word_to_mtvec (mtvec_reset_value);
       rg_scause   <= word_to_mcause (0);    // Supposed to be the cause of the reset.
@@ -331,6 +321,7 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
       //rg_scounteren <= mcounteren_reset_value;
 `endif
 
+      // Machine-level CSRs
       rg_mstatus    <= mstatus_reset_value;
       rg_mie        <= mie_reset_value;
       rg_mtvec      <= word_to_mtvec (mtvec_reset_value);
@@ -362,8 +353,6 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
 			     );
 `endif
 
-      rg_watch_n <= 0;
-
       rg_state <= RF_RUNNING;
    endrule
 
@@ -372,7 +361,7 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
 
    (* no_implicit_conditions, fire_when_enabled *)
    rule rl_mcycle_incr;
-      // Update due to CSRRx
+      // Update due to CSRRx    TODO: fix this
       if (rw_mcycle.wget matches tagged Valid .v)
 	 rg_mcycle <= rg_mcycle + 1;
 
@@ -387,13 +376,13 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
    (* descending_urgency = "rl_reset_start, rl_upd_minstret_csrrx" *)
    rule rl_upd_minstret_csrrx (rw_minstret.wget matches tagged Valid .v);
       rg_minstret <= v;
-      // $display ("%0d: CSR_RegFile_UM.rl_upd_minstret_csrrx: new value is %0d", cur_cycle, v);
+      // $display ("%0d: CSR_RegFile_UM.rl_upd_minstret_csrrx: new value is %0d", rg_mcycle, v);
    endrule
 
    (* no_implicit_conditions, fire_when_enabled *)
    rule rl_upd_minstret_incr ((! isValid (rw_minstret.wget)) && pw_minstret_incr);
       rg_minstret <= rg_minstret + 1;
-      // $display ("%0d: CSR_RegFile_UM.rl_upd_minstret_incr: new value is %0d", cur_cycle, rg_minstret + 1);
+      // $display ("%0d: CSR_RegFile_UM.rl_upd_minstret_incr: new value is %0d", rg_mcycle, rg_minstret + 1);
    endrule
 
    // ----------------------------------------------------------------
@@ -424,15 +413,18 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
       else begin
 	 case (csr_addr)
 	    // User mode csrs
-`ifdef ISA_FD
-	    // TODO: fixup when we implement FD
-	    csr_fflags:    m_csr_value = tagged Valid 0;
-	    csr_frm:       m_csr_value = tagged Valid 0;
-	    csr_fcsr:      m_csr_value = tagged Valid 0;
-`endif
+	    csr_fflags:    m_csr_value = tagged Valid ({ 0, rg_fflags });
+	    csr_frm:       m_csr_value = tagged Valid ({ 0, rg_frm });
+	    csr_fcsr:      m_csr_value = tagged Valid ({ 0, rg_frm, rg_fflags });
 
 	    csr_cycle:     m_csr_value = tagged Valid (truncate (rg_mcycle));
-	    csr_time:      m_csr_value = tagged Invalid;
+
+	    // NOTE: CSR_TIME should be a 'shadow copy' of the MTIME
+	    // mem-mapped location; but since both increment at the
+	    // same rate, and MTIME is never written, this is ok.
+
+	    csr_time:      m_csr_value = tagged Valid (truncate (rg_mcycle));
+
 	    csr_instret:   m_csr_value = tagged Valid (truncate (rg_minstret));
 `ifdef RV32
 	    csr_cycleh:    m_csr_value = tagged Valid (rg_mcycle   [63:32]);
@@ -521,9 +513,6 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
 	    csr_addr_dscratch1:  m_csr_value = tagged Valid rg_dscratch1;
 `endif
 
-	    csr_addr_watch_n:     m_csr_value = tagged Valid rg_watch_n;
-	    csr_addr_watchpoint1: m_csr_value = tagged Valid rg_watchpoint1;
-
 	    default: m_csr_value = tagged Invalid;
 	 endcase
       end
@@ -550,12 +539,12 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
 	 else
 	    case (csr_addr)
 	       // User mode csrs
-`ifdef ISA_FD
-	       // TODO: fixup when we implemen FD
-	       csr_fflags:    noAction;
-	       csr_frm:       noAction;
-	       csr_fcsr:      noAction;
-`endif
+	       csr_fflags:     rg_fflags <= word [4:0];
+	       csr_frm:        rg_frm    <= word [7:5];
+	       csr_fcsr:       begin
+				  rg_fflags <= word [4:0];
+				  rg_frm    <= word [7:5];
+			       end
 
 `ifdef ISA_PRIV_S
 	       csr_sstatus:    rg_mstatus    <= fn_write_sstatus (misa, rg_mstatus, word);
@@ -648,14 +637,11 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
 	       csr_addr_dscratch1:  rg_dscratch1  <= word;
 `endif
 
-	       csr_addr_watch_n:     noAction;
-	       csr_addr_watchpoint1: rg_watchpoint1 <=word;
-
 	       default:       success = False;
 	    endcase
 
 	 if ((! success) && (cfg_verbosity > 1))
-	    $display ("%0d: ERROR: CSR-write addr 0x%0h val 0x%0h not successful", cur_cycle,
+	    $display ("%0d: ERROR: CSR-write addr 0x%0h val 0x%0h not successful", rg_mcycle,
 		      csr_addr, word);
       endaction
    endfunction
@@ -679,7 +665,7 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
       
       if (cfg_verbosity > 1) begin
 	 $display ("%0d: CSR_RegFile.rl_record_external_interrupt: mip: %0h -> %0h",
-		   cur_cycle, old_mip_w, new_mip_w);
+		   rg_mcycle, old_mip_w, new_mip_w);
 	 $display ("    Current mie = %0h", mie_to_word (rg_mie));
       end
    endrule
@@ -700,7 +686,7 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
       
       if (cfg_verbosity > 1) begin
 	 $display ("%0d: CSR_RegFile.rl_record_timer_interrupt_req: mip: %0h -> %0h",
-		   cur_cycle, old_mip_w, new_mip_w);
+		   rg_mcycle, old_mip_w, new_mip_w);
 	 $display ("    Current mie = %0h", mie_to_word (rg_mie));
       end
    endrule
@@ -721,7 +707,7 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
 
       if (cfg_verbosity > 1) begin
 	 $display ("%0d: CSR_RegFile.rl_record_software_interrupt: mip: %0h -> %0h",
-		   cur_cycle, old_mip_w, new_mip_w);
+		   rg_mcycle, old_mip_w, new_mip_w);
 	 $display ("    Current mie = %0h", mie_to_word (rg_mie));
       end
    endrule
@@ -827,7 +813,7 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
 			    Word       xtval);
 
       if (cfg_verbosity > 1) begin
-	 $display ("%0d: CSR_Regfile.csr_trap_actions:", cur_cycle);
+	 $display ("%0d: CSR_Regfile.csr_trap_actions:", rg_mcycle);
 	 $display ("    from priv %0d  pc 0x%0h  interrupt %0d  exc_code %0d  xtval 0x%0h",
 		   from_priv, pc, pack (interrupt), exc_code, xtval);
 `ifdef ISA_PRIV_S
@@ -943,19 +929,19 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
    method Action external_interrupt_req (Bool set_not_clear);
       f_ei_reqs.enq (set_not_clear);
       if (cfg_verbosity > 1)
-	 $display ("%0d: CSR_RegFile: external_interrupt_req: %x", cur_cycle, set_not_clear);
+	 $display ("%0d: CSR_RegFile: external_interrupt_req: %x", rg_mcycle, set_not_clear);
    endmethod
 
    method Action timer_interrupt_req (Bool set_not_clear);
       f_ti_reqs.enq (set_not_clear);
       if (cfg_verbosity > 1)
-	 $display ("%0d: CSR_RegFile: timer_interrupt_req: %x", cur_cycle, set_not_clear);
+	 $display ("%0d: CSR_RegFile: timer_interrupt_req: %x", rg_mcycle, set_not_clear);
    endmethod      
 
    method Action software_interrupt_req (Bool set_not_clear);
       f_si_reqs.enq (set_not_clear);
       if (cfg_verbosity > 1)
-	 $display ("%0d: CSR_RegFile: software_interrupt_req: %x", cur_cycle, set_not_clear);
+	 $display ("%0d: CSR_RegFile: software_interrupt_req: %x", rg_mcycle, set_not_clear);
    endmethod
 
    method Maybe #(Exc_Code) interrupt_pending (Priv_Mode cur_priv);
@@ -1007,14 +993,6 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
    method Action write_dcsr_cause (DCSR_Cause cause);
       Bit #(3) b3 = pack (cause);
       rg_dcsr <= { rg_dcsr [31:9], b3, rg_dcsr [5:0] };
-   endmethod
-
-   method WordXL watchpoint_hit (WordXL addr);
-      return ((addr == rg_watchpoint1) ? 1 : 0);
-   endmethod
-
-   method Action set_watch_n (WordXL  n);
-      rg_watch_n <= n;
    endmethod
 
 `endif

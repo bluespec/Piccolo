@@ -227,8 +227,10 @@ module mkCPU_Stage2 #(Bit #(4)         verbosity,
 	    data_to_stage3.rd_val   = result;
 
 	    let bypass = bypass_base;
-	    bypass.bypass_state = ((ostatus == OSTATUS_PIPE) ? BYPASS_RD_RDVAL : BYPASS_RD);
-	    bypass.rd_val       = result;
+	    if (rg_stage2.rd != 0) begin
+	       bypass.bypass_state = ((ostatus == OSTATUS_PIPE) ? BYPASS_RD_RDVAL : BYPASS_RD);
+	       bypass.rd_val       = result;
+	    end
 
 `ifdef INCLUDE_TANDEM_VERIF
 	    let to_verifier   = to_verifier_base;

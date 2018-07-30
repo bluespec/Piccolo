@@ -1761,12 +1761,12 @@ endmodule: mkMMU_Cache
 // Returns the value to be stored back to mem.
 
 `ifdef ISA_A
-function Tuple2 #(WordXL,
-		  WordXL) fn_amo_op (Bit #(3) funct3,    // encodes data size (.W or .D)
-				     Bit #(7) funct7,    // encodes the AMO op
-				     WordXL   addr,      // lsbs indicate which 32b W in 64b D (.W)
-				     WordXL   ld_val,    // 64b value loaded from mem
-				     WordXL   st_val);   // 64b value from CPU reg Rs2
+function Tuple2 #(Bit #(64),
+		  Bit #(64)) fn_amo_op (Bit #(3)   funct3,    // encodes data size (.W or .D)
+					Bit #(7)   funct7,    // encodes the AMO op
+					WordXL     addr,      // lsbs indicate which 32b W in 64b D (.W)
+					Bit #(64)  ld_val,    // 64b value loaded from mem
+					Bit #(64)  st_val);   // 64b value from CPU reg Rs2
    Bit #(64) w1     = fn_extract_and_extend_bytes (funct3, addr, ld_val);
    Bit #(64) w2     = st_val;
    Int #(64) i1     = unpack (w1);    // Signed, for signed ops
