@@ -37,7 +37,7 @@ Disassembly of section .text.init:
 80000054:	00000297          	auipc	t0,0x0
 80000058:	01028293          	addi	t0,t0,16 # 80000064 <reset_vector+0x18>
 8000005c:	30529073          	csrw	mtvec,t0
-80000060:	18005073          	csrwi	sptbr,0
+80000060:	18005073          	csrwi	satp,0
 80000064:	00000297          	auipc	t0,0x0
 80000068:	01c28293          	addi	t0,t0,28 # 80000080 <reset_vector+0x34>
 8000006c:	30529073          	csrw	mtvec,t0
@@ -288,13 +288,13 @@ Disassembly of section .text.init:
 Disassembly of section .data:
 
 80002000 <begin_signature>:
-80002000:	00ff                	0xff
+80002000:	                	0xff
 
 80002001 <tdat2>:
-80002001:	f000                	fsw	fs0,32(s0)
+80002001:	                	fsw	fs0,32(s0)
 
 80002002 <tdat3>:
-80002002:	0ff0                	addi	a2,sp,988
+80002002:	                	addi	a2,sp,988
 
 80002003 <tdat4>:
 80002003:	0000000f          	fence	unknown,unknown
@@ -302,5 +302,5 @@ Disassembly of section .data:
 80002009:	0000                	unimp
 8000200b:	0000                	unimp
 8000200d:	0000                	unimp
-8000200f:	00 20 00 00 00          	Address 0x000000008000200f is out of bounds.
+8000200f:	00              	Address 0x000000008000200f is out of bounds.
 

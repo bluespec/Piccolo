@@ -81,12 +81,13 @@ module mkTop_HW_Side (Empty) ;
    endrule
 
    // ----------------
-   // Tandem verifier: drain and discard packets
+   // Tandem verifier: drain and output/discard packets
 
 `ifdef INCLUDE_TANDEM_VERIF
    rule rl_drain_tandem;
       let tv_packet <- soc_top.verify_out.get;
       tv_out.tv_out.put (tv_packet);
+
       // $display ("%0d: Top_HW_Side.rl_drain_tandem: drained a TV packet", cur_cycle, fshow (tv_packet));
    endrule
 `endif

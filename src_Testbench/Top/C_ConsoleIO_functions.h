@@ -1,4 +1,4 @@
-// Copyright (c) 2016 Bluespec, Inc.  All Rights Reserved
+// Copyright (c) 2016-2018 Bluespec, Inc.  All Rights Reserved
 
 #pragma once
 

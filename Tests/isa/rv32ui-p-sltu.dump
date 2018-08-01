@@ -37,7 +37,7 @@ Disassembly of section .text.init:
 80000054:	00000297          	auipc	t0,0x0
 80000058:	01028293          	addi	t0,t0,16 # 80000064 <reset_vector+0x18>
 8000005c:	30529073          	csrw	mtvec,t0
-80000060:	18005073          	csrwi	sptbr,0
+80000060:	18005073          	csrwi	satp,0
 80000064:	00000297          	auipc	t0,0x0
 80000068:	01c28293          	addi	t0,t0,28 # 80000080 <reset_vector+0x34>
 8000006c:	30529073          	csrw	mtvec,t0

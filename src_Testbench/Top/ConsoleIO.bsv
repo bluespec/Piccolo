@@ -1,11 +1,11 @@
-// Copyright (c) 2013-2017 Bluespec, Inc.  All Rights Reserved
+// Copyright (c) 2013-2018 Bluespec, Inc.  All Rights Reserved
 
 package ConsoleIO;
 
 // ================================================================
 // For Bluesim and Verilog simulation,
 // declarations of imported C functions (hence only in simulation)
-// to read and write chars to the console
+// to read and write chars to the console.
 // See C_ConsoleIO_functions.{h,c} for implementation of these functions.
 
 // ================================================================

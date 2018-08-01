@@ -262,7 +262,7 @@ Integer mstatus_uie_bitpos     =  0;
 // Logical view
 
 typedef struct {
-   // Bit #(1)   sd;     // Some dirty in XS or FS    TODO: read-only bit computes from FS and XS; delete
+   // SD is a read-only bit computed from FS and XS
 `ifdef RV64
    Bit #(2)   sxl;    // XLEN in S Priv
    Bit #(2)   uxl;    // XLEN in U Priv
@@ -391,8 +391,8 @@ endfunction
 function MStatus word_to_mstatus (MISA misa, WordXL x);
    return MStatus {
 `ifdef RV64
-		   sxl: ((misa.s == 1) ? misa.mxl : 0),    // sxl: x [35:34], WARL field
-		   uxl: ((misa.u == 1) ? misa.mxl : 0),    // uxl: x [33:32], WARL field
+		   sxl: ((misa.s == 1) ? misa.mxl : 0),    // WARL field
+		   uxl: ((misa.u == 1) ? misa.mxl : 0),    // WARL field
 `endif
 		   tsr:  x [22],
 		   tw:   x [21],
@@ -401,7 +401,7 @@ function MStatus word_to_mstatus (MISA misa, WordXL x);
 		   sum:  x [18],
 		   mprv: x [17],
 		   xs:   x [16:15],
-		   fs:   x [14:13],     // TODO: OLD: (((misa.f == 1) || (misa.d == 1)) ? x [14:13] : 0),
+		   fs:   x [14:13],
 		   mpp:  x [12:11],
 		   spp:  (x[8] == 0) ? u_Priv_Mode : s_Priv_Mode,
 		   pies: unpack ({x[7],
@@ -457,7 +457,6 @@ function MStatus fn_write_sstatus (MISA misa,  MStatus mstatus,  WordXL x);
   MStatus res = mstatus;
   MStatus mx = word_to_mstatus (misa, x);
   // Update the fields which are not WPRI
-  // res.sd   = mx.sd;
 `ifdef RV64
   res.uxl  = mx.uxl;
 `endif

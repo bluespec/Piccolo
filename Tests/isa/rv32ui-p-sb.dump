@@ -37,7 +37,7 @@ Disassembly of section .text.init:
 80000054:	00000297          	auipc	t0,0x0
 80000058:	01028293          	addi	t0,t0,16 # 80000064 <reset_vector+0x18>
 8000005c:	30529073          	csrw	mtvec,t0
-80000060:	18005073          	csrwi	sptbr,0
+80000060:	18005073          	csrwi	satp,0
 80000064:	00000297          	auipc	t0,0x0
 80000068:	01c28293          	addi	t0,t0,28 # 80000080 <reset_vector+0x34>
 8000006c:	30529073          	csrw	mtvec,t0
@@ -414,34 +414,34 @@ Disassembly of section .text.init:
 Disassembly of section .data:
 
 80002000 <begin_signature>:
-80002000:	efefefef          	jal	t6,800006fe <pass+0x1fa>
+80002000:	          	jal	t6,800006fe <pass+0x1fa>
 
 80002001 <tdat2>:
-80002001:	efefefef          	jal	t6,800006ff <pass+0x1fb>
+80002001:	          	jal	t6,800006ff <pass+0x1fb>
 
 80002002 <tdat3>:
-80002002:	efefefef          	jal	t6,80000700 <pass+0x1fc>
+80002002:	          	jal	t6,80000700 <pass+0x1fc>
 
 80002003 <tdat4>:
-80002003:	efefefef          	jal	t6,80000701 <pass+0x1fd>
+80002003:	          	jal	t6,80000701 <pass+0x1fd>
 
 80002004 <tdat5>:
-80002004:	efefefef          	jal	t6,80000702 <pass+0x1fe>
+80002004:	          	jal	t6,80000702 <pass+0x1fe>
 
 80002005 <tdat6>:
-80002005:	efefefef          	jal	t6,80000703 <pass+0x1ff>
+80002005:	          	jal	t6,80000703 <pass+0x1ff>
 
 80002006 <tdat7>:
-80002006:	efefefef          	jal	t6,80000704 <pass+0x200>
+80002006:	          	jal	t6,80000704 <pass+0x200>
 
 80002007 <tdat8>:
-80002007:	00efefef          	jal	t6,80100015 <_end+0xfe005>
+80002007:	          	jal	t6,80100015 <_end+0xfe005>
 
 80002008 <tdat9>:
-80002008:	0000efef          	jal	t6,80010008 <_end+0xdff8>
+80002008:	          	jal	t6,80010008 <_end+0xdff8>
 
 80002009 <tdat10>:
 80002009:	000000ef          	jal	ra,80002009 <tdat10>
 8000200d:	0000                	unimp
-8000200f:	00 20 00 00 00          	Address 0x000000008000200f is out of bounds.
+8000200f:	00              	Address 0x000000008000200f is out of bounds.
 

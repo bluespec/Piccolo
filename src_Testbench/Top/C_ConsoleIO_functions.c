@@ -1,4 +1,4 @@
-// Copyright (c) 2013-2016 Bluespec, Inc.  All Rights Reserved
+// Copyright (c) 2013-2018 Bluespec, Inc.  All Rights Reserved
 
 // ================================================================
 // These are functions imported into BSV for terminal I/O during
