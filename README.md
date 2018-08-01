@@ -141,6 +141,14 @@ versions of both tools.
         Verilator 3.922 2018-03-17 rev verilator_3_920-32-gdf3d1a4
 
 ----------------------------------------------------------------
+### Running regressions of RISC-V ISA tests
+
+In the Tests/ directory there is a Python program using which you can
+run the simulation executables ({sim_verilator, sim_iverilog,
+sim_Bluesim}/exe_HW_sim) on all the relevant standard RISC-V ISA
+tests.  Please see Tests/README.txt for more details.
+
+----------------------------------------------------------------
 ### What you can build and run if you have Bluespec's `bsc` compiler
 
 [Note: Bluespec, Inc. provides free licenses to academia and for non-profit research].
