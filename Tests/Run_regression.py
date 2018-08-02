@@ -56,6 +56,7 @@ def main (argv = None):
         sys.stdout.write ("\n")
         return 0
 
+
     sim_path = os.path.abspath (os.path.normpath (argv [1]))
 
     test_families = select_test_families (argv [2])
@@ -214,16 +215,8 @@ def do_regular_file_function (level, dirname, basename, sim_path, test_families,
     sys.stdout.write ("\n")
 
     # Run command as a sub-process
-    completed_process1 = subprocess.run (args = command1,
-                                         bufsize = 0,
-                                         stdout = subprocess.PIPE,
-                                         stderr = subprocess.STDOUT,
-                                         encoding='utf-8')
-    completed_process2 = subprocess.run (args = command2,
-                                         bufsize = 0,
-                                         stdout = subprocess.PIPE,
-                                         stderr = subprocess.STDOUT,
-                                         encoding='utf-8')
+    completed_process1 = run_command (command1)
+    completed_process2 = run_command (command2)
     num_executed = num_executed + 1
     passed = completed_process2.stdout.find ("PASS") != -1
     if passed:
@@ -241,6 +234,30 @@ def do_regular_file_function (level, dirname, basename, sim_path, test_families,
     fd.close ()
 
     return
+
+# ================================================================
+# This is a wrapper around 'subprocess.run' because of an annoying
+# incompatible change in moving from Python 3.5 to 3.6
+
+def run_command (command):
+    python_minor_version = sys.version_info [1]
+    if python_minor_version < 6:
+        # Python 3.5 and earlier
+        sys.stdout.write ("Python 3.5\n")
+        result = subprocess.run (args = command,
+                                 bufsize = 0,
+                                 stdout = subprocess.PIPE,
+                                 stderr = subprocess.STDOUT,
+                                 universal_newlines = True)
+    else:
+        # Python 3.6 and later
+        sys.stdout.write ("Python 3.6\n")
+        result = subprocess.run (args = command,
+                                 bufsize = 0,
+                                 stdout = subprocess.PIPE,
+                                 stderr = subprocess.STDOUT,
+                                 encoding='utf-8')
+    return result
 
 # ================================================================
 # For non-interactive invocations, call main() and use its return value
