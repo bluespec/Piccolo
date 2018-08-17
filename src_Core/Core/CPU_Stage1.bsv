@@ -76,6 +76,9 @@ endinterface
 
 module mkCPU_Stage1 #(Bit #(4)         verbosity,
 		      GPR_RegFile_IFC  gpr_regfile,
+`ifdef ISA_F
+		      FPR_RegFile_IFC  fpr_regfile,
+`endif
 		      CSR_RegFile_IFC  csr_regfile,
 		      IMem_IFC         icache,
 		      Bypass           bypass_from_stage2,

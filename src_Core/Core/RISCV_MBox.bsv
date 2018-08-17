@@ -67,19 +67,25 @@ module mkRISCV_MBox (RISCV_MBox_IFC);
 
    IntDiv_IFC #(XLEN) intDiv <- mkIntDiv (rg_v1, rg_v2);
 
+`ifdef MULT_SERIAL
+`ifdef RV64
+   IntMul_IFC#(64) intMul <- mkIntMul_64;
+`else
+   IntMul_IFC#(32) intMul <- mkIntMul_32;
+`endif
+`endif
+
    Reg #(Bool)    dw_valid  <- mkDWire (False);
    Reg #(WordXL)  dw_result <- mkDWire (?);
 
    // ----------------------------------------------------------------
-   // MUL family
-
+   // MUL family: SYNTH implementation
    // Relies on the fav_MUL/MULH/MULHU/MULHSU/MULW functions later in
    // this package which do multiplication directly with Verilog's '*'
    // and rely on Verilog synthesis to implement the multiplier.
    // (DSPs on FPGAa).
 
-   // Can be recoded to use the alternative iterative multiplier
-   // provided by the imported 'IntMulDiv' package.
+`ifdef MULT_SYNTH
 
    rule rl_mul (rg_state == STATE_MUL1);
       if (cfg_verbosity > 1)
@@ -111,13 +117,50 @@ module mkRISCV_MBox (RISCV_MBox_IFC);
       dw_result <= result;
    endrule
 
+`endif
+
+   // ----------------------------------------------------------------
+   // MUL family: SERIAL implementation
+   // Uses the iterative multiplier in the 'IntMulDiv' package.
+
+`ifdef MULT_SERIAL
+   rule rl_mul (rg_state == STATE_MUL1 && intMul.result_valid);
+      WordXL result;
+      if      (rg_is_OP_not_OP_32     && (rg_f3 == f3_MUL))     begin
+	 result = (intMul.result_value)[xlen-1:0];
+      end
+      else if (rg_is_OP_not_OP_32     && (rg_f3 == f3_MULH))    begin
+	 result = (intMul.result_value)[2 * xlen - 1 : xlen];
+      end
+      else if (rg_is_OP_not_OP_32     && (rg_f3 == f3_MULHU))   begin
+	 result = (intMul.result_value)[2 * xlen - 1 : xlen];
+      end
+      else if (rg_is_OP_not_OP_32     && (rg_f3 == f3_MULHSU))  begin
+	 result = (intMul.result_value)[2 * xlen - 1 : xlen];
+      end
+`ifdef RV64
+      else if ((! rg_is_OP_not_OP_32) && (rg_f3 == f3_MUL))     begin
+	 result = signExtend((intMul.result_value)[31:0]);
+      end
+`endif
+      else begin
+	 // This should be Impossible
+	 $display ("%0d: ERROR: RISCV_MBox.rl_mul: illegal f3. again", cur_cycle);
+	 result = 0; // to keep bsc happy
+      end
+
+      dw_valid  <= True;
+      dw_result <= result;
+   endrule
+`endif
+
    // ----------------------------------------------------------------
    // DIV family and REM family
    // Uses the iterative divider provided in the imported 'IntMulDiv' package.
 
    rule rg_div_rem ((rg_state == STATE_DIV_REM) && intDiv.result_valid);
       match { .q, .r } = intDiv.result_value;
-      WordXL result = ((rg_f3 [1] == 1'b0) ? q : r ); 
+      WordXL result = ((rg_f3 [1] == 1'b0) ? q : r );
 
 `ifdef RV64
       if (! rg_is_OP_not_OP_32)
@@ -168,8 +211,43 @@ module mkRISCV_MBox (RISCV_MBox_IFC);
       rg_v2              <= v2;
 
       // MUL, MULH, MULHU, MULHSU
-      if (f3 [2] == 1'b0)
+      if (f3 [2] == 1'b0) begin
 	 rg_state <= STATE_MUL1;
+
+`ifdef MULT_SERIAL
+	 Bool s1, s2;
+
+	 if      (is_OP_not_OP_32     && (f3 == f3_MUL))     begin
+	    s1 = False; s2 = False;
+	 end
+	 else if (is_OP_not_OP_32     && (f3 == f3_MULH))    begin
+	    s1 = True; s2 = True;
+	 end
+	 else if (is_OP_not_OP_32     && (f3 == f3_MULHU))   begin
+	    s1 = False; s2 = False;
+	 end
+	 else if (is_OP_not_OP_32     && (f3 == f3_MULHSU))  begin
+	    s1 = True; s2 = False;
+	 end
+`ifdef RV64
+	 else if ((! is_OP_not_OP_32) && (f3 == f3_MUL))     begin
+	    // Signed versions of lower 32 bits of v_rs1 and v_rs2
+	    v1 = signExtend (v1 [31:0]);
+	    v2 = signExtend (v2 [31:0]);
+	    s1 = True; s2 = True;
+	 end
+`endif
+	 else begin
+	    // This should be Impossible
+	    $display ("%0d: ERROR: RISCV_MBox.rl_mul: illegal f3.", cur_cycle);
+	    $display ("    f3 0x%0h  v1 0x%0h  v2 0x%0h", f3, v1, v2);
+	    $finish (1);    // TODO: illegal instruction; should trap
+	    s1 = ?; s2 = ?; // to keep bsc happy
+	 end
+
+	 intMul.put_args(s1, v1, s2, v2);
+`endif
+      end
 
       // DIV, DIVU, REM, REMU
       else begin

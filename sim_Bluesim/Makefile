@@ -20,7 +20,7 @@ all: compile  link
 # ----------------
 # Search path for bsc for .bsv files
 
-REPO=..
+REPO = ..
 
 CORE_DIRS = $(REPO)/src_Core/ISA:$(REPO)/src_Core/RegFiles:$(REPO)/src_Core/Core:$(REPO)/src_Core/Near_Mem_VM:$(REPO)/src_Core/BSV_Additional_Libs
 TESTBENCH_DIRS  = $(REPO)/src_Testbench/Top:$(REPO)/src_Testbench/SoC:$(REPO)/src_Testbench/Fabrics/AXI4_Lite
@@ -35,10 +35,14 @@ TOPMODULE = mkTop_HW_Side
 #----------------
 # bsc flags
 
+# Implementation choice: SHIFT_BARREL, SHIFT_SERIAL, SHIFT_MULT, SHIFT_NONE
+# Implementation choice: MULT_SYNTH, MULT_SERIAL
+
 BSC_FLAGS += -keep-fires -aggressive-conditions -no-warn-action-shadowing \
 		-suppress-warnings G0020 \
 		-D RV32 \
 		-D SHIFT_BARREL \
+		-D MULT_SYNTH \
 		-D CSR_REGFILE_UM \
 		-D ISA_PRIV_M \
 		-D ISA_PRIV_U \

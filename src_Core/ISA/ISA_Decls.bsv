@@ -98,12 +98,32 @@ endfunction
 
 // ----------------
 // can have one or two fpu sizes (should they be merged sooner than later ?)
-Bool hasFpu32 = True;
-Bool hasFpu64 = True;
 
-typedef  64  FLEN;                          // For RV{32,64}D
+// Cannot define ISA_D unless ISA_F is also defined
+// ISA_F - 32 bit FPU
+// ISA_D - 64 bit FPU
+
+`ifdef ISA_F
+
+`ifdef ISA_D   // ISA_D precludes ISA_F
+typedef 64 FLEN;
+Bool hasFpu32 = False;
+Bool hasFpu64 = True;
+`else
+typedef 32 FLEN;
+Bool hasFpu32 = True;
+Bool hasFpu64 = False;
+`endif
 
 typedef  Bit #(FLEN) FP_Value;
+typedef  Bit #(FLEN)  WordFL;    // Raw (unsigned) floating point data
+
+typedef  TDiv #(FLEN, Bits_per_Byte)           Bytes_per_WordFL;
+typedef  TLog #(Bytes_per_WordFL)              Bits_per_Byte_in_WordFL;
+typedef  Bit #(Bits_per_Byte_in_WordFL)        Byte_in_WordFL;
+typedef  Vector #(Bytes_per_WordFL, Byte)      WordFL_B;
+
+`endif
 
 // ================================================================
 // Tokens are used for signalling/synchronization, and have no payload
@@ -121,10 +141,12 @@ Integer  numRegs = valueOf (NumRegs);
 
 function  Opcode     instr_opcode   (Instr x); return x [6:0]; endfunction
 
+function  Bit #(2)   instr_funct2   (Instr x); return x [26:25]; endfunction
 function  Bit #(3)   instr_funct3   (Instr x); return x [14:12]; endfunction
 function  Bit #(5)   instr_funct5   (Instr x); return x [31:27]; endfunction
-function  Bit#(7)    instr_funct7   (Instr x); return x [31:25]; endfunction
+function  Bit #(7)   instr_funct7   (Instr x); return x [31:25]; endfunction
 function  Bit #(10)  instr_funct10  (Instr x); return { x [31:25], x [14:12] }; endfunction
+function  Bit #(2)   instr_fmt      (Instr x); return x [26:25]; endfunction
 
 function  RegName    instr_rd       (Instr x); return x [11:7]; endfunction
 function  RegName    instr_rs1      (Instr x); return x [19:15]; endfunction
@@ -171,6 +193,9 @@ typedef struct {
    RegName   rs3;
    CSR_Addr  csr;
 
+`ifdef ISA_F
+   Bit #(2)  funct2;
+`endif
    Bit #(3)  funct3;
    Bit #(5)  funct5;
    Bit #(7)  funct7;
@@ -198,6 +223,9 @@ function Decoded_Instr fv_decode (Instr instr);
 			 rs3:       instr_rs3      (instr),
 			 csr:       instr_csr      (instr),
 
+`ifdef ISA_F
+			 funct2:    instr_funct2   (instr),
+`endif
 			 funct3:    instr_funct3   (instr),
 			 funct5:    instr_funct5   (instr),
 			 funct7:    instr_funct7   (instr),
@@ -214,6 +242,32 @@ function Decoded_Instr fv_decode (Instr instr);
 
 			 aqrl:      instr_aqrl     (instr)
 			 };
+endfunction
+
+// Decodes if we need to read the GPR register file. This step becomes necessary
+// on integrating the FPU as certain instruction now do not require the GPR
+// anymore
+//                IsFP, GPRRd
+function Tuple2# (Bool, Bool) fv_decode_gpr_read (Decoded_Instr di);
+`ifdef ISA_F
+   // FP_LD and FP_ST are treated as non-FP operation as far as GPR reads
+   // are concerned
+   if (di.opcode != FP_OP) begin
+      return (tuple2 (False, True));   // Regular op with GPR read
+   end
+
+   // This is an FP operation. The following f5 values would work for F and
+   // D subsets
+   else begin
+      if (   (di.f5 == FCVT_F_X)
+          || (di.f5 == FMV_W_X))
+         return (tuple2 (True, True)); // FP op with GPR read
+      else
+         return (tuple2 (True, False));// FP op with no GPR read
+   end
+`else
+   return (tuple2 (False, True));      // Regular op with GPR read
+`endif
 endfunction
 
 // ================================================================
@@ -496,6 +550,67 @@ Bit #(3) f3_BGEU  = 3'b111;
 Opcode op_JAL  = 7'b11_011_11;
 
 Opcode op_JALR = 7'b11_001_11;
+
+// ================================================================
+// Floating Point Instructions
+// Funct2 encoding
+Bit #(2) f2_S      = 2'b00;
+Bit #(2) f2_D      = 2'b01;
+Bit #(2) f2_Q      = 2'b11;
+
+// Floating point Load-Store
+// X is W (32-bit) for ISA_F, D (64-bit) for ISA_D
+Opcode op_FLX      = 7'b00_00_111;
+Opcode op_FSX      = 7'b01_00_111;
+
+// Fused FP Multiply Add/Sub instructions
+Opcode op_FMADD    = 7'b10_00_011;
+Opcode op_FMSUB    = 7'b10_00_111;
+Opcode op_FNMSUB   = 7'b10_01_011;
+Opcode op_FNMADD   = 7'b10_01_111;
+
+// All other FP intructions
+Opcode op_FP = 7'b10_10_011;
+
+Bit #(5) f5_FADD     = 5'b00000;
+Bit #(5) f5_FSUB     = 5'b00001;
+Bit #(5) f5_FMUL     = 5'b00010;
+Bit #(5) f5_FDIV     = 5'b00011;
+Bit #(5) f5_FSQRT    = 5'b01011;
+Bit #(5) f5_FSGNJ    = 5'b00100;
+Bit #(5) f5_FSGNJN   = 5'b00100;
+Bit #(5) f5_FSGNJX   = 5'b00100;
+Bit #(5) f5_FMIN     = 5'b00101;
+Bit #(5) f5_FMAX     = 5'b00101;
+Bit #(5) f5_FEQ      = 5'b10100;
+Bit #(5) f5_FLT      = 5'b10100;
+Bit #(5) f5_FLE      = 5'b10100;
+Bit #(5) f5_FCLASS   = 5'b11100;
+
+// FP convert instructions
+// To be read as FCVT_DEST_SRC
+// X could be W (32-bit), or L (64-bit) and represents the width of the GPR
+// F could be S or D depending on the funct2 field
+Bit #(5) f5_FCVT_X_F = 5'b11000;
+Bit #(5) f5_FCVT_F_X = 5'b11010;
+
+// For the FMV instructions there is an inconsistency in naming between F and D
+// subsets. Here the W/D represents the width of the data being moved (32-b) and
+// not its interpretations as SP/DP.
+// Confusingly, for the D subset, the spec uses "D" to indicate 64-bit instead
+// of L.
+Bit #(5) f5_FMV_X_W  = 5'b11100;
+Bit #(5) f5_FMV_W_X  = 5'b11110;
+
+`ifdef ISA_D
+Bit #(5) f5_FMV_X_D  = 5'b11100;
+Bit #(5) f5_FMV_D_X  = 5'b11110;
+
+// Only for ISA_D -- S <-> D conversion. The func2 constains the destination,
+// and rs2 contains the source type
+Bit #(5) f5_FCVT_S_D = 5'b01000;
+Bit #(5) f5_FCVT_D_S = 5'b01000;
+`endif
 
 // ================================================================
 // System Instructions

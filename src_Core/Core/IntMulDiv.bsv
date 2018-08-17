@@ -154,19 +154,23 @@ module mkIntDiv #(Reg #(Bit #(w)) rg_numer,    // a.k.a. dividend, and final rem
 endmodule
 
 // ================================================================
-// Multipler Interface
+// Multiplier Interface
 // - Arg data is always passed as a Bit#(w) quantity.
 //   The accompanying Bools specify whether to interpret them as signed or not.
 // - Result data is a Bit#(2w) quantity.
 
 interface IntMul_IFC #(numeric type w);
+   (* always_ready *)
    method Action put_args (Bool x_is_signed, Bit #(w) x,
 			   Bool y_is_signed, Bit #(w) y);
-   method ActionValue #(Bit #(TAdd #(w,w))) get_result;
+   (* always_ready *)
+   method Bool                result_valid;
+   (* always_ready *)
+   method Bit #(TAdd #(w,w))  result_value;
 endinterface
 
 // ================================================================
-// Separately synthesized multiplier and divider with 32b/64b inputs
+// Separately synthesized multiplier with 32b/64b inputs
 
 (* synthesize *)
 module mkIntMul_32 (IntMul_IFC #(32));
@@ -183,9 +187,12 @@ endmodule
 // ================================================================
 // Integer multiplication
 
+typedef enum { Mul_RDY, Mul_BUSY} MulState
+   deriving (Eq, Bits, FShow);
+
 module mkIntMul (IntMul_IFC #(w));
 
-   Reg #(Bool) rg_busy <- mkReg (False);
+   Reg #(MulState) rg_state <- mkReg (Mul_RDY);
 
    Reg #(Bit #(TAdd #(w,w)))  rg_xy     <- mkRegU;
    Reg #(Bit #(TAdd #(w,w)))  rg_x      <- mkRegU;
@@ -196,7 +203,7 @@ module mkIntMul (IntMul_IFC #(w));
    // ----------------
    // RULES
 
-   rule compute ((rg_y != 0) && rg_busy) ;
+   rule compute ((rg_y != 0) && rg_state == Mul_BUSY) ;
       if (lsb (rg_y) == 1) rg_xy <= rg_xy + rg_x;
       rg_x <= rg_x << 1;
       rg_y <= rg_y >> 1;
@@ -206,7 +213,7 @@ module mkIntMul (IntMul_IFC #(w));
    // INTERFACE
 
    method Action put_args (Bool x_is_signed, Bit #(w) x,
-			   Bool y_is_signed, Bit #(w) y)  if (! rg_busy);
+			   Bool y_is_signed, Bit #(w) y);//  if (! rg_busy);
       Int #(w) x_s = unpack (x);
       Int #(w) y_s = unpack (y);
       Bool isNeg   = False;
@@ -229,19 +236,19 @@ module mkIntMul (IntMul_IFC #(w));
       rg_y      <= y;
       rg_isNeg  <= isNeg;
       rg_xy     <= 0;
-      rg_busy   <= True;
+      rg_state  <= Mul_BUSY;
       // $display ("DBG: IntMul: x = %h", x);
       // $display ("DBG: IntMul: y = %h", y);
    endmethod
 
-   method ActionValue #(Bit #(TAdd #(w,w))) get_result () if (rg_busy && (rg_y == 0));
+   method result_valid = (rg_state == Mul_BUSY && (rg_y == 0));
+
+   method result_value;
       let xy = rg_xy;
       if (rg_isNeg) begin
 	 Int #(TAdd #(w,w)) xy_s = unpack (xy);
 	 xy = pack (- xy_s);
       end
-      rg_busy <= False;
-      // $display ("DBG: IntMul: xy = %h", xy);
       return xy;
    endmethod
 endmodule

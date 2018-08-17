@@ -419,11 +419,13 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
 
 	    csr_cycle:     m_csr_value = tagged Valid (truncate (rg_mcycle));
 
+	    /*
 	    // NOTE: CSR_TIME should be a 'shadow copy' of the MTIME
 	    // mem-mapped location; but since both increment at the
 	    // same rate, and MTIME is never written, this is ok.
 
 	    csr_time:      m_csr_value = tagged Valid (truncate (rg_mcycle));
+	    */
 
 	    csr_instret:   m_csr_value = tagged Valid (truncate (rg_minstret));
 `ifdef RV32
@@ -519,7 +521,7 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
 
       return m_csr_value;
    endfunction
-   
+
    // ----------------
    // CSR writes
    // Returns True if successful
@@ -662,7 +664,7 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
 
       WordXL old_mip_w = mip_to_word (old_mip);
       WordXL new_mip_w = mip_to_word (new_mip);
-      
+
       if (cfg_verbosity > 1) begin
 	 $display ("%0d: CSR_RegFile.rl_record_external_interrupt: mip: %0h -> %0h",
 		   rg_mcycle, old_mip_w, new_mip_w);
@@ -683,7 +685,7 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
 
       WordXL old_mip_w = mip_to_word (old_mip);
       WordXL new_mip_w = mip_to_word (new_mip);
-      
+
       if (cfg_verbosity > 1) begin
 	 $display ("%0d: CSR_RegFile.rl_record_timer_interrupt_req: mip: %0h -> %0h",
 		   rg_mcycle, old_mip_w, new_mip_w);
@@ -936,7 +938,7 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
       f_ti_reqs.enq (set_not_clear);
       if (cfg_verbosity > 1)
 	 $display ("%0d: CSR_RegFile: timer_interrupt_req: %x", rg_mcycle, set_not_clear);
-   endmethod      
+   endmethod
 
    method Action software_interrupt_req (Bool set_not_clear);
       f_si_reqs.enq (set_not_clear);

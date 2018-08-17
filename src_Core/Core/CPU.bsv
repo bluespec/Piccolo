@@ -45,6 +45,9 @@ import TV_Info   :: *;
 `endif
 
 import GPR_RegFile :: *;
+`ifdef ISA_F
+import FPR_RegFile :: *;
+`endif
 import CSR_RegFile :: *;
 import CPU_Globals :: *;
 import CPU_IFC     :: *;
@@ -105,6 +108,9 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
    // ----------------
    // General purpose registers and CSRs
    GPR_RegFile_IFC  gpr_regfile  <- mkGPR_RegFile;
+`ifdef ISA_F
+   FPR_RegFile_IFC  fpr_regfile  <- mkFPR_RegFile;
+`endif
    CSR_RegFile_IFC  csr_regfile  <- mkCSR_RegFile;
 
    // Near mem (caches or TCM, for example)
@@ -144,8 +150,24 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 
    // ----------------
    // Pipeline stages
-   CPU_Stage3_IFC stage3 <- mkCPU_Stage3 (cur_verbosity, gpr_regfile, csr_regfile);
+`ifdef ISA_F
+   CPU_Stage3_IFC stage3 <- mkCPU_Stage3 (
+      cur_verbosity, gpr_regfile, fpr_regfile, csr_regfile);
+`else
+   CPU_Stage3_IFC stage3 <- mkCPU_Stage3 (
+      cur_verbosity, gpr_regfile, csr_regfile);
+`endif
    CPU_Stage2_IFC stage2 <- mkCPU_Stage2 (cur_verbosity, csr_regfile, near_mem.dmem);
+`ifdef ISA_F
+   CPU_Stage1_IFC  stage1 <- mkCPU_Stage1 (cur_verbosity,
+					   gpr_regfile,
+					   fpr_regfile,
+					   csr_regfile,
+					   near_mem.imem,
+					   stage2.out.bypass,
+					   stage3.out.bypass,
+					   rg_cur_priv);
+`else
    CPU_Stage1_IFC  stage1 <- mkCPU_Stage1 (cur_verbosity,
 					   gpr_regfile,
 					   csr_regfile,
@@ -153,6 +175,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 					   stage2.out.bypass,
 					   stage3.out.bypass,
 					   rg_cur_priv);
+`endif
 
    // ----------------
    // Halt requests (interrupts, debugger stop-request, or dcsr.step step-request).
@@ -188,6 +211,12 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
    // Debugger GPR read/write request/response
    FIFOF #(MemoryRequest  #(5,  XLEN)) f_gpr_reqs <- mkFIFOF1;
    FIFOF #(MemoryResponse #(    XLEN)) f_gpr_rsps <- mkFIFOF1;
+
+`ifdef ISA_F
+   // Debugger FPR read/write request/response
+   FIFOF #(MemoryRequest  #(5,  FLEN)) f_fpr_reqs <- mkFIFOF1;
+   FIFOF #(MemoryResponse #(    FLEN)) f_fpr_rsps <- mkFIFOF1;
+`endif
 
    // Debugger CSR read/write request/response
    FIFOF #(MemoryRequest  #(12, XLEN)) f_csr_reqs <- mkFIFOF1;
@@ -238,7 +267,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
       action
 	 Bit #(64) delta_CPI_cycles = mcycle - rg_start_CPI_cycles;
 	 Bit #(64) delta_CPI_instrs = csr_regfile.read_csr_minstret - rg_start_CPI_instrs;
-	 
+
 	 // Make delta_CPI_instrs at least 1, to avoid divide-by-zero
 	 if (delta_CPI_instrs == 0)
 	    delta_CPI_instrs = delta_CPI_instrs + 1;
@@ -380,6 +409,9 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
       $display ("================================================================");
 
       gpr_regfile.server_reset.request.put (?);
+`ifdef ISA_F
+      fpr_regfile.server_reset.request.put (?);
+`endif
       csr_regfile.server_reset.request.put (?);
       near_mem.server_reset.request.put (?);
 
@@ -392,9 +424,13 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
       rg_state    <= CPU_RESET2;
       rg_inum     <= 1;
 
+      // These three lines are for simulation only:
       Bool v1 <- $test$plusargs ("v1");
       Bool v2 <- $test$plusargs ("v2");
       cfg_verbosity <= ((v2 ? 2 : (v1 ? 1 : 0)));
+      /*
+      cfg_verbosity <= 0; // for emulation, where above system tasks are invalid
+      */
 
       if (cur_verbosity != 0)
 	 $display ("%0d: CPU.rl_reset_start", mcycle);
@@ -410,11 +446,14 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 
    rule rl_reset_complete (rg_state == CPU_RESET2);
       let ack0 <- gpr_regfile.server_reset.response.get;
-      let ack1 <- csr_regfile.server_reset.response.get;
-      let ack2 <- near_mem.server_reset.response.get;
-      let ack3 <- stage1.server_reset.response.get;
-      let ack4 <- stage2.server_reset.response.get;
-      let ack5 <- stage3.server_reset.response.get;
+`ifdef ISA_F
+      let ack1 <- fpr_regfile.server_reset.response.get;
+`endif
+      let ack2 <- csr_regfile.server_reset.response.get;
+      let ack3 <- near_mem.server_reset.response.get;
+      let ack4 <- stage1.server_reset.response.get;
+      let ack5 <- stage2.server_reset.response.get;
+      let ack6 <- stage3.server_reset.response.get;
 
       f_reset_rsps.enq (?);
 
@@ -544,7 +583,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 	    stage1.deq;                              stage1_full = False;
 	    stage2.enq (stage1.out.data_to_stage2);  stage2_full = True;
 	 end
-	  
+
       // ----------------
       // Feed Stage 1
 
@@ -570,7 +609,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
    endrule: rl_pipe
 
    // ================================================================
-   // Restart the pipe after a CSRRX stall 
+   // Restart the pipe after a CSRRX stall
 
    rule rl_stage1_csrrx (rg_state == CPU_CSRRX_STALL);
       fa_start_ifetch (stage1.out.next_pc, rg_cur_priv);
@@ -1167,6 +1206,30 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 	 $display ("%0d: CPU.rl_debug_write_gpr: Write reg %0d => 0x%0h", mcycle, regname, data);
    endrule
 
+`ifdef ISA_F
+   // ----------------
+   // Debug Module FPR read/write
+
+   rule rl_debug_read_fpr ((rg_state == CPU_DEBUG_MODE) && (! f_fpr_reqs.first.write));
+      let req <- pop (f_fpr_reqs);
+      Bit #(5) regname = req.address;
+      let data = fpr_regfile.read_rs1_port2 (regname);
+      let rsp = MemoryResponse {data: data};
+      f_fpr_rsps.enq (rsp);
+      if (cur_verbosity > 1)
+	 $display ("%0d: CPU.rl_debug_read_fpr: Read reg %0d => 0x%0h", mcycle, regname, data);
+   endrule
+
+   rule rl_debug_write_fpr ((rg_state == CPU_DEBUG_MODE) && f_fpr_reqs.first.write);
+      let req <- pop (f_fpr_reqs);
+      Bit #(5) regname = req.address;
+      let data = req.data;
+      fpr_regfile.write_rd (regname, data);
+      if (cur_verbosity > 1)
+	 $display ("%0d: CPU.rl_debug_write_fpr: Write reg %0d => 0x%0h", mcycle, regname, data);
+   endrule
+`endif
+
    // ----------------
    // Debug Module CSR read/write
 
@@ -1240,6 +1303,11 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 
    // GPR access
    interface MemoryServer  hart0_gpr_mem_server = toGPServer (f_gpr_reqs, f_gpr_rsps);
+
+`ifdef ISA_F
+   // FPR access
+   interface MemoryServer  hart0_fpr_mem_server = toGPServer (f_fpr_reqs, f_fpr_rsps);
+`endif
 
    // CSR access
    interface MemoryServer  hart0_csr_mem_server = toGPServer (f_csr_reqs, f_csr_rsps);

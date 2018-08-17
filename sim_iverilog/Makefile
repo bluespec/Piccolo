@@ -35,10 +35,14 @@ TOPMODULE = mkTop_HW_Side
 #----------------
 # bsc flags
 
+# Implementation choice: SHIFT_BARREL, SHIFT_SERIAL, SHIFT_MULT, SHIFT_NONE
+# Implementation choice: MULT_SYNTH, MULT_SERIAL
+
 BSC_FLAGS += -keep-fires -aggressive-conditions -no-warn-action-shadowing \
 		-suppress-warnings G0020 \
 		-D RV32 \
 		-D SHIFT_BARREL \
+		-D MULT_SYNTH \
 		-D CSR_REGFILE_UM \
 		-D ISA_PRIV_M \
 		-D ISA_PRIV_U \
