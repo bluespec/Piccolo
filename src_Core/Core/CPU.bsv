@@ -52,9 +52,9 @@ import CSR_RegFile :: *;
 import CPU_Globals :: *;
 import CPU_IFC     :: *;
 
-import CPU_Stage1 :: *;
-import CPU_Stage2 :: *;
-import CPU_Stage3 :: *;
+import CPU_Stage1 :: *;    // Fetch and Execute
+import CPU_Stage2 :: *;    // Memory and long-latency ops
+import CPU_Stage3 :: *;    // Writeback
 
 import Near_Mem_IFC :: *;    // Caches or TCM
 
@@ -150,32 +150,26 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 
    // ----------------
    // Pipeline stages
+
+   CPU_Stage3_IFC stage3 <- mkCPU_Stage3 (cur_verbosity,
+					  gpr_regfile,
 `ifdef ISA_F
-   CPU_Stage3_IFC stage3 <- mkCPU_Stage3 (
-      cur_verbosity, gpr_regfile, fpr_regfile, csr_regfile);
-`else
-   CPU_Stage3_IFC stage3 <- mkCPU_Stage3 (
-      cur_verbosity, gpr_regfile, csr_regfile);
+					  fpr_regfile,
 `endif
+					  csr_regfile);
+
    CPU_Stage2_IFC stage2 <- mkCPU_Stage2 (cur_verbosity, csr_regfile, near_mem.dmem);
+
+   CPU_Stage1_IFC  stage1 <- mkCPU_Stage1 (cur_verbosity,
+					   gpr_regfile,
 `ifdef ISA_F
-   CPU_Stage1_IFC  stage1 <- mkCPU_Stage1 (cur_verbosity,
-					   gpr_regfile,
 					   fpr_regfile,
-					   csr_regfile,
-					   near_mem.imem,
-					   stage2.out.bypass,
-					   stage3.out.bypass,
-					   rg_cur_priv);
-`else
-   CPU_Stage1_IFC  stage1 <- mkCPU_Stage1 (cur_verbosity,
-					   gpr_regfile,
-					   csr_regfile,
-					   near_mem.imem,
-					   stage2.out.bypass,
-					   stage3.out.bypass,
-					   rg_cur_priv);
 `endif
+					   csr_regfile,
+					   near_mem.imem,
+					   stage2.out.bypass,
+					   stage3.out.bypass,
+					   rg_cur_priv);
 
    // ----------------
    // Halt requests (interrupts, debugger stop-request, or dcsr.step step-request).
@@ -361,13 +355,13 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
       let mstatus = csr_regfile.read_mstatus;
       let misa    = csr_regfile.read_misa;
       $display ("================================================================");
-      $display ("%0d: Pipeline State:  inum:%0d  cur_priv:%0d  mstatus:%0x", mcycle, rg_inum, rg_cur_priv, mstatus);
+      $display ("%0d: Pipeline State:  inum:%0d  cur_priv:%0d  mstatus:%0x",
+		mcycle, rg_inum, rg_cur_priv, mstatus);
       $display ("    ", fshow (word_to_mstatus (misa, mstatus)));
 
       $display ("    Bypass S1 <= S3: ", fshow (stage3.out.bypass));
       $display ("    S3: ", fshow (stage3.out));
       $display ("    Bypass S1 <= S2: ", fshow (stage2.out.bypass));
-
       $display ("    S2: pc 0x%08h instr 0x%08h priv %0d",
 		stage2.out.data_to_stage3.pc,
 		stage2.out.data_to_stage3.instr,
@@ -380,12 +374,6 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 		stage1.out.data_to_stage2.priv);
       $display ("        ", fshow (stage1.out));
    endrule
-
-   /*
-   rule rl_progress_report ((rg_state != CPU_RESET1) && ((rg_inum % 10_000_000) == 0));
-      $display ("%0d: rl_progress_report: inum %0d", mcycle, rg_inum);
-   endrule
-   */
 
    // ================================================================
    // Reset
@@ -445,15 +433,16 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
    endrule
 
    rule rl_reset_complete (rg_state == CPU_RESET2);
-      let ack0 <- gpr_regfile.server_reset.response.get;
+      let ack_gpr <- gpr_regfile.server_reset.response.get;
 `ifdef ISA_F
-      let ack1 <- fpr_regfile.server_reset.response.get;
+      let ack_fpr <- fpr_regfile.server_reset.response.get;
 `endif
-      let ack2 <- csr_regfile.server_reset.response.get;
-      let ack3 <- near_mem.server_reset.response.get;
-      let ack4 <- stage1.server_reset.response.get;
-      let ack5 <- stage2.server_reset.response.get;
-      let ack6 <- stage3.server_reset.response.get;
+      let ack_csr <- csr_regfile.server_reset.response.get;
+      let ack_nm  <- near_mem.server_reset.response.get;
+
+      let ack1 <- stage1.server_reset.response.get;
+      let ack2 <- stage2.server_reset.response.get;
+      let ack3 <- stage3.server_reset.response.get;
 
       f_reset_rsps.enq (?);
 
@@ -611,10 +600,13 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
    // ================================================================
    // Restart the pipe after a CSRRX stall
 
-   rule rl_stage1_csrrx (rg_state == CPU_CSRRX_STALL);
+   rule rl_stage1_restart_after_csrrx (rg_state == CPU_CSRRX_STALL);
       fa_start_ifetch (stage1.out.next_pc, rg_cur_priv);
       stage1.set_full (True);
       rg_state <= CPU_RUNNING;
+      if (cur_verbosity > 1)
+	 $display ("%0d: rl_stage1_restart_after_csrrx: inum:%0d  pc:%0x  cur_priv:%0d",
+		   mcycle, rg_inum, stage1.out.next_pc, rg_cur_priv);
    endrule
 
    // ================================================================
@@ -739,9 +731,6 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 
       // Resume pipe
       rg_state <= CPU_RUNNING;
-      // nsharma: 2017-05-24 Bug fix
-      // nsharma: Prevents PC from advancing after a FENCE
-      // stage1.enq (stage1.out.data_to_stage2.pc);  stage1.set_full (True);
       fa_start_ifetch (stage1.out.next_pc, rg_cur_priv);
       stage1.set_full (True);
 
@@ -792,9 +781,6 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 
       // Resume pipe
       rg_state <= CPU_RUNNING;
-      // nsharma: 2017-05-24 Bug fix
-      // nsharma: Prevents PC from advancing after a FENCE
-      // stage1.enq (stage1.out.data_to_stage2.pc);  stage1.set_full (True);
       fa_start_ifetch (stage1.out.next_pc, rg_cur_priv);
       stage1.set_full (True);
 
@@ -1046,9 +1032,9 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 
    // ================================================================
    // EXTERNAL and GDB INTERRUPTS while running
-   // We take an interrupt when on Stage1 is frozen
-   // and Stage2 and Stage3 have drained, encapsulated
-   // in condition 'stage1_take_interrupt'
+   // We take an interrupt when Stage1 is frozen
+   // and Stage2 and Stage3 have drained,
+   // encapsulated in condition 'stage1_take_interrupt'
 
    rule rl_stage1_interrupt (csr_regfile.interrupt_pending (rg_cur_priv) matches tagged Valid .exc_code
 			     &&& (rg_state== CPU_RUNNING)
@@ -1098,7 +1084,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
       if (cur_verbosity > 0)
 	 $display ("%0d: CPU.rl_stage1_interrupt: epc 0x%0h  next PC 0x%0h  new_priv %0d  new mstatus 0x%0h",
 		   mcycle, epc, next_pc, new_priv, new_mstatus);
-   endrule : rl_stage1_interrupt
+   endrule: rl_stage1_interrupt
 
    // ----------------
    // Stage1: Handle debugger stop-request and dcsr.step step-request while running
@@ -1117,7 +1103,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 
       // Report CPI only stop-req, but not on step-req (where it's not very useful)
       if (rg_stop_req || rg_self_stop_req) begin
-	 $display ("%0d: CPU.rl_stop: Stop for debugger. inum %0d priv %0d: PC 0x%0h    instr 0x%0h",
+	 $display ("%0d: CPU.rl_stop: Stop for debugger. inum %0d priv %0d PC 0x%0h instr 0x%0h",
 		   mcycle, rg_inum, rg_cur_priv, pc, instr);
 	 fa_report_CPI;
       end

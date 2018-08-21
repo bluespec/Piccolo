@@ -66,9 +66,6 @@ interface CPU_Stage1_IFC;
 
    (* always_ready *)
    method Action set_full (Bool full);
-
-   // Debugging
-   method Action show_state;
 endinterface
 
 // ================================================================
@@ -281,13 +278,6 @@ module mkCPU_Stage1 #(Bit #(4)         verbosity,
 
    method Action set_full (Bool full);
       rg_full <= full;
-   endmethod
-
-   method Action show_state;
-      if (rg_full)
-	 $display ("    S1: pc ", fshow (icache.pc));
-      else
-	 $display ("    S1: empty");
    endmethod
 endmodule
 

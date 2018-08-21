@@ -227,8 +227,10 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
 
    // CSRs
    // User-mode CSRs
+`ifdef ISA_FD
    Reg #(Bit #(5)) rg_fflags <- mkRegU;    // floating point flags
    Reg #(Bit #(3)) rg_frm    <- mkRegU;    // floating point rounding mode
+`endif
 
    // Supervisor-mode CSRs
    Bit #(16)  sedeleg = 0;    // hardwired to 0
@@ -282,7 +284,7 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
    Reg #(Bit #(64))   rg_mcycle <- mkReg (0);
    RWire #(Bit #(64)) rw_mcycle <- mkRWire;    // Driven on CSRRx write to mcycle
 
-   // minstret is needed even for user-mode instructions
+   // minstret is needed even for user-mode RDINSTRET instructions
    // It can be updated by a CSR instruction (in Priv_M), and by retirement of any other instruction
    Reg #(Bit #(64))   rg_minstret      <- mkReg (0);    // Needed even for user-mode instrs
    RWire #(Bit #(64)) rw_minstret      <- mkRWire;      // Driven on CSRRx write to minstret
@@ -310,10 +312,12 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
       f_si_reqs.clear;
 
       // User-level CSRs
+`ifdef ISA_FD
       rg_fflags <= 0;
       rg_frm    <= 0;
+`endif
 
-      // Supervisoer-level CSRs
+      // Supervisor-level CSRs
 `ifdef ISA_PRIV_S
       rg_stvec    <= word_to_mtvec (mtvec_reset_value);
       rg_scause   <= word_to_mcause (0);    // Supposed to be the cause of the reset.
@@ -413,10 +417,11 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
       else begin
 	 case (csr_addr)
 	    // User mode csrs
+`ifdef ISA_FD
 	    csr_fflags:    m_csr_value = tagged Valid ({ 0, rg_fflags });
 	    csr_frm:       m_csr_value = tagged Valid ({ 0, rg_frm });
 	    csr_fcsr:      m_csr_value = tagged Valid ({ 0, rg_frm, rg_fflags });
-
+`endif
 	    csr_cycle:     m_csr_value = tagged Valid (truncate (rg_mcycle));
 
 	    /*
@@ -541,12 +546,14 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
 	 else
 	    case (csr_addr)
 	       // User mode csrs
+`ifdef ISA_FD
 	       csr_fflags:     rg_fflags <= word [4:0];
 	       csr_frm:        rg_frm    <= word [7:5];
 	       csr_fcsr:       begin
 				  rg_fflags <= word [4:0];
 				  rg_frm    <= word [7:5];
 			       end
+`endif
 
 `ifdef ISA_PRIV_S
 	       csr_sstatus:    rg_mstatus    <= fn_write_sstatus (misa, rg_mstatus, word);

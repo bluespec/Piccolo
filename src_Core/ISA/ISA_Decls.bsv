@@ -5,10 +5,10 @@
 //
 // References (from riscv.org):
 //   "The RISC-V Instruction Set Manual
-//    Volume I: User-Level ISA, Version 2.0, May 6, 2014"
+//    Volume I: User-Level ISA, Version 2.2, May 7, 2017"
 //
 //   "The RISC-V Instruction Set Manual
-//    Volume II: Privileged Architecture, Version 1.9.1, Nov 4, 2016"
+//    Volume II: Privileged Architecture, Version 1.10, May 7, 2017"
 //
 // ================================================================
 

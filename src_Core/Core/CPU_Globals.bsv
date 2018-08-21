@@ -137,7 +137,7 @@ typedef struct {
    Trap_Info              trap_info;
 
    // feedback
-   Addr                   next_pc;
+   WordXL                 next_pc;
 
    // feedforward data
    Data_Stage1_to_Stage2  data_to_stage2;
