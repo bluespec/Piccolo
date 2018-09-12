@@ -525,7 +525,6 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
    // a cycle before fetching the next instr, since the fetch may need
    // the just-written CSR value.
 
-   (* fire_when_enabled *)
    rule rl_pipe (   (rg_state == CPU_RUNNING)
 		 && (! pipe_is_empty)
 		 && (! pipe_has_nonpipe)
@@ -661,7 +660,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
       if (cur_verbosity != 0)
 	 $display ("    mcause:0x%0h  epc 0x%0h  tval:0x%0h  new pc 0x%0h, new mstatus 0x%0h",
 		   mcause, epc, badaddr, next_pc, new_mstatus);
-   endrule : rl_stage2_nonpipe
+   endrule: rl_stage2_nonpipe
 
    // ================================================================
    // Stage1: nonpipe special: MRET/SRET/URET
@@ -707,7 +706,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
       fa_emit_instr_trace (rg_inum, stage1.out.data_to_stage2.pc, stage1.out.data_to_stage2.instr, rg_cur_priv);
       if (cur_verbosity != 0)
 	 $display ("    xRET: next_pc:0x%0h  new mstatus:0x%0h  new priv:%0d", next_pc, new_mstatus, new_priv);
-   endrule : rl_stage1_xRET
+   endrule: rl_stage1_xRET
 
    // ================================================================
    // Stage1: nonpipe special: FENCE.I
@@ -755,7 +754,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
       fa_emit_instr_trace (rg_inum, stage1.out.data_to_stage2.pc, stage1.out.data_to_stage2.instr, rg_cur_priv);
       if (cur_verbosity > 1)
 	 $display ("    CPU.rl_finish_FENCE_I");
-   endrule : rl_finish_FENCE_I
+   endrule: rl_finish_FENCE_I
 
    // ================================================================
    // Stage1: nonpipe special: FENCE
@@ -805,7 +804,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
       fa_emit_instr_trace (rg_inum, stage1.out.data_to_stage2.pc, stage1.out.data_to_stage2.instr, rg_cur_priv);
       if (cur_verbosity > 1)
 	 $display ("    CPU.rl_finish_FENCE");
-   endrule : rl_finish_FENCE
+   endrule: rl_finish_FENCE
 
    // ================================================================
    // Stage1: nonpipe special: SFENCE.VMA
@@ -905,7 +904,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
    rule rl_reset_from_WFI (   (rg_state == CPU_WFI_PAUSED)
 			   && f_reset_reqs.notEmpty);
       rg_state <= CPU_RESET1;
-   endrule : rl_reset_from_WFI
+   endrule: rl_reset_from_WFI
 
    // ================================================================
    // Stage1: nonpipe traps (except BREAKs that enter Debug Mode)
@@ -1037,7 +1036,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
    // encapsulated in condition 'stage1_take_interrupt'
 
    rule rl_stage1_interrupt (csr_regfile.interrupt_pending (rg_cur_priv) matches tagged Valid .exc_code
-			     &&& (rg_state== CPU_RUNNING)
+			     &&& (rg_state == CPU_RUNNING)
 			     &&& stage1_take_interrupt);
 
       let epc   = stage1.out.data_to_stage2.pc;
@@ -1149,11 +1148,13 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 	 $display ("%0d: CPU.rl_debug_run: 'run' from dpc 0x%0h", mcycle, dpc);
    endrule
 
+   (* descending_urgency = "rl_debug_run_ignore, rl_pipe" *)
    rule rl_debug_run_ignore ((f_run_halt_reqs.first == True) && fn_is_running (rg_state));
       f_run_halt_reqs.deq;
       $display ("%0d: CPU.debug_run_ignore: ignoring 'run' command (CPU is not in Debug Mode)", mcycle);
    endrule
 
+   (* descending_urgency = "rl_debug_halt, rl_pipe" *)
    rule rl_debug_halt ((f_run_halt_reqs.first == False) && fn_is_running (rg_state));
       f_run_halt_reqs.deq;
 
