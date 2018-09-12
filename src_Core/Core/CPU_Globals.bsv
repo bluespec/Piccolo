@@ -204,16 +204,13 @@ typedef struct {
    Instr      instr;    // For debugging. Just funct3 is enough for functionality.
    Op_Stage2  op_stage2;
    RegName    rd;
-   Bool       csr_valid;
    Addr       addr;     // Branch, jump: newPC
                         // Mem ops and AMOs: mem addr
-                        // CSRRx: csr addr
 
    Word       val1;     // OP_Stage2_ALU: rd_val
                         // OP_Stage2_M and OP_Stage2_FD: arg1
 
-   Word       val2;     // OP_Stage2_ALU: csr_val
-                        // OP_Stage2_ST: store-val;
+   Word       val2;     // OP_Stage2_ST: store-val;
                         // OP_Stage2_M and OP_Stage2_FD: arg2
    } Data_Stage1_to_Stage2
 deriving (Bits);
@@ -221,7 +218,7 @@ deriving (Bits);
 instance FShow #(Data_Stage1_to_Stage2);
    function Fmt fshow (Data_Stage1_to_Stage2 x);
       Fmt fmt =   $format ("data_to_Stage 2 {pc:%h  instr:%h  priv:%0d\n", x.pc, x.instr, x.priv);
-      fmt = fmt + $format ("            op_stage2:", fshow (x.op_stage2), "  rd:%0d  csr_valid:", x.rd, fshow (x.csr_valid), "\n");
+      fmt = fmt + $format ("            op_stage2:", fshow (x.op_stage2), "  rd:%0d\n", x.rd);
       fmt = fmt + $format ("            addr:%h  val1:%h  val2:%h}", x.addr, x.val1, x.val2);
       return fmt;
    endfunction
@@ -274,10 +271,6 @@ typedef struct {
    Bool      rd_valid;
    RegName   rd;
    Word      rd_val;
-
-   Bool      csr_valid;
-   CSR_Addr  csr;
-   Word      csr_val;
    } Data_Stage2_to_Stage3
 deriving (Bits);
 
@@ -285,7 +278,6 @@ instance FShow #(Data_Stage2_to_Stage3);
    function Fmt fshow (Data_Stage2_to_Stage3 x);
       Fmt fmt =   $format ("data_to_Stage3 {pc:%h  instr:%h  priv:%0d\n", x.pc, x.instr, x.priv);
       fmt = fmt + $format ("        rd_valid:", fshow (x.rd_valid), " rd:%0d  rd_val:%h\n", x.rd, x.rd_val);
-      fmt = fmt + $format ("        csr_valid:", fshow (x.csr_valid), " csr:%h  csr_val:%h", x.csr, x.csr_val, "}");
       return fmt;
    endfunction
 endinstance

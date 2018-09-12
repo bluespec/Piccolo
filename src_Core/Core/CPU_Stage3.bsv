@@ -4,9 +4,12 @@ package CPU_Stage3;
 
 // ================================================================
 // This is Stage 3 of the "Piccolo" CPU.
-// It is the WB ("Write Back") stage: writes back
-// - a GPR register value (if the instr has an Rd)
-// - a CSR register value (if the instr is CSRRWx)
+// It is the WB ("Write Back") stage:
+// - Writes back a GPR register value (if the instr has an Rd)
+// - Updates CSR INSTRET
+//     Note: this instr cannot be a CSRRx updating INSTRET, since
+//           CSRRx is done completely in Stage1.
+
 
 // Note: $displays are indented by (stage num x 4) spaces.
 // for traditional pipeline display
@@ -107,7 +110,7 @@ module mkCPU_Stage3 #(Bit #(4)         verbosity,
    endfunction
 
    // ----------------
-   // Actions on 'deq': writeback Rd and CSR
+   // Actions on 'deq': writeback Rd and update CSR INSTRET
 
    function Action fa_deq;
       action
@@ -119,19 +122,10 @@ module mkCPU_Stage3 #(Bit #(4)         verbosity,
 			 rg_stage3.rd, rg_stage3.rd_val);
 	 end
 
-	 // Writeback CSR if valid
-	 Bool wrote_csr_minstret = False;
-	 if (rg_stage3.csr_valid) begin
-	    // TODO: remove: has been moved to Stage1: csr_regfile.write_csr (rg_stage3.csr, rg_stage3.csr_val);
-	    wrote_csr_minstret = ((rg_stage3.csr == csr_minstret) || (rg_stage3.csr == csr_minstreth));
-	    if (verbosity > 1)
-	       $display ("    S3.fa_deq: write CSR 0x%0h, val 0x%0h",
-			 rg_stage3.csr, rg_stage3.csr_val);
-	 end
-
-	 // Increment csr_INSTRET if it was not explicity updated by a CSRRx instruction
-	 if (! wrote_csr_minstret)
-	    csr_regfile.csr_minstret_incr;
+	 // Increment csr_INSTRET.
+	 // Note: this instr cannot be a CSRRx updating INSTRET, since
+	 // CSRRx is done completely in Stage1.
+	 csr_regfile.csr_minstret_incr;
       endaction
    endfunction
 

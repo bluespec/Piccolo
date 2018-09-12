@@ -135,10 +135,7 @@ module mkCPU_Stage2 #(Bit #(4)         verbosity,
 						    instr:     rg_stage2.instr,
 						    rd_valid:  False,
 						    rd:        rg_stage2.rd,
-						    rd_val:    rg_stage2.val1,
-						    csr_valid: rg_stage2.csr_valid,
-						    csr:       truncate (rg_stage2.addr),
-						    csr_val:   rg_stage2.val2};
+						    rd_val:    rg_stage2.val1};
 
    let  trap_info_dmem = Trap_Info {epc:      rg_stage2.pc,
 				    exc_code: dcache.exc_code,

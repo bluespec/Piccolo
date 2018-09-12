@@ -101,71 +101,74 @@ module mkCPU_Stage1 #(Bit #(4)         verbosity,
    endrule
 
    // ----------------
+   // ALU
+
+   let pc            = icache.pc;
+   let instr         = icache.instr;
+   let decoded_instr = fv_decode (instr);
+   let funct3        = decoded_instr.funct3;
+   let csr           = decoded_instr.csr;
+
+   // Register rs1 read and bypass
+   let rs1 = decoded_instr.rs1;
+   let rs1_val = gpr_regfile.read_rs1 (rs1);
+   match { .busy1a, .rs1a } = fn_gpr_bypass (bypass_from_stage3, rs1, rs1_val);
+   match { .busy1b, .rs1b } = fn_gpr_bypass (bypass_from_stage2, rs1, rs1a);
+   Bool rs1_busy = (busy1a || busy1b);
+   Word rs1_val_bypassed = ((rs1 == 0) ? 0 : rs1b);
+
+   // Register rs2 read and bypass
+   let rs2 = decoded_instr.rs2;
+   let rs2_val = gpr_regfile.read_rs2 (rs2);
+   match { .busy2a, .rs2a } = fn_gpr_bypass (bypass_from_stage3, rs2, rs2_val);
+   match { .busy2b, .rs2b } = fn_gpr_bypass (bypass_from_stage2, rs2, rs2a);
+   Bool rs2_busy = (busy2a || busy2b);
+   Word rs2_val_bypassed = ((rs2 == 0) ? 0 : rs2b);
+
+   // ----------------
+   // CSR address-based protection checks
+   Bool is_csrrx = ((decoded_instr.opcode == op_SYSTEM) && f3_is_CSRR_any (funct3));
+
+   // CSR accessible at this privilege?
+   Bool csr_priv_fault = (cur_priv < csr [9:8]);
+
+   // CSR hpm counter read allowed?
+   Bool csr_ctr_fault = csr_regfile.csr_counter_read_fault (cur_priv, csr);
+
+   // CSR writing a read-only CSR?
+   Bool csr_write_fault = (   (f3_is_CSRR_W (funct3) || (rs1 != 0))    // attempting write
+			   && (csr [11:10] == 2'b11));                 // read-only csr
+
+   // CSR reads
+   // Note: csr should not be read for CSRRW[I] if Rd=0 (i.e., don't cause its side-effects).
+   // But currently csr_reads are pure (no side effects), so we omit this check.
+   let m_csr_val = csr_regfile.read_csr (csr);
+   let csr_valid = (   is_csrrx
+		    && isValid (m_csr_val)
+		    && (! csr_priv_fault)
+		    && (! csr_ctr_fault)
+		    && (! csr_write_fault));
+
+   let csr_val   = fromMaybe (?, m_csr_val);
+
+   // ALU function
+   let alu_inputs = ALU_Inputs {cur_priv:       cur_priv,
+				pc:             pc,
+				instr:          instr,
+				decoded_instr:  decoded_instr,
+				rs1_val:        rs1_val_bypassed,
+				rs2_val:        rs2_val_bypassed,
+				csr_valid:      csr_valid,
+				csr_val:        csr_val,
+				mstatus:        csr_regfile.read_mstatus,
+				misa:           csr_regfile.read_misa};
+
+   let alu_outputs = fv_ALU (alu_inputs);
+
+   // ----------------
    // Combinational output function
 
    function Output_Stage1 fv_out;
-      let pc            = icache.pc;
-      let instr         = icache.instr;
-      let decoded_instr = fv_decode (instr);
-      let funct3        = decoded_instr.funct3;
-      let csr           = decoded_instr.csr;
-   
-      // Register rs1 read and bypass
-      let rs1 = decoded_instr.rs1;
-      let rs1_val = gpr_regfile.read_rs1 (rs1);
-      match { .busy1a, .rs1a } = fn_gpr_bypass (bypass_from_stage3, rs1, rs1_val);
-      match { .busy1b, .rs1b } = fn_gpr_bypass (bypass_from_stage2, rs1, rs1a);
-      Bool rs1_busy = (busy1a || busy1b);
-      Word rs1_val_bypassed = ((rs1 == 0) ? 0 : rs1b);
-
-      // Register rs2 read and bypass
-      let rs2 = decoded_instr.rs2;
-      let rs2_val = gpr_regfile.read_rs2 (rs2);
-      match { .busy2a, .rs2a } = fn_gpr_bypass (bypass_from_stage3, rs2, rs2_val);
-      match { .busy2b, .rs2b } = fn_gpr_bypass (bypass_from_stage2, rs2, rs2a);
-      Bool rs2_busy = (busy2a || busy2b);
-      Word rs2_val_bypassed = ((rs2 == 0) ? 0 : rs2b);
-
-      // ----------------
-      // CSR address-based protection checks
-      Bool is_csrrx = ((decoded_instr.opcode == op_SYSTEM) && f3_is_CSRR_any (funct3));
-
-      // CSR accessible at this privilege?
-      Bool csr_priv_fault = (cur_priv < csr [9:8]);
-
-      // CSR hpm counter read allowed?
-      Bool csr_ctr_fault = csr_regfile.csr_counter_read_fault (cur_priv, csr);
-
-      // CSR writing a read-only CSR?
-      Bool csr_write_fault = (   (f3_is_CSRR_W (funct3) || (rs1 != 0))    // attempting write
-			      && (csr [11:10] == 2'b11));                 // read-only csr
-
-      // CSR reads
-      // Note: csr should not be read for CSRRW[I] if Rd=0 (i.e., don't cause its side-effects).
-      // But currently csr_reads are pure (no side effects), so we omit this check.
-      let m_csr_val = csr_regfile.read_csr (csr);
-      let csr_valid = (   is_csrrx
-		       && isValid (m_csr_val)
-		       && (! csr_priv_fault)
-		       && (! csr_ctr_fault)
-		       && (! csr_write_fault));
-
-      let csr_val   = fromMaybe (?, m_csr_val);
-
-      // ALU function
-      let alu_inputs = ALU_Inputs {cur_priv:       cur_priv,
-				   pc:             pc,
-				   instr:          instr,
-				   decoded_instr:  decoded_instr,
-				   rs1_val:        rs1_val_bypassed,
-				   rs2_val:        rs2_val_bypassed,
-				   csr_valid:      csr_valid,
-				   csr_val:        csr_val,
-				   mstatus:        csr_regfile.read_mstatus,
-				   misa:           csr_regfile.read_misa};
-
-      let alu_outputs = fv_ALU (alu_inputs);
-
       Output_Stage1 output_stage1 = ?;
 
       // This stage is empty
@@ -202,7 +205,7 @@ module mkCPU_Stage1 #(Bit #(4)         verbosity,
 						 badaddr:  zeroExtend(instr)}; // v1.10 - mtval
 	 end
 
-      // ALU outputs: normal, trap, and non-pipe instrs (CSR, MRET, FENCE.I, FENCE, WPI)
+      // ALU outputs: normal, trap, and non-pipe instrs (MRET, FENCE.I, FENCE, WPI)
       else begin
 	 let ostatus = (  (   (alu_outputs.control == CONTROL_STRAIGHT)
 			   || (alu_outputs.control == CONTROL_BRANCH))
@@ -226,7 +229,6 @@ module mkCPU_Stage1 #(Bit #(4)         verbosity,
 						     instr:     instr,
 						     op_stage2: alu_outputs.op_stage2,
 						     rd:        alu_outputs.rd,
-						     csr_valid: alu_outputs.csr_valid,
 						     addr:      alu_outputs.addr,
 						     val1:      alu_outputs.val1,
 						     val2:      alu_outputs.val2 };
@@ -256,13 +258,10 @@ module mkCPU_Stage1 #(Bit #(4)         verbosity,
       // Writeback CSR if valid
       let data_to_stage2 = fv_out.data_to_stage2;
 
-      // TODO: do we suppress MINSTRET increment if we write minstret here?
-      Bool wrote_csr_minstret = False;
-      if (data_to_stage2.csr_valid) begin
-	 CSR_Addr csr_addr = truncate (data_to_stage2.addr);
-	 WordXL   csr_val  = data_to_stage2.val2;
+      if (alu_outputs.csr_valid) begin
+	 CSR_Addr csr_addr = truncate (alu_outputs.addr);
+	 WordXL   csr_val  = alu_outputs.val2;
 	 csr_regfile.write_csr (csr_addr, csr_val);
-	 wrote_csr_minstret = ((csr_addr == csr_minstret) || (csr_addr == csr_minstreth));
 	 if (verbosity > 1)
 	    $display ("    S1: write CSR 0x%0h, val 0x%0h", csr_addr, csr_val);
       end
