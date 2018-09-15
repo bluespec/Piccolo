@@ -83,8 +83,6 @@ module mkCPU_Stage1 #(Bit #(4)         verbosity,
 		      Priv_Mode        cur_priv)
                     (CPU_Stage1_IFC);
 
-   Reg #(Stage_Run_State) rg_run_state  <- mkReg (STAGE_RUNNING);
-
    FIFOF #(Token) f_reset_reqs <- mkFIFOF;
    FIFOF #(Token) f_reset_rsps <- mkFIFOF;
 
@@ -97,7 +95,6 @@ module mkCPU_Stage1 #(Bit #(4)         verbosity,
       f_reset_reqs.deq;
       rg_full <= False;
       f_reset_rsps.enq (?);
-      rg_run_state <= STAGE_RUNNING;
    endrule
 
    // ----------------

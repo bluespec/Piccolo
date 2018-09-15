@@ -79,8 +79,6 @@ module mkCPU_Stage3 #(Bit #(4)         verbosity,
 		      CSR_RegFile_IFC  csr_regfile)
                     (CPU_Stage3_IFC);
 
-   Reg #(Stage_Run_State) rg_run_state  <- mkReg (STAGE_RUNNING);
-
    FIFOF #(Token) f_reset_reqs <- mkFIFOF;
    FIFOF #(Token) f_reset_rsps <- mkFIFOF;
 
@@ -94,7 +92,6 @@ module mkCPU_Stage3 #(Bit #(4)         verbosity,
       f_reset_reqs.deq;
       rg_full <= False;
       f_reset_rsps.enq (?);
-      rg_run_state <= STAGE_RUNNING;
    endrule
 
    // ----------------

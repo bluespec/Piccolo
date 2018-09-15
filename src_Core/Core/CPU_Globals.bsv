@@ -26,12 +26,6 @@ import TV_Info   :: *;
 `endif
 
 // ================================================================
-// Run-state, for each stage
-
-typedef enum { STAGE_RESETTING, STAGE_RUNNING } Stage_Run_State
-deriving (Eq, Bits, FShow);
-
-// ================================================================
 // Output status of each stage
 
 // EMPTY:   Stage has nothing in its input register

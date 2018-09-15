@@ -252,15 +252,15 @@ function Tuple2# (Bool, Bool) fv_decode_gpr_read (Decoded_Instr di);
 `ifdef ISA_F
    // FP_LD and FP_ST are treated as non-FP operation as far as GPR reads
    // are concerned
-   if (di.opcode != FP_OP) begin
+   if (di.opcode != op_FP) begin
       return (tuple2 (False, True));   // Regular op with GPR read
    end
 
    // This is an FP operation. The following f5 values would work for F and
    // D subsets
    else begin
-      if (   (di.f5 == FCVT_F_X)
-          || (di.f5 == FMV_W_X))
+      if (   (di.funct5 == f5_FCVT_F_X)
+          || (di.funct5 == f5_FMV_W_X))
          return (tuple2 (True, True)); // FP op with GPR read
       else
          return (tuple2 (True, False));// FP op with no GPR read
