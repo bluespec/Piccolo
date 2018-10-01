@@ -8,6 +8,32 @@
 // ================================================================
 
 // ================================================================
+// Utility functions
+
+// In these functions, 'bitpos' is Bit #(6) which is enough to index
+// 64-bit words in RV64.
+
+function Bit #(n) fv_assign_bit (Bit #(n) x, Bit #(6) bitpos, Bit #(1) b)
+   provisos (Add #(a__, 1, n));
+   Bit #(n) mask = (1          << bitpos);
+   Bit #(n) val  = (extend (b) << bitpos);
+   return ((x & (~ mask)) | val);
+endfunction
+
+function Bit #(n) fv_assign_bits (Bit #(n) x, Bit #(6) bitpos, Bit #(w) bs)
+   provisos (Add #(a__, w, n));
+   Bit #(n) mask = (((1 << valueOf (w)) - 1) << bitpos);
+   Bit #(n) val  = (extend (bs)              << bitpos);
+   return ((x & (~ mask)) | val);
+endfunction
+
+function Bit #(w) fv_get_bits (Bit #(n) x, Bit #(6) bitpos)
+   provisos (Add #(a__, w, n));
+   Bit #(n) mask = ((1 << valueOf (w)) - 1);
+   return truncate ((x >> bitpos) & mask);
+endfunction
+
+// ================================================================
 // Machine-level CSRs
 
 CSR_Addr   csr_mvendorid      = 12'hF11;    // Vendor ID
@@ -15,7 +41,7 @@ CSR_Addr   csr_marchid        = 12'hF12;    // Architecture ID
 CSR_Addr   csr_mimpid         = 12'hF13;    // Implementation ID
 CSR_Addr   csr_mhartid        = 12'hF14;    // Hardware thread ID
 
-CSR_Addr   csr_mstatus        = 12'h300;    // Machine status
+CSR_Addr   csr_addr_mstatus   = 12'h300;    // Machine status
 CSR_Addr   csr_misa           = 12'h301;    // ISA and extensions
 CSR_Addr   csr_medeleg        = 12'h302;    // Machine exception delegation
 CSR_Addr   csr_mideleg        = 12'h303;    // Machine interrupt delegation
@@ -157,7 +183,7 @@ CSR_Addr   csr_addr_dscratch0 = 12'h7B2;    // Debug scratch0
 CSR_Addr   csr_addr_dscratch1 = 12'h7B3;    // Debug scratch1
 
 // ================================================================
-// Logical view of csr_misa register
+// MISA
 
 typedef struct {
    Bit #(2) mxl;
@@ -168,10 +194,10 @@ typedef struct {
    } MISA
 deriving (Bits);
 
-Bit #(2) misa_mxl_default  = 0;
-Bit #(2) misa_mxl_32       = 1;
-Bit #(2) misa_mxl_64       = 2;
-Bit #(2) misa_mxl_128      = 3;
+Bit #(2) misa_mxl_zero  = 0;
+Bit #(2) misa_mxl_32    = 1;
+Bit #(2) misa_mxl_64    = 2;
+Bit #(2) misa_mxl_128   = 3;
 
 function WordXL misa_to_word (MISA ms);
    return {ms.mxl,
@@ -248,39 +274,18 @@ Integer mstatus_xs_bitpos      = 15;
 Integer mstatus_fs_bitpos      = 13;
 
 Integer mstatus_mpp_bitpos     = 11;
+Integer mstatus_WPRI_9_bitpos  =  9;
 Integer mstatus_spp_bitpos     =  8;
 
 Integer mstatus_mpie_bitpos    =  7;
+Integer mstatus_WPRI_6_bitpos  =  6;
 Integer mstatus_spie_bitpos    =  5;
 Integer mstatus_upie_bitpos    =  4;
 
 Integer mstatus_mie_bitpos     =  3;
+Integer mstatus_WPRI_2_bitpos  =  2;
 Integer mstatus_sie_bitpos     =  1;
 Integer mstatus_uie_bitpos     =  0;
-
-// ----------------
-// Logical view
-
-typedef struct {
-   // SD is a read-only bit computed from FS and XS
-`ifdef RV64
-   Bit #(2)   sxl;    // XLEN in S Priv
-   Bit #(2)   uxl;    // XLEN in U Priv
-`endif
-   Bit #(1)   tsr;    // Trap SRET
-   Bit #(1)   tw;     // Timeout Wait
-   Bit #(1)   tvm;    // Trap Virt Mem
-   Bit #(1)   mxr;    // Make Executable Readable (0:R only, 1:R or X)
-   Bit #(1)   sum;    // Supervisor Memory Access (0: U fault, 1: ok)
-   Bit #(1)   mprv;   // Modify Privilege for Load/Store (0:normal, 1:MPP)
-   Bit #(2)   xs;     // Extension state for context save/restore
-   Bit #(2)   fs;     // Floating point state for context save/restore
-   Priv_Mode  mpp;    // Previous privilege level
-   Priv_Mode  spp;    // Previous privilege level
-   Vector #(Num_Priv_Modes, Bit #(1)) pies;    // Previous interrupt enables
-   Vector #(Num_Priv_Modes, Bit #(1)) ies;     // Interrupt enables
-   } MStatus
-deriving (Bits);
 
 // Values for FS and XS
 
@@ -291,209 +296,57 @@ Bit #(2) fs_xs_dirty    = 2'h3;
 
 // Virtual field SD is computed from FS and XS
 
-function Bit #(1) fn_mstatus_sd (MStatus  mstatus);
-   return pack ((mstatus.xs == fs_xs_dirty) || (mstatus.fs == fs_xs_dirty));
+function Bit #(1) fv_mstatus_sd (WordXL  mstatus);
+   Bit #(2) xs = fv_get_bits (mstatus, fromInteger (mstatus_xs_bitpos));
+   Bit #(2) fs = fv_get_bits (mstatus, fromInteger (mstatus_fs_bitpos));
+   return (((fs == fs_xs_dirty) || (xs == fs_xs_dirty)) ? 1 : 0);
 endfunction
 
-instance FShow #(MStatus);
-   function Fmt fshow (MStatus ms);
-      return (  $format ("MStatus{")
-	      + $format ("sd:%0d", fn_mstatus_sd (ms))
-`ifdef RV64
-	      + $format (" sxl:%0d", ms.sxl)
-	      + $format (" uxl:%0d", ms.uxl)
-`endif
-	      + $format (" tsr:%0d",  ms.tsr)
-	      + $format (" tw:%0d",   ms.tw)
-	      + $format (" tvm:%0d",  ms.tvm)
-	      + $format (" mxr:%0d",  ms.mxr)
-	      + $format (" sum:%0d",  ms.sum)
-	      + $format (" mprv:%0d", ms.mprv)
+function Fmt fshow_mstatus (MISA  misa, WordXL  mstatus);
+   Bit #(2) sxl = ((misa.mxl == misa_mxl_64) ? fv_get_bits (mstatus, fromInteger (mstatus_sxl_bitpos)) : 0);
+   Bit #(2) uxl = ((misa.mxl == misa_mxl_64) ? fv_get_bits (mstatus, fromInteger (mstatus_uxl_bitpos)) : 0);
+   Bit #(2) xs  = fv_get_bits (mstatus, fromInteger (mstatus_xs_bitpos));
+   Bit #(2) fs  = fv_get_bits (mstatus, fromInteger (mstatus_fs_bitpos));
+   Bit #(2) mpp = fv_get_bits (mstatus, fromInteger (mstatus_mpp_bitpos));
 
-	      + $format (" xs:%0d",   ms.xs)
-	      + $format (" fs:%0d",   ms.fs)
+   return (  $format ("MStatus{")
+	   + $format ("sd:%0d", fv_mstatus_sd (mstatus))
 
-	      + $format (" mpp:%0d",   ms.mpp)
-	      + $format (" spp:%0d",   ms.spp)
+	   + ((misa.mxl == misa_mxl_64) ? $format (" sxl:%0d uxl:%0d", sxl, uxl) : $format (""))
 
-	      + $format (" pies:%0d_%0d%0d",
-			 ms.pies [m_Priv_Mode], ms.pies [s_Priv_Mode], ms.pies [u_Priv_Mode])
+	   + $format (" tsr:%0d",  mstatus [mstatus_tsr_bitpos])
+	   + $format (" tw:%0d",   mstatus [mstatus_tw_bitpos])
+	   + $format (" tvm:%0d",  mstatus [mstatus_tvm_bitpos])
+	   + $format (" mxr:%0d",  mstatus [mstatus_mxr_bitpos])
+	   + $format (" sum:%0d",  mstatus [mstatus_sum_bitpos])
+	   + $format (" mprv:%0d", mstatus [mstatus_mprv_bitpos])
 
-	      + $format (" ies:%0d_%0d%0d",
-			 ms.ies [m_Priv_Mode], ms.ies [s_Priv_Mode], ms.ies [u_Priv_Mode])
-	      + $format ("}")
-	      );
-   endfunction
-endinstance
+	   + $format (" xs:%0d",   xs)
+	   + $format (" fs:%0d",   fs)
 
-// ----------------
-// Reset value of mstatus
+	   + $format (" mpp:%0d",  mpp)
+	   + $format (" spp:%0d",  mstatus [mstatus_spp_bitpos])
 
-function MStatus mstatus_reset_value;
-   MStatus mstatus = unpack (0);
+	   + $format (" pies:%0d_%0d%0d",
+		      mstatus [mstatus_mpie_bitpos], mstatus [mstatus_spie_bitpos], mstatus [mstatus_upie_bitpos])
 
-`ifdef RV64
-`ifdef ISA_PRIV_S
-   mstatus.sxl = 2;
-`endif
-`ifdef ISA_PRIV_U
-   mstatus.uxl = 2;
-`endif
-`endif
-
-   mstatus.mpp = u_Priv_Mode;
-
-   // Disable all interrupts
-   mstatus.ies [m_Priv_Mode] = 0;
-   mstatus.ies [s_Priv_Mode] = 0;
-   mstatus.ies [u_Priv_Mode] = 0;
-   return mstatus;
-endfunction
-
-// ----------------
-// Conversion from logical view of mstatus to/from bit-representation
-
-function WordXL mstatus_to_word (MStatus ms);
-   return {fn_mstatus_sd (ms),
-`ifdef RV64
-	   0,        // WPRI field, expands appropriately for RV64
-	   ms.sxl,
-	   ms.uxl,
-	   9'b0,     // WPRI field
-`else
-	   0,        // WPRI field, expands appropriately for RV32
-`endif
-	   ms.tsr,
-	   ms.tw,
-	   ms.tvm,
-	   ms.mxr,
-	   ms.sum,
-	   ms.mprv,
-	   ms.xs,
-	   ms.fs,
-	   pack (ms.mpp),
-	   2'b0,                 // WPRI field
-	   pack (ms.spp) [0],
-
-	   ms.pies [m_Priv_Mode],
-	   ms.pies [reserved_Priv_Mode],
-	   ms.pies [s_Priv_Mode],
-	   ms.pies [u_Priv_Mode],
-
-	   ms.ies [m_Priv_Mode],
-	   ms.ies [reserved_Priv_Mode],
-	   ms.ies [s_Priv_Mode],
-	   ms.ies [u_Priv_Mode]
-	   };
-endfunction
-
-// TODO: this should take current privilege mode and misa into account (see Cissr code, e.g.)
-function MStatus word_to_mstatus (MISA misa, WordXL x);
-   return MStatus {
-`ifdef RV64
-		   sxl: ((misa.s == 1) ? misa.mxl : 0),    // WARL field
-		   uxl: ((misa.u == 1) ? misa.mxl : 0),    // WARL field
-`endif
-		   tsr:  x [22],
-		   tw:   x [21],
-		   tvm:  x [20],
-		   mxr:  x [19],
-		   sum:  x [18],
-		   mprv: x [17],
-		   xs:   x [16:15],
-		   fs:   x [14:13],
-		   mpp:  x [12:11],
-		   spp:  (x[8] == 0) ? u_Priv_Mode : s_Priv_Mode,
-		   pies: unpack ({x[7],
-				  1'b0,
-				  ((misa.s == 0) ? 0 : x[5]),
-				  ((misa.n == 0) ? 0 : x[4]) }),
-		   ies:  unpack ({x[3],
-				  1'b0,
-				  ((misa.s == 0) ? 0 : x[1]),
-				  ((misa.n == 0) ? 0 : x[0]) })
-		};
-endfunction
-
-// ----------------
-// Restricted view of MSTATUS as SSTATUS
-
-function WordXL fn_read_sstatus (MStatus x);
-   WordXL mstatus_w = mstatus_to_word (x);
-`ifdef RV32
-   WordXL sstatus_w = {mstatus_w [31],        // SD
-		       11'h0,
-		       mstatus_w [19:18],     // MXR, SUM
-		       1'h0,
-		       mstatus_w [16:13],     // XS,FS
-		       4'h0,
-		       mstatus_w [8],         // SPP
-		       2'h0,
-		       mstatus_w [5:4],       // SPIE, UPIE
-		       2'h0,
-		       mstatus_w [1:0]};      // SIE, UIE
-`endif
-
-`ifdef RV64
-   WordXL sstatus_w = {mstatus_w [63],        // SD
-		       29'h0,
-		       mstatus_w [33:32],     // UXL
-		       12'h0,
-		       mstatus_w [19:18],     // MXR, SUM
-		       1'h0,
-		       mstatus_w [16:13],     // XS,FS
-		       4'h0,
-		       mstatus_w [8],         // SPP
-		       2'h0,
-		       mstatus_w [5:4],       // SPIE, UPIE
-		       2'h0,
-		       mstatus_w [1:0]};      // SIE, UIE
-`endif
-
-   return sstatus_w;
-endfunction
-
-function MStatus fn_write_sstatus (MISA misa,  MStatus mstatus,  WordXL x);
-  MStatus res = mstatus;
-  MStatus mx = word_to_mstatus (misa, x);
-  // Update the fields which are not WPRI
-`ifdef RV64
-  res.uxl  = mx.uxl;
-`endif
-  res.mxr  = mx.mxr;
-  res.sum  = mx.sum;
-  res.xs   = mx.xs;
-  res.fs   = mx.fs;
-  res.spp  = mx.spp;
-  res.pies[1] = mx.pies[1];
-  res.pies[0] = mx.pies[0];
-  res.ies[1]  = mx.ies[1];
-  res.ies[0]  = mx.ies[0];
-  return res;
+	   + $format (" ies:%0d_%0d%0d",
+		      mstatus [mstatus_mie_bitpos], mstatus [mstatus_sie_bitpos], mstatus [mstatus_uie_bitpos])
+	   + $format ("}")
+	   );
 endfunction
 
 // ----------------
 // Help functions to manipulate mstatus on traps and trap-returns
 
-function Priv_Mode fn_new_priv_on_exception (Priv_Mode  from_priv,
+function Priv_Mode fv_new_priv_on_exception (MISA       misa,
+					     Priv_Mode  from_priv,
 					     Bool       interrupt,
 					     Exc_Code   exc_code,
 					     Bit #(16)  medeleg,
 					     Bit #(12)  mideleg,
 					     Bit #(16)  sedeleg,
 					     Bit #(12)  sideleg);
-   // TODO: Make misa an argument
-   MISA misa; misa.s = 1'b0; misa.u = 1'b0; misa.n = 1'b0;
-`ifdef ISA_PRIV_S
-   misa.s = 1'b1;
-`endif
-`ifdef ISA_PRIV_U
-   misa.u = 1'b1;
-`endif
-`ifdef ISA_N
-   misa.n = 1'b1;
-`endif
-
    Priv_Mode to_priv = m_Priv_Mode;
    Bit #(1) deleg_bit = 1'b0;
 
@@ -540,51 +393,47 @@ function Priv_Mode fn_new_priv_on_exception (Priv_Mode  from_priv,
    return to_priv;
 endfunction
 
-function MStatus fn_mstatus_upd_on_trap (MStatus mstatus, Priv_Mode from_y, Priv_Mode to_x);
+function WordXL fv_new_mstatus_on_exception (WordXL mstatus, Priv_Mode from_y, Priv_Mode to_x);
+   Bit #(6) ie_to_x  = extend (to_x);
+   Bit #(6) pie_to_x = fromInteger (mstatus_upie_bitpos) + extend (to_x);
    // xPIE = xIE
-   mstatus.pies [to_x] = mstatus.ies [to_x];
+   mstatus = fv_assign_bit (mstatus, pie_to_x, mstatus [ie_to_x]);
    // xIE = 0
-   mstatus.ies  [to_x] = 0;
+   mstatus = fv_assign_bit (mstatus, ie_to_x, 1'b0);
 
-   // xPP = y
-   if (to_x == m_Priv_Mode)
-      mstatus.mpp = from_y;
-   else //if (to_x == s_Priv_Mode)
-      mstatus.spp = from_y;
-
+   // xPP = y        Assert: (to_x == m_Priv_Mode) || (to_x == s_Priv_Mode)
+   mstatus = (  (to_x == m_Priv_Mode)
+	      ? fv_assign_bits (mstatus, fromInteger (mstatus_mpp_bitpos), from_y)
+	      : fv_assign_bit (mstatus, fromInteger (mstatus_spp_bitpos), from_y [0]));
    return mstatus;
 endfunction
 
-function Tuple2 #(MStatus, Priv_Mode) fn_mstatus_upd_on_ret (MStatus mstatus, Priv_Mode from_x);
+function Tuple2 #(WordXL, Priv_Mode) fv_new_mstatus_on_ret (MISA       misa,
+							    WordXL     mstatus,
+							    Priv_Mode  from_x);
+   Bit #(6) ie_from_x  = extend (from_x);
+   Bit #(6) pie_from_x = fromInteger (mstatus_upie_bitpos) + extend (from_x);
 
    // Pop the interrupt-enable stack
    // (set xIE = xPIE)
-   mstatus.ies [from_x] = mstatus.pies [from_x];
+   mstatus = fv_assign_bit (mstatus, ie_from_x, mstatus [pie_from_x]);
 
    // Enable interrupt at from_x
    // (set xPIE = 1)
-   mstatus.pies [from_x] = 1;
+   mstatus = fv_assign_bit (mstatus, pie_from_x, 1'b1);
 
    // Pop the previous privilege mode
    // which empties the one-element stack, revealing the default value
    // (set xPP to U -- or M if U is not supported)
-
    Priv_Mode to_y;
-
-   // TODO: Make misa an argument
-   MISA misa; misa.u = 1'b0;
-`ifdef ISA_PRIV_U
-   misa.u = 1'b1;
-`endif
    Priv_Mode default_pp = ((misa.u == 1'b1) ? u_Priv_Mode : m_Priv_Mode);
-
    if (from_x == m_Priv_Mode) begin
-      to_y = mstatus.mpp;
-      mstatus.mpp = default_pp;
+      to_y = fv_get_bits (mstatus, fromInteger (mstatus_mpp_bitpos));
+      mstatus = fv_assign_bits (mstatus, fromInteger (mstatus_mpp_bitpos), default_pp);
    end
    else begin //if (from_x == s_Priv_Mode)
-      to_y = mstatus.spp;
-      mstatus.spp = default_pp;
+      to_y = {1'b0, mstatus [mstatus_spp_bitpos]};
+      mstatus = fv_assign_bit (mstatus, fromInteger (mstatus_spp_bitpos), default_pp [0]);
    end
 
    return tuple2 (mstatus, to_y);
@@ -824,7 +673,7 @@ endfunction
 //     whether or not an interrupt is pending,
 // and if so, corresponding exception code
 
-function Maybe #(Exc_Code) fn_interrupt_pending (MISA       misa,
+function Maybe #(Exc_Code) fv_interrupt_pending (MISA       misa,
 						 WordXL     mstatus,
 						 WordXL     mip,
 						 WordXL     mie,
@@ -832,7 +681,7 @@ function Maybe #(Exc_Code) fn_interrupt_pending (MISA       misa,
 						 Bit #(12)  sideleg,
 						 Priv_Mode  cur_priv);
 
-   function Maybe #(Exc_Code) fn_interrupt_i_pending (Exc_Code i);
+   function Maybe #(Exc_Code) fv_interrupt_i_pending (Exc_Code i);
       Bool intr_pending = ((mip [i] == 1) && (mie [i] == 1));
       Priv_Mode handler_priv;
       if (mideleg [i] == 1)
@@ -883,25 +732,25 @@ function Maybe #(Exc_Code) fn_interrupt_pending (MISA       misa,
 
    // Check all interrupts in the following decreasing priority order
    Maybe #(Exc_Code) m_ec;
-   m_ec = fn_interrupt_i_pending (exc_code_MACHINE_EXTERNAL_INTERRUPT);
+   m_ec = fv_interrupt_i_pending (exc_code_MACHINE_EXTERNAL_INTERRUPT);
    if (m_ec matches tagged Invalid)
-      m_ec = fn_interrupt_i_pending (exc_code_MACHINE_SW_INTERRUPT);
+      m_ec = fv_interrupt_i_pending (exc_code_MACHINE_SW_INTERRUPT);
    if (m_ec matches tagged Invalid)
-      m_ec = fn_interrupt_i_pending (exc_code_MACHINE_TIMER_INTERRUPT);
+      m_ec = fv_interrupt_i_pending (exc_code_MACHINE_TIMER_INTERRUPT);
 
    if (m_ec matches tagged Invalid)
-      m_ec = fn_interrupt_i_pending (exc_code_SUPERVISOR_EXTERNAL_INTERRUPT);
+      m_ec = fv_interrupt_i_pending (exc_code_SUPERVISOR_EXTERNAL_INTERRUPT);
    if (m_ec matches tagged Invalid)
-      m_ec = fn_interrupt_i_pending (exc_code_SUPERVISOR_SW_INTERRUPT);
+      m_ec = fv_interrupt_i_pending (exc_code_SUPERVISOR_SW_INTERRUPT);
    if (m_ec matches tagged Invalid)
-      m_ec = fn_interrupt_i_pending (exc_code_SUPERVISOR_TIMER_INTERRUPT);
+      m_ec = fv_interrupt_i_pending (exc_code_SUPERVISOR_TIMER_INTERRUPT);
 
    if (m_ec matches tagged Invalid)
-      m_ec = fn_interrupt_i_pending (exc_code_USER_EXTERNAL_INTERRUPT);
+      m_ec = fv_interrupt_i_pending (exc_code_USER_EXTERNAL_INTERRUPT);
    if (m_ec matches tagged Invalid)
-      m_ec = fn_interrupt_i_pending (exc_code_USER_SW_INTERRUPT);
+      m_ec = fv_interrupt_i_pending (exc_code_USER_SW_INTERRUPT);
    if (m_ec matches tagged Invalid)
-      m_ec = fn_interrupt_i_pending (exc_code_USER_TIMER_INTERRUPT);
+      m_ec = fv_interrupt_i_pending (exc_code_USER_TIMER_INTERRUPT);
 
    return m_ec;
 endfunction

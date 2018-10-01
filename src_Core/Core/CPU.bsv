@@ -77,16 +77,17 @@ typedef enum {CPU_RESET1,
 	      CPU_RESET2,
 
 `ifdef INCLUDE_GDB_CONTROL
-	      CPU_GDB_PAUSING,  // On GDB breakpoint, while waiting for fence completion
-	      CPU_DEBUG_MODE,   // Stopped for debugger
+	      CPU_GDB_PAUSING,      // On GDB breakpoint, while waiting for fence completion
+	      CPU_DEBUG_MODE,       // Stopped for debugger
 `endif
-	      CPU_RUNNING,      // Normal operation
-	      CPU_CSRRX_STALL,
-	      CPU_FENCE_I,      // While waiting for FENCE.I to complete in Near_Mem
-	      CPU_FENCE,        // While waiting for FENCE to complete in Near_Mem
+	      CPU_RUNNING,          // Normal operation
+	      CPU_TRAP,
+	      CPU_CSRRX_RESTART,    // Restart pipe after a CSRRX instruction
+	      CPU_FENCE_I,          // While waiting for FENCE.I to complete in Near_Mem
+	      CPU_FENCE,            // While waiting for FENCE to complete in Near_Mem
 	      CPU_SFENCE_VMA,
 
-	      CPU_WFI_PAUSED    // On WFI pause
+	      CPU_WFI_PAUSED        // On WFI pause
    } CPU_State
 deriving (Eq, Bits, FShow);
 
@@ -200,7 +201,6 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 
    Reg #(Bool)  rg_stop_req      <- mkReg (False);    // stop-request from debugger
    Reg #(Bool)  rg_step_req      <- mkReg (False);    // step-request from dcsr.step
-   Reg #(Bool)  rg_self_stop_req <- mkReg (False);    // self-stop-request on infinite loop
 
    // Debugger GPR read/write request/response
    FIFOF #(MemoryRequest  #(5,  XLEN)) f_gpr_reqs <- mkFIFOF1;
@@ -283,7 +283,11 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
    function Action fa_start_ifetch (Word next_pc, Priv_Mode priv);
       action
 	 // Initiate the fetch
+`ifdef ISA_PRIV_S
 	 Bit #(1) sstatus_SUM = (csr_regfile.read_sstatus) [18];
+`else
+	 Bit #(1) sstatus_SUM = 0;
+`endif
 	 Bit #(1) mstatus_MXR = (csr_regfile.read_mstatus) [19];
 	 stage1.enq (next_pc, priv,
 		     sstatus_SUM,
@@ -295,10 +299,10 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 
 `ifdef INCLUDE_GDB_CONTROL
 	 // Debugger stop-request
-	 if ((! do_halt) && (rg_stop_req || rg_self_stop_req) && (cur_verbosity != 0))
-	    $display ("    CPU.fa_start_ifetch: debugger/self stop-request: PC = 0x%08h", next_pc);
+	 if ((! do_halt) && rg_stop_req && (cur_verbosity != 0))
+	    $display ("    CPU.fa_start_ifetch: debugger stop-request: PC = 0x%08h", next_pc);
 
-	 do_halt = (do_halt || rg_stop_req || rg_self_stop_req);
+	 do_halt = (do_halt || rg_stop_req);
 
 	 // dcsr.step step-request
 	 if ((! do_halt) && rg_step_req && (cur_verbosity != 0))
@@ -357,7 +361,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
       $display ("================================================================");
       $display ("%0d: Pipeline State:  inum:%0d  cur_priv:%0d  mstatus:%0x",
 		mcycle, rg_inum, rg_cur_priv, mstatus);
-      $display ("    ", fshow (word_to_mstatus (misa, mstatus)));
+      $display ("    ", fshow_mstatus (misa, mstatus));
 
       $display ("    Bypass S1 <= S3: ", fshow (stage3.out.bypass));
       $display ("    S3: ", fshow (stage3.out));
@@ -384,7 +388,6 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 `ifdef INCLUDE_GDB_CONTROL
       rg_stop_req <= False;
       rg_step_req <= False;
-      rg_self_stop_req <= False;
 `endif
 
       $display ("================================================================");
@@ -430,7 +433,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
       f_to_verifier.enq (to_verifier);
       rg_prev_mip <= mip_reset_value;
 `endif
-   endrule
+   endrule: rl_reset_start
 
    rule rl_reset_complete (rg_state == CPU_RESET2);
       let ack_gpr <- gpr_regfile.server_reset.response.get;
@@ -459,7 +462,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
       WordXL dpc = truncate (pc_reset_value);
       fa_restart (dpc);
 `endif
-   endrule
+   endrule: rl_reset_complete
 
    // ================================================================
    // Various conditions on the pipe
@@ -468,20 +471,12 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 			 && (stage2.out.ostatus == OSTATUS_EMPTY)
 			 && (stage3.out.ostatus == OSTATUS_EMPTY));
 
-   Bool pipe_has_busy = (   (stage1.out.ostatus == OSTATUS_BUSY)
-			 || (stage2.out.ostatus == OSTATUS_BUSY)
-			 || (stage3.out.ostatus == OSTATUS_BUSY));
-
    Bool pipe_has_nonpipe = (   (stage3.out.ostatus == OSTATUS_NONPIPE)
 			    || (   (stage3.out.ostatus == OSTATUS_EMPTY)
 				&& (stage2.out.ostatus == OSTATUS_NONPIPE))
 			    || (   (stage3.out.ostatus == OSTATUS_EMPTY)
 				&& (stage2.out.ostatus == OSTATUS_EMPTY)
 				&& (stage1.out.ostatus == OSTATUS_NONPIPE)));
-
-   Bool possible_ST_in_flight = (   (stage2.out.ostatus == OSTATUS_PIPE)
-				 || (   (stage2.out.ostatus == OSTATUS_EMPTY)
-				     && (stage3.out.ostatus == OSTATUS_PIPE)));
 
    Bool halting = (rg_halt || mip_cmd_needed || interrupt_pending);
    Bool stage1_halted = (   halting
@@ -492,9 +487,6 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
    Bool stage1_send_mip_cmd = stage1_halted && mip_cmd_needed;
    Bool stage1_take_interrupt = stage1_halted && (! mip_cmd_needed) && interrupt_pending;
    Bool stage1_stop = stage1_halted && (! mip_cmd_needed) && (! interrupt_pending);
-
-   Bool stage1_is_csrrx = ((stage1.out.ostatus == OSTATUS_PIPE)
-			   && fn_instr_is_csrrx (stage1.out.data_to_stage2.instr));
 
    // ================================================================
 
@@ -522,8 +514,8 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
    // (read reg, writeback, bypassing) because of complexity: too many
    // CSRs can change simultaneously.  A CSRRx instruction in stage1
    // is stalled until downstream stages are empty. Then, we delay for
-   // a cycle before fetching the next instr, since the fetch may need
-   // the just-written CSR value.
+   // a cycle before restarting the pipe by re-fetching the next
+   // instr, since the fetch may need the just-written CSR value.
 
    rule rl_pipe (   (rg_state == CPU_RUNNING)
 		 && (! pipe_is_empty)
@@ -560,13 +552,10 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 
       // ----------------
       // Move instruction from Stage1 to Stage2
-      // (but stall if Stage1 is CSRRx and rest of pipe is not empty)
 
       if (   (! halting)
 	  && (! stage2_full)
-	  && (stage1.out.ostatus == OSTATUS_PIPE)
-	  && (! (stage1_is_csrrx && (   (stage2.out.ostatus != OSTATUS_EMPTY)
-				     || (stage3.out.ostatus != OSTATUS_EMPTY)))))
+	  && (stage1.out.ostatus == OSTATUS_PIPE))
 	 begin
 	    stage1.deq;                              stage1_full = False;
 	    stage2.enq (stage1.out.data_to_stage2);  stage2_full = True;
@@ -578,35 +567,14 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
       if (   (! halting)
 	  && (! stage1_full))
 	 begin
-	    if (stage1_is_csrrx) begin
-	       // Delay for a clock if Stage1 is CSRRx, since fa_start_ifetch reads some
-	       // CSRs, which may be stale w.r.t. CSRRx
-	       // TODO: delay only if the CSRRx is writing certain CSRs read by fa_start_ifetch?
-	       //       i.e., csr_satp/csr_mstatus/csr_sstatus?
-	       rg_state <= CPU_CSRRX_STALL;
-	    end
-	    else begin
-	       fa_start_ifetch (stage1.out.next_pc, rg_cur_priv);
-	       stage1_full = True;
-	    end
+	    fa_start_ifetch (stage1.out.next_pc, rg_cur_priv);
+	    stage1_full = True;
 	 end
 
       stage3.set_full (stage3_full);
       stage2.set_full (stage2_full);
       stage1.set_full (stage1_full);
    endrule: rl_pipe
-
-   // ================================================================
-   // Restart the pipe after a CSRRX stall
-
-   rule rl_stage1_restart_after_csrrx (rg_state == CPU_CSRRX_STALL);
-      fa_start_ifetch (stage1.out.next_pc, rg_cur_priv);
-      stage1.set_full (True);
-      rg_state <= CPU_RUNNING;
-      if (cur_verbosity > 1)
-	 $display ("%0d: rl_stage1_restart_after_csrrx: inum:%0d  pc:%0x  cur_priv:%0d",
-		   mcycle, rg_inum, stage1.out.next_pc, rg_cur_priv);
-   endrule
 
    // ================================================================
    // Stage2: nonpipe special: all stage2 nonpipe behaviors are traps
@@ -663,9 +631,167 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
    endrule: rl_stage2_nonpipe
 
    // ================================================================
+   // Stage1: nonpipe special: CSRRW and CSRRWI
+
+   rule rl_stage1_CSRR_W (   (rg_state == CPU_RUNNING)
+			  && (! halting)
+			  && (stage3.out.ostatus == OSTATUS_EMPTY)
+			  && (stage2.out.ostatus == OSTATUS_EMPTY)
+			  && (stage1.out.ostatus == OSTATUS_NONPIPE)
+			  && (stage1.out.control == CONTROL_CSRR_W));
+
+      let instr    = stage1.out.data_to_stage2.instr;
+      let csr_addr = instr_csr    (instr);
+      let rs1      = instr_rs1    (instr);
+      let funct3   = instr_funct3 (instr);
+      let rd       = instr_rd     (instr);
+
+      let rs1_val  = (  (funct3 == f3_CSRRW)
+		      ? stage1.out.data_to_stage2.val1    // CSRRW
+		      : extend (rs1));                    // CSRRWI
+
+      Bool read_not_write = False;    // CSRRW always writes the CSR
+      Bool permitted = csr_regfile.access_permitted (rg_cur_priv, csr_addr, read_not_write);
+
+      if (! permitted) begin
+	 rg_state <= CPU_TRAP;
+      end
+      else begin
+	 // Read the CSR only if Rd is not 0
+	 WordXL csr_val = ?;
+	 if (rd != 0) begin
+	    // TODO: csr_regfile.read should become ActionValue (it may have side effects)
+	    let m_csr_val = csr_regfile.read_csr (csr_addr);
+	    csr_val   = fromMaybe (?, m_csr_val);
+	 end
+
+	 // Writeback to GPR file
+	 let rd_val = csr_val;
+	 gpr_regfile.write_rd (rd, csr_val);
+
+	 // Writeback to CSR file
+	 // TODO: should become an actionvalue returning the actual written value as new_csr_val
+	 csr_regfile.write_csr (csr_addr, rs1_val);
+	 let new_csr_val = rs1_val;
+
+	 // Accounting
+	 csr_regfile.csr_minstret_incr;
+	 rg_inum <= rg_inum + 1;
+
+	 // Restart the pipe
+	 rg_state <= CPU_CSRRX_RESTART;
+
+`ifdef INCLUDE_TANDEM_VERIF
+	 // Send info Tandem Verifier
+	 let to_verifier = Info_CPU_to_Verifier {exc_taken:   False,
+						 pc:          stage1.out.data_to_stage2.pc,
+						 addr:        extend (csr_addr),
+						 data1:       rd_val,
+						 data2:       new_csr_val,
+						 instr_valid: True,
+						 instr:       instr
+						 };
+	 f_to_verifier.enq (to_verifier);
+`endif
+
+	 // Debug
+	 fa_emit_instr_trace (rg_inum, stage1.out.data_to_stage2.pc, instr, rg_cur_priv);
+	 if (cur_verbosity > 1) begin
+	    $display ("    S1: write CSRRW/CSRRWI Rs1 %0d Rs1_val 0x%0h csr 0x%0h csr_val 0x%0h Rd %0d",
+		      rs1, rs1_val, csr_addr, csr_val, rd);
+	 end
+      end
+   endrule: rl_stage1_CSRR_W
+
+   // ================================================================
+   // Stage1: nonpipe special: CSRRS, CSRRSI, CSRRC, CSRRCI
+
+   rule rl_stage1_CSRR_S_or_C (   (rg_state == CPU_RUNNING)
+			       && (! halting)
+			       && (stage3.out.ostatus == OSTATUS_EMPTY)
+			       && (stage2.out.ostatus == OSTATUS_EMPTY)
+			       && (stage1.out.ostatus == OSTATUS_NONPIPE)
+			       && (stage1.out.control == CONTROL_CSRR_S_or_C));
+
+      let instr    = stage1.out.data_to_stage2.instr;
+      let csr_addr = instr_csr    (instr);
+      let rs1      = instr_rs1    (instr);
+      let funct3   = instr_funct3 (instr);
+      let rd       = instr_rd     (instr);
+
+      let rs1_val  = (  ((funct3 == f3_CSRRS) || (funct3 == f3_CSRRC))
+		      ? stage1.out.data_to_stage2.val1    // CSRRS,  CSRRC
+		      : extend (rs1));                    // CSRRSI, CSRRCI
+
+      Bool read_not_write = (rs1_val == 0);    // CSRR_S_or_C only reads, does not write CSR, if rs1_val == 0
+      Bool permitted = csr_regfile.access_permitted (rg_cur_priv, csr_addr, read_not_write);
+
+      if (! permitted) begin
+	 rg_state <= CPU_TRAP;
+      end
+      else begin
+	 // Read the CSR
+	 // TODO: csr_regfile.read should become ActionValue (it may have side effects)
+	 let m_csr_val  = csr_regfile.read_csr (csr_addr);
+	 WordXL csr_val = fromMaybe (?, m_csr_val);
+
+	 // Writeback to GPR file
+	 let rd_val = csr_val;
+	 gpr_regfile.write_rd (rd, csr_val);
+
+	 // Writeback to CSR file
+	 // TODO: should be an actionvalue returning the actual written value as new_csr_val2
+	 let new_csr_val = (  ((funct3 == f3_CSRRS) || (funct3 == f3_CSRRSI))
+			    ? (csr_val | rs1_val)                // CSRRS, CSRRSI
+			    : csr_val & (~ rs1_val));            // CSRRC, CSRRCI
+	 csr_regfile.write_csr (csr_addr, new_csr_val);
+	 let new_csr_val2 = new_csr_val;
+
+	 // Accounting
+	 csr_regfile.csr_minstret_incr;
+	 rg_inum <= rg_inum + 1;
+
+	 // Restart the pipe
+	 rg_state <= CPU_CSRRX_RESTART;
+
+`ifdef INCLUDE_TANDEM_VERIF
+	 // Send info Tandem Verifier
+	 let to_verifier = Info_CPU_to_Verifier {exc_taken:   False,
+						 pc:          stage1.out.data_to_stage2.pc,
+						 addr:        extend (csr_addr),
+						 data1:       rd_val,
+						 data2:       new_csr_val2,
+						 instr_valid: True,
+						 instr:       instr
+						 };
+	 f_to_verifier.enq (to_verifier);
+`endif
+
+	 // Debug
+	 fa_emit_instr_trace (rg_inum, stage1.out.data_to_stage2.pc, instr, rg_cur_priv);
+	 if (cur_verbosity > 1) begin
+	    $display ("    S1: write CSRRW/CSRRWI Rs1 %0d Rs1_val 0x%0h csr 0x%0h csr_val 0x%0h Rd %0d",
+		      rs1, rs1_val, csr_addr, csr_val, rd);
+	 end
+      end
+   endrule: rl_stage1_CSRR_S_or_C
+
+   // ================================================================
+   // Restart the pipe after a CSRRX stall
+
+   rule rl_stage1_restart_after_csrrx (rg_state == CPU_CSRRX_RESTART);
+      fa_start_ifetch (stage1.out.next_pc, rg_cur_priv);
+      stage1.set_full (True);
+      rg_state <= CPU_RUNNING;
+      if (cur_verbosity > 1)
+	 $display ("%0d: rl_stage1_restart_after_csrrx: inum:%0d  pc:%0x  cur_priv:%0d",
+		   mcycle, rg_inum, stage1.out.next_pc, rg_cur_priv);
+   endrule
+
+   // ================================================================
    // Stage1: nonpipe special: MRET/SRET/URET
 
-   rule rl_stage1_xRET (   (rg_state== CPU_RUNNING)
+   rule rl_stage1_xRET (   (rg_state == CPU_RUNNING)
 			&& (! halting)
 			&& (stage3.out.ostatus == OSTATUS_EMPTY)
 			&& (stage2.out.ostatus == OSTATUS_EMPTY)
@@ -916,16 +1042,14 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
    Bool break_into_Debug_Mode = False;
 `endif
 
-   let machine_mode_BREAK = (   (rg_cur_priv == m_Priv_Mode)
-			     && (stage1.out.trap_info.exc_code == exc_code_BREAKPOINT));
-
-   rule rl_stage1_trap (   (rg_state == CPU_RUNNING)
-			&& (! halting)
-			&& (stage3.out.ostatus == OSTATUS_EMPTY)
-			&& (stage2.out.ostatus == OSTATUS_EMPTY)
-			&& (stage1.out.ostatus == OSTATUS_NONPIPE)
-			&& (stage1.out.control == CONTROL_TRAP)
-			&& (! break_into_Debug_Mode));
+   rule rl_stage1_trap (   (rg_state == CPU_TRAP)
+			|| (   (rg_state == CPU_RUNNING)
+			    && (! halting)
+			    && (stage3.out.ostatus == OSTATUS_EMPTY)
+			    && (stage2.out.ostatus == OSTATUS_EMPTY)
+			    && (stage1.out.ostatus == OSTATUS_NONPIPE)
+			    && (stage1.out.control == CONTROL_TRAP)
+			    && (! break_into_Debug_Mode)));
 
       let epc      = stage1.out.trap_info.epc;
       let exc_code = stage1.out.trap_info.exc_code;
@@ -944,6 +1068,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
       rg_cur_priv <= new_priv;
       fa_start_ifetch (next_pc, new_priv);
       stage1.set_full (True);
+      rg_state <= CPU_RUNNING;
 
       // Accounting
       csr_regfile.csr_minstret_incr;
@@ -1095,13 +1220,13 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 `ifdef INCLUDE_GDB_CONTROL
    rule rl_stage1_stop (   (rg_state== CPU_RUNNING)
 			&& stage1_stop
-			&& (rg_stop_req || rg_step_req || rg_self_stop_req));
+			&& (rg_stop_req || rg_step_req));
 
       let pc    = stage1.out.data_to_stage2.pc;    // We'll retry this instruction on 'continue'
       let instr = stage1.out.data_to_stage2.instr;
 
       // Report CPI only stop-req, but not on step-req (where it's not very useful)
-      if (rg_stop_req || rg_self_stop_req) begin
+      if (rg_stop_req) begin
 	 $display ("%0d: CPU.rl_stop: Stop for debugger. inum %0d priv %0d PC 0x%0h instr 0x%0h",
 		   mcycle, rg_inum, rg_cur_priv, pc, instr);
 	 fa_report_CPI;
@@ -1116,7 +1241,6 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
       rg_state    <= CPU_GDB_PAUSING;
       rg_halt     <= False;
       rg_stop_req <= False;
-      rg_self_stop_req <= False;
       rg_step_req <= False;
 
       // Notify debugger that we've halted

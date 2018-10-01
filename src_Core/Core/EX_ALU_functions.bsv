@@ -40,8 +40,6 @@ typedef struct {
    Decoded_Instr  decoded_instr;
    WordXL         rs1_val;
    WordXL         rs2_val;
-   Bool           csr_valid;
-   WordXL         csr_val;
    WordXL         mstatus;
    MISA           misa;
    } ALU_Inputs
@@ -56,20 +54,17 @@ typedef struct {
 
    Op_Stage2  op_stage2;
    RegName    rd;
-   Bool       csr_valid;
    Addr       addr;     // Branch, jump: newPC
 		        // Mem ops and AMOs: mem addr
-                        // CSRRx: csr addr
 
-   WordXL     val1;     // OP_Stage2_ALU: result for Rd (ALU ops: result, JAL/JALR: return PC,
-                        //                           CSSRx: old value of CSR)
+   WordXL     val1;     // OP_Stage2_ALU: result for Rd (ALU ops: result, JAL/JALR: return PC)
+                        // CSRRx: rs1_val
                         // OP_Stage2_M, OP_Stage2_FD: arg1
                         // OP_Stage2_AMO: funct7
 
    WordXL     val2;     // Branch: branch target (for Tandem Verification)
 		        // OP_Stage2_ST: store-val
                         // OP_Stage2_M, OP_Stage2_FD: arg2
-		        // CSSRx: new csr value
    } ALU_Outputs
 deriving (Bits, FShow);
 
@@ -77,7 +72,6 @@ ALU_Outputs alu_outputs_base = ALU_Outputs {control:   CONTROL_STRAIGHT,
 					    exc_code:  exc_code_ILLEGAL_INSTRUCTION,
 					    op_stage2: ?,
 					    rd:        ?,
-					    csr_valid: False,
 					    addr:      ?,
 					    val1:      ?,
 					    val2:      ? };
@@ -639,132 +633,29 @@ function ALU_Outputs fv_SYSTEM (ALU_Inputs inputs);
       end
    end    // funct3 is f3_PRIV
 
-   // funct3 is not f3_PRIV
-   else if (funct3 == f3_SYSTEM_ILLEGAL) begin
-      alu_outputs.control = CONTROL_TRAP;
-   end
-
-   // CSRR{W,C,S} and CSRR{W,C,S}I
-   else begin
-      let  csr_val = inputs.csr_val;
+   // CSRRW, CSRRWI
+   else if (f3_is_CSRR_W (funct3)) begin
       WordXL rs1_val = (  (funct3 [2] == 1)
 			? extend (inputs.decoded_instr.rs1)    // Immediate zimm
 			: inputs.rs1_val);                     // From rs1 reg
 
-      // New value of Rd = old value of csr
-      WordXL rd_val = ((inputs.decoded_instr.rd == 0) ? 0 : csr_val);
+      alu_outputs.control   = CONTROL_CSRR_W;
+      alu_outputs.val1      = rs1_val;
+   end
 
-      Bool trap      = (   (! inputs.csr_valid)
-			|| (   (inputs.decoded_instr.csr == csr_satp)
-			    && (inputs.mstatus [mstatus_tvm_bitpos] == 1)));
-      Bool write_csr = True;
+   // CSRRS, CSRRSI, CSRRC, CSRRCI
+   else if (f3_is_CSRR_S_or_C (funct3)) begin
+      WordXL rs1_val = (  (funct3 [2] == 1)
+			? extend (inputs.decoded_instr.rs1)    // Immediate zimm
+			: inputs.rs1_val);                     // From rs1 reg
 
-      // New value of CSR
-      case ({1'b0, funct3[1:0]})
-	 f3_CSRRW: csr_val = rs1_val;
-	 f3_CSRRS: begin
-		      csr_val = csr_val | rs1_val;
-		      write_csr = (inputs.decoded_instr.rs1 != 0);
-		   end
-	 f3_CSRRC: begin
-		      csr_val = csr_val & (~ rs1_val);
-		      write_csr = (inputs.decoded_instr.rs1 != 0);
-		   end
-      endcase
+      alu_outputs.control   = CONTROL_CSRR_S_or_C;
+      alu_outputs.val1      = rs1_val;
+   end
 
-      if (inputs.decoded_instr.csr == csr_mstatus) begin
-	 // Ensure legal mstatus values    TODO: trap on illegal?
-	 WordXL mask = {1'h1,      // SD    [XLEN-1]
-			0,         // WPRI  [XLEN-2:23]
-			1'h1,      // TSR   [22]
-			1'h1,      // TW    [21]
-			1'h1,      // TVM   [20]
-			1'h1,      // MXR   [19]
-			1'h1,      // SUM   [18]
-			1'h1,      // MPRV  [17]
-			2'h3,      // XS    [16:15]
-			2'h3,      // FS    [14:13]
-			2'h3,      // MPP   [12:11]
-			2'h0,      // WPRI  [10:9]
-			1'h1,      // SPP   [8]
-			4'hB,      // xPIE  [7:4]
-			4'hB };    // xIE   [3:0]
-`ifdef RV64
-	 mask = (mask | {0,
-			 2'h3,     // SXL   [35:34]
-			 2'h3,     // UXL   [33:32]
-			 32'h0});
-`endif
-	 csr_val = csr_val & mask;
-
-	 if ((inputs.misa.s == 0) && (inputs.misa.f == 0) && (inputs.misa.d == 0)) begin
-	    // Force mstatus.FS to 0
-	    WordXL mask_in_fs = 'h_6000;
-	    csr_val = (csr_val & (~ mask_in_fs));
-	 end
-
-	 // If mpp is not supported, force the value to a supported value
-	 if (inputs.misa.s == 0) begin
-            // Disable spp, spie, sie
-	    WordXL mask_in_s = 'h_0122;
-	    csr_val = (csr_val & (~ mask_in_s));
-	 end
-
-	 if (inputs.misa.u == 1) begin
-	    if (inputs.misa.n == 0) begin
-               // Disable upie, uie
-	       WordXL mask_in_u = 'h_0011;
-	       csr_val = (csr_val & (~ mask_in_u));
-	    end
-	 end
-	 else begin
-            // Disable upie, uie
-	    WordXL mask_in_u = 'h_0011;
-	    csr_val = (csr_val & (~ mask_in_u));
-	 end
-
-	 Priv_Mode mpp = csr_val [12:11];
-	 if (inputs.misa.u == 1'b0) begin
-	    // Only M supported
-	    mpp = m_Priv_Mode;
-	 end
-	 else if (inputs.misa.s == 1'b0) begin
-	    // Only M and U supported
-	    if (mpp != m_Priv_Mode)
-	       mpp = u_Priv_Mode;
-	 end
-	 else begin
-	    // Only M, S, and U supported
-	    if (mpp == reserved_Priv_Mode)
-	       mpp = s_Priv_Mode;
-	 end
-	 csr_val [12:11] = mpp;
-
-	 // If spp is not supported, force the value
-	 Priv_Mode spp = {0, csr_val [8]};
-	 if (inputs.misa.s == 1'b0)
-	    spp = u_Priv_Mode;
-	 csr_val [8] = spp [0];
-
-`ifdef RV64
-`ifdef ISA_PRIV_S
-	 // Force mstatus.sxl to 2'b10
-	 csr_val = { csr_val [63:36], 2'b10, csr_val [33:0] };
-`endif
-`ifdef ISA_PRIV_U
-	 // Force mstatus.uxl to 2'b10
-	 csr_val = { csr_val [63:34], 2'b10, csr_val [31:0] };
-`endif
-`endif
-      end
-
-      alu_outputs.control   = (trap ? CONTROL_TRAP : CONTROL_STRAIGHT);
-      alu_outputs.op_stage2 = OP_Stage2_ALU;
-      alu_outputs.rd        = inputs.decoded_instr.rd;
-      alu_outputs.csr_valid = ((! trap) && write_csr);
-      alu_outputs.addr      = extend (inputs.decoded_instr.csr);
-      alu_outputs.val1      = rd_val;
-      alu_outputs.val2      = csr_val;
+   // funct3 is not f3_PRIV
+   else begin // (funct3 == f3_SYSTEM_ILLEGAL)
+      alu_outputs.control = CONTROL_TRAP;
    end
 
    return alu_outputs;

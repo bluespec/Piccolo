@@ -112,6 +112,8 @@ deriving (Bits, FShow);
 // Outputs from Stage1 to pipeline control
 typedef enum {  CONTROL_STRAIGHT
 	      , CONTROL_BRANCH
+	      , CONTROL_CSRR_W
+	      , CONTROL_CSRR_S_or_C
 	      , CONTROL_FENCE
 	      , CONTROL_FENCE_I
 	      , CONTROL_SFENCE_VMA

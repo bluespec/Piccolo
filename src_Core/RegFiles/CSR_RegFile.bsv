@@ -15,10 +15,10 @@ export CSR_RegFile_Min :: *;
 // ================================================================
 `else
 
-// Default CSR RegFile: User-mode and Machine-Mode CSRs
+// Machine-mode, Supervisor-mode and User-mode CSRs
 
-import CSR_RegFile_UM :: *;
-export CSR_RegFile_UM :: *;
+import CSR_RegFile_MSU :: *;
+export CSR_RegFile_MSU :: *;
 
 // ================================================================
 `endif

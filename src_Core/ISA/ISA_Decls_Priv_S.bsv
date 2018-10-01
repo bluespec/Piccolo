@@ -19,7 +19,7 @@
 // ================================================================
 // Supervisor-level CSRs
 
-CSR_Addr   csr_sstatus        = 12'h100;    // Supervisor status
+CSR_Addr   csr_addr_sstatus   = 12'h100;    // Supervisor status
 CSR_Addr   csr_sedeleg        = 12'h102;    // Supervisor exception delegation
 CSR_Addr   csr_sideleg        = 12'h103;    // Supervisor interrupt delegation
 CSR_Addr   csr_sie            = 12'h104;    // Supervisor interrupt enable

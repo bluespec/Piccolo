@@ -384,7 +384,11 @@ module mkCPU_Stage2 #(Bit #(4)         verbosity,
 `endif
 	 if ((x.op_stage2 == OP_Stage2_LD) || (x.op_stage2 == OP_Stage2_ST) || op_stage2_amo) begin
 	    WordXL   mstatus     = csr_regfile.read_mstatus;
+`ifdef ISA_PRIV_S
 	    Bit #(1) sstatus_SUM = (csr_regfile.read_sstatus) [18];
+`else
+	    Bit #(1) sstatus_SUM = 0;
+`endif
 	    Bit #(1) mstatus_MXR = mstatus [19];
 	    Priv_Mode  mem_priv = x.priv;
 	    if (mstatus [17] == 1'b1) begin

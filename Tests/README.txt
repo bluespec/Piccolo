@@ -1,7 +1,7 @@
 Copyright (c) 2018 Bluespec, Inc. All Rights Reserved
 
->----------------------------------------------------------------
-The ./isa sub-directory contains pre-built ELF and objdump files
+>================================================================
+The './isa' sub-directory contains pre-built ELF and objdump files
 (.dump) for all the standard RISC-V ISA tests.  For example, the
 files:
 
@@ -19,7 +19,33 @@ tests being built, such as this:
 
     <riscv-tools build dir>/riscv64-unknown-elf/share/riscv-tests/isa/rv32ui-p-add
 
->----------------------------------------------------------------
+>================================================================
+The Makefile has two commands to run regressions on ISA tests.
+
+    $ make test32
+    $ make test64
+
+The former uses one of the RV32 simulators in the 'builds' directory
+and runs it on all relevant RV32 ISA tests.  A console log is captured
+in 'test32.log', and a per-ISA log is captured in the 'Logs/'
+directory.
+
+The latter uses one of the RV64 simulators in the 'builds' directory
+and runs it on all relevant RV64 ISA tests.  A console log is captured
+in 'test64.log', and a per-ISA log is captured in the 'Logs/'
+directory.
+
+Please edit the Makefile if you want to use a different simulator
+build.
+
+It uses the standard Linux facility 'logsave' to save a console log.
+If you do not have 'logsave' installed, please either install it, or
+edit the Makefile to avoid using it.
+
+Each of these 'make' commands uses the Python program
+'Run_regression.py', described below to orchestrate the work.
+
+>================================================================
 With the Python program './Run_regression.py' you can run a regression
 on all the standard RISC-V ISA tests that are relevant to your RISC-V
 simulation executable (i.e., for the RISC-V features and extensions
@@ -52,3 +78,5 @@ If you regenerate any of the simulation executables with different
 (supervisor), you can provide those letters on the command line
 architecture spec (RV64IMASU) to run the the relevant ISA tests for
 those features.
+
+>================================================================

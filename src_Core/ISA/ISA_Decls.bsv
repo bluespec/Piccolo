@@ -651,15 +651,16 @@ function Bool fn_instr_is_csrrx (Instr  instr);
 endfunction
 
 function Bool f3_is_CSRR_any (Bit #(3) f3);
-   return (f3 [1:0] != 2'b00);
+   return (f3_is_CSRR_W (f3) || f3_is_CSRR_S_or_C (f3));
 endfunction
 
 function Bool f3_is_CSRR_W (Bit #(3) f3);
-   return (f3 [1:0] == 2'b01);
+   return ((f3 == f3_CSRRW) || (f3 == f3_CSRRWI));
 endfunction
 
 function Bool f3_is_CSRR_S_or_C (Bit #(3) f3);
-   return (f3 [1] == 1'b1);
+   return ((f3 == f3_CSRRS) || (f3 == f3_CSRRSI) ||
+	   (f3 == f3_CSRRC) || (f3 == f3_CSRRCI));
 endfunction
 
 // ================================================================

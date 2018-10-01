@@ -1,3 +1,5 @@
+Copyright (c) 2018 Bluespec, Inc. All Rights Reserved
+
 This standalone C program takes two command-line arguments, and ELF
 filename and a Mem Hex filename.  It reads the ELF file and writes out
 the Mem Hex file.

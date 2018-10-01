@@ -104,7 +104,6 @@ module mkCPU_Stage1 #(Bit #(4)         verbosity,
    let instr         = icache.instr;
    let decoded_instr = fv_decode (instr);
    let funct3        = decoded_instr.funct3;
-   let csr           = decoded_instr.csr;
 
    // Register rs1 read and bypass
    let rs1 = decoded_instr.rs1;
@@ -122,32 +121,6 @@ module mkCPU_Stage1 #(Bit #(4)         verbosity,
    Bool rs2_busy = (busy2a || busy2b);
    Word rs2_val_bypassed = ((rs2 == 0) ? 0 : rs2b);
 
-   // ----------------
-   // CSR address-based protection checks
-   Bool is_csrrx = ((decoded_instr.opcode == op_SYSTEM) && f3_is_CSRR_any (funct3));
-
-   // CSR accessible at this privilege?
-   Bool csr_priv_fault = (cur_priv < csr [9:8]);
-
-   // CSR hpm counter read allowed?
-   Bool csr_ctr_fault = csr_regfile.csr_counter_read_fault (cur_priv, csr);
-
-   // CSR writing a read-only CSR?
-   Bool csr_write_fault = (   (f3_is_CSRR_W (funct3) || (rs1 != 0))    // attempting write
-			   && (csr [11:10] == 2'b11));                 // read-only csr
-
-   // CSR reads
-   // Note: csr should not be read for CSRRW[I] if Rd=0 (i.e., don't cause its side-effects).
-   // But currently csr_reads are pure (no side effects), so we omit this check.
-   let m_csr_val = csr_regfile.read_csr (csr);
-   let csr_valid = (   is_csrrx
-		    && isValid (m_csr_val)
-		    && (! csr_priv_fault)
-		    && (! csr_ctr_fault)
-		    && (! csr_write_fault));
-
-   let csr_val   = fromMaybe (?, m_csr_val);
-
    // ALU function
    let alu_inputs = ALU_Inputs {cur_priv:       cur_priv,
 				pc:             pc,
@@ -155,8 +128,6 @@ module mkCPU_Stage1 #(Bit #(4)         verbosity,
 				decoded_instr:  decoded_instr,
 				rs1_val:        rs1_val_bypassed,
 				rs2_val:        rs2_val_bypassed,
-				csr_valid:      csr_valid,
-				csr_val:        csr_val,
 				mstatus:        csr_regfile.read_mstatus,
 				misa:           csr_regfile.read_misa};
 
@@ -192,17 +163,8 @@ module mkCPU_Stage1 #(Bit #(4)         verbosity,
 					      badaddr:  pc};    // TODO: '?', perhaps?
       end
 
-      // Trap on CSR access fault
-      else if (is_csrrx && ((! isValid (m_csr_val)) || csr_priv_fault || csr_ctr_fault || csr_write_fault))
-	 begin
-	    output_stage1.ostatus   = OSTATUS_NONPIPE;
-	    output_stage1.control   = CONTROL_TRAP;
-	    output_stage1.trap_info = Trap_Info {epc:      pc,
-						 exc_code: exc_code_ILLEGAL_INSTRUCTION,
-						 badaddr:  zeroExtend(instr)}; // v1.10 - mtval
-	 end
-
-      // ALU outputs: normal, trap, and non-pipe instrs (MRET, FENCE.I, FENCE, WPI)
+      // ALU outputs: pipe (straight/branch)
+      // and non-pipe (CSRR_W, CSRR_S_or_C, FENCE.I, FENCE, SFENCE_VMA, xRET, WFI, TRAP)
       else begin
 	 let ostatus = (  (   (alu_outputs.control == CONTROL_STRAIGHT)
 			   || (alu_outputs.control == CONTROL_BRANCH))
@@ -252,16 +214,6 @@ module mkCPU_Stage1 #(Bit #(4)         verbosity,
    endmethod
 
    method Action deq ();
-      // Writeback CSR if valid
-      let data_to_stage2 = fv_out.data_to_stage2;
-
-      if (alu_outputs.csr_valid) begin
-	 CSR_Addr csr_addr = truncate (alu_outputs.addr);
-	 WordXL   csr_val  = alu_outputs.val2;
-	 csr_regfile.write_csr (csr_addr, csr_val);
-	 if (verbosity > 1)
-	    $display ("    S1: write CSR 0x%0h, val 0x%0h", csr_addr, csr_val);
-      end
    endmethod
 
    // ---- Input
