@@ -26,21 +26,15 @@ The Makefile has two commands to run regressions on ISA tests.
     $ make test64
 
 The former uses one of the RV32 simulators in the 'builds' directory
-and runs it on all relevant RV32 ISA tests.  A console log is captured
-in 'test32.log', and a per-ISA log is captured in the 'Logs/'
-directory.
+and runs it on all relevant RV32 ISA tests.  A per-ISA log is captured
+in the 'Logs/' directory.
 
 The latter uses one of the RV64 simulators in the 'builds' directory
-and runs it on all relevant RV64 ISA tests.  A console log is captured
-in 'test64.log', and a per-ISA log is captured in the 'Logs/'
-directory.
+and runs it on all relevant RV64 ISA tests.  A per-ISA log is captured
+in the 'Logs/' directory.
 
 Please edit the Makefile if you want to use a different simulator
 build.
-
-It uses the standard Linux facility 'logsave' to save a console log.
-If you do not have 'logsave' installed, please either install it, or
-edit the Makefile to avoid using it.
 
 Each of these 'make' commands uses the Python program
 'Run_regression.py', described below to orchestrate the work.
@@ -70,7 +64,8 @@ tests that match the following:
 
     ./isa/rv32um-p*
 
-and leave a transcript of each test's simulation output in files like ./Logs/rv32ui-p-add.log
+and leave a transcript of each test's simulation output in files like
+    ./Logs/rv32ui-p-add.log
 Each log will contain an instruction trace.
 
 If you regenerate any of the simulation executables with different

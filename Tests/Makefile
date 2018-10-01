@@ -13,12 +13,11 @@ SIM_32_DIR = ../builds/RV32IMU_Bluesim
 
 .PHONY: test32
 test32:
-	@echo "Running RV32IMU regressions; saving log in test32.log"
-	logsave test32.log \
-		./Run_regression.py \
+	@echo "Running RV32IMU regressions; saving logs in Logs/"
+	./Run_regression.py \
 		$(SIM_32_DIR)/exe_HW_sim \
 		RV32IMU  ./isa  ./Logs
-	@echo "Finished running RV32IMU regressions; saved log in test32.log"
+	@echo "Finished running RV32IMU regressions; saved logs in Logs/"
 
 # ================================================================
 # Regression: run all ISA tests relevant for RV64AIMSU
@@ -30,12 +29,11 @@ SIM_64_DIR = ../builds/RV64AIMSU_verilator
 
 .PHONY: test64
 test64:
-	@echo "Running RV64AIMSU regressions; saving log in test64.log"
-	logsave test64.log \
-		./Run_regression.py \
+	@echo "Running RV64AIMSU regressions; saving logs in Logs/"
+	./Run_regression.py \
 		$(SIM_64_DIR)/exe_HW_sim \
 		RV64AIMSU ./isa  ./Logs
-	@echo "Finished running RV64AIMSU regressions; saved log in test64.log"
+	@echo "Finished running RV64AIMSU regressions; saved logs in Logs/"
 
 # ================================================================
 
