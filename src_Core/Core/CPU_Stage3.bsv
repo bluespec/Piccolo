@@ -157,9 +157,9 @@ module mkCPU_Stage3 #(Bit #(4)         verbosity,
    // ---- Debugging
    method Action show_state;
       if (rg_full)
-	 $display ("    S3 state: ", fshow (rg_stage3));
+	 $display ("    CPU_Stage3 state: ", fshow (rg_stage3));
       else
-	 $display ("    S3 state: empty");
+	 $display ("    CPU_Stage3 state: empty");
    endmethod
 endmodule
 

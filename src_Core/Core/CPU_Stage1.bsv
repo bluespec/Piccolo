@@ -9,13 +9,6 @@ package CPU_Stage1;
 // RD: "Register Read"
 // EX: "Execute"
 
-// Note: $displays are indented by (stage num x 4) spaces.
-// for traditional pipeline display
-//     IF
-//         DM
-//             WB
-// i.e., 4 spaces for this stage.
-
 // ================================================================
 // Exports
 
@@ -221,7 +214,7 @@ module mkCPU_Stage1 #(Bit #(4)         verbosity,
       icache.req (f3_LW, next_pc, priv, sstatus_SUM, mstatus_MXR, satp);
 
       if (verbosity > 1)
-	 $display ("    S1.enq: 0x%08x", next_pc);
+	 $display ("    CPU_Stage_1.enq: 0x%08x", next_pc);
    endmethod
 
    method Action set_full (Bool full);
