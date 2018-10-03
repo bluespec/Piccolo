@@ -16,12 +16,19 @@ to allow generating many possible configurations, some of which are
 adequate to boot a Linux kernel.
 
 The pre-generated synthesizable Verilog RTL source files in this
-repository are for two specific configurations:
+repository are for a few specific configurations (more variants may
+appear over time; please see the `builds/` directory for what is
+available):
 
 1. RV32IMU with 'M' extension (integer multiply/divide)
     - Privilege levels M (machine) and U (user)
     - Supports external, timer and software interrupts
     - Passes all riscv-isa tests for RV32IMU
+
+1. RVA32IMU with 'A' extension (atomic memory ops) and 'M' extension (integer multiply/divide)
+    - Privilege levels M (machine) and U (user)
+    - Supports external, timer and software interrupts
+    - Passes all riscv-isa tests for RV32AIMU
 
 2. RV64AIMSU with 'A' extension (atomic memory ops) and 'M' extension (integer multiply/divide)
     - Privilege levels M (machine), S (Supervisor) and U (user)
@@ -65,8 +72,8 @@ regularly on Xilinx FPGAs.
 
 #### Plans
 
-- We will be adding the RISC-V 'C' option (compressed instructions). [Expected October 2018]
-- We will be adding the RISC-V 'F' and 'D' options (single and double precision floating point). [Expected November 2018]
+- We will be adding the RISC-V 'C' option (compressed instructions). [Expected Q4 2018]
+- We will be adding the RISC-V 'F' and 'D' options (single and double precision floating point). [Expected Q4 2018]
 - Continuous micro-architectural improvements for performance and hardware area. [Ongoing]
 
 ----------------------------------------------------------------
@@ -74,17 +81,21 @@ regularly on Xilinx FPGAs.
 
 This repository contains two levels of source code: Verilog and BSV.
 
-**Verilog RTL** can be found in the following directories:
+**Verilog RTL** can be found in the directories following this pattern:
+
+        builds/<ARCH>_<SIM>/Verilog_RTL/
+
+where ARCH represents the implemented RISC-V architecture features <br>
+and SIM is `verilator` or `iverilog`.  Examples:
 
         builds/RV32IMU_verilator/Verilog_RTL/
-        builds/RV32IMU_iverilog/Verilog_RTL/
+        builds/RVA32IMU_iverilog/Verilog_RTL/
         builds/RV64AIMSU_verilator/Verilog_RTL/
-        builds/RV64AIMSU_iverilog/Verilog_RTL/
 
-This is _synthesizable_ RTL (and hence acceptable to Verilator).  It
-can be simulated in any Verilog simulator (we provide Makefiles to
-build simulation executables for Verilator and for Icarus Verilog
-(iverilog)).
+The Verilog RTL is _synthesizable_ (and hence acceptable to
+Verilator).  It can be simulated in any Verilog simulator (we provide
+Makefiles to build simulation executables for Verilator and for Icarus
+Verilog (iverilog)).
 
 The RTL represents RISC-V CPU RTL, plus a rudimentary surrounding SoC
 enabling immediate simulation here, and which is rich enough to enable
@@ -125,9 +136,9 @@ sets of choices for the various parameters.  The generated RTL is not
 parameterized.
 
 To generate Verilog variants with other parameter choices, the user
-will need Bluespec's `bsc` compiler.  See the `BSC_FLAGS` in following
-Makefiles for examples of how the build is configured for different
-ISA features:
+will need Bluespec's `bsc` compiler.  See the `BSC_FLAGS` in Makefiles
+like the following for examples of how the build is configured for
+different ISA features:
 
         builds/Resources/Include_RV32IMU.mk
         builds/Resources/Include_RV64AIMSU.mk
@@ -141,12 +152,10 @@ you are interested in such variants.
 ----------------------------------------------------------------
 ### Building and running from the Verilog sources, out of the box
 
-- In any of the following directories:
+- In any of the Verilog-build directories:
 
-            builds/RV32IMU_verilator/
-            builds/RV64AIMSU_verilator/
-            builds/RV32IMU_iverilog/
-            builds/RV64AIMSU_iverilog/
+            builds/<ARCH>_verilator/
+            builds/<ARCH>_iverilog/
 
   - `$ make mkSim` will create a Verilog simulation executable using Verilator or iverilog, respectively
 
@@ -196,10 +205,9 @@ see Tests/README.txt for more details.
 
 [Note: Bluespec, Inc. provides free licenses to academia and for non-profit research].
 
-In either of the following directories:
+In any of the following directories:
 
-        builds/RV32IMU_Bluesim
-        builds/RV64AIMSU_Bluesim
+        builds/<ARCH>_Bluesim
 
   - `$ make compile link`
 
@@ -225,13 +233,12 @@ will only successfully run ELF files compiled for RV64AIMSU, privilege
 U, S and M; running it on any other ELF file will result in illegal
 instruction traps.
 
-You can also regenerate the Verilog RTL in the
-`build/RV32IMU_verilator/`, `build/RV32IMU_iverilog/`
-`build/RV64AIMSU_verilator/`or `build/RV64AIMSU_iverilog/`
+You can also regenerate the Verilog RTL in
+`build/<ARCH>_verilator/` or `build/<ARCH>_iverilog/`
 directories.  Example:
 
-  - `$ cd  builds/RV32IMU_verilator`
-  - `$ make gen_RTL`
+        $ cd  builds/RV32IMU_verilator
+        $ make gen_RTL
 
 In each of the `builds/RV...` directories, you can edit the Makefile
 to pass different flags and macros to `bsc` which will generate
