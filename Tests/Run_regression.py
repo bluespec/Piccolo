@@ -267,10 +267,10 @@ def do_regular_file_function (level, dirname, basename, sim_path, test_families,
     fd.close ()
 
     # If Tandem Verification trace file was created, save it as well
-    if os.path.exists ("./trace.dat"):
+    if os.path.exists ("./trace_out.dat"):
         trace_filename = os.path.join (logs_path, basename + ".trace_data")
-        os.rename ("./trace.dat", trace_filename)
-        sys.stdout.write ("      Trace output saved in: {0}\n".format (trace_filename))
+        os.rename ("./trace_out.dat", trace_filename)
+        sys.stdout.write ("    Trace output saved in: {0}\n".format (trace_filename))
 
     return
 
