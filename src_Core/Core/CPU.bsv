@@ -20,6 +20,7 @@ export mkCPU;
 // ================================================================
 // BSV library imports
 
+import Vector       :: *;
 import Memory       :: *;
 import FIFOF        :: *;
 import SpecialFIFOs :: *;
@@ -41,9 +42,7 @@ import AXI4_Lite_Types :: *;
 
 import ISA_Decls :: *;
 
-`ifdef INCLUDE_TANDEM_VERIF
 import TV_Info   :: *;
-`endif
 
 import GPR_RegFile :: *;
 `ifdef ISA_F
@@ -121,14 +120,8 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
    // ----------------
    // For debugging
 
-`ifdef CPU_VERBOSITY_1
-   Bit #(4) initial_verbosity = 1;
-`else
-   Bit #(4) initial_verbosity = 0;
-`endif
-
    // Verbosity: 0=quiet; 1=instruction trace; 2=more detail
-   Reg #(Bit #(4))  cfg_verbosity <- mkConfigReg (initial_verbosity);
+   Reg #(Bit #(4))  cfg_verbosity <- mkConfigReg (0);
 
    // Verbosity is 0 as long as # of instrs retired is <= cfg_logdelay
    Reg #(Bit #(64))  cfg_logdelay <- mkConfigReg (0);
@@ -138,12 +131,10 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 			      ? 0
 			      : cfg_verbosity);
 
-   // 'inum': instruction number.
-   // Should be equal to eventual 'instret' (instructions retired) number
-   // for an instruction.
-
-   Reg #(Bit #(64))  rg_inum <- mkRegU;
-   Bit #(64)         mcycle = csr_regfile.read_csr_mcycle;
+   let mcycle   = csr_regfile.read_csr_mcycle;
+   let mstatus  = csr_regfile.read_mstatus;
+   let misa     = csr_regfile.read_misa;
+   let minstret = csr_regfile.read_csr_minstret;
 
    // ----------------
    // Major CPU states
@@ -223,9 +214,9 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
    // Tandem Verification
 
 `ifdef INCLUDE_TANDEM_VERIF
-   FIFOF #(Info_CPU_to_Verifier)  f_to_verifier <- mkFIFOF;
+   FIFOF #(Trace_Data) f_trace_data  <- mkFIFOF;
 
-   // State for deciding when a new MIP command needs to be sent
+   // State for deciding if a MIP update needs to be sent
    Reg #(MIP) rg_prev_mip <- mkRegU;
 `endif
 
@@ -357,11 +348,9 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
    rule rl_show_pipe (   (cur_verbosity > 1)
 		      && fn_is_running (rg_state)
 		      && (rg_state != CPU_WFI_PAUSED));
-      let mstatus = csr_regfile.read_mstatus;
-      let misa    = csr_regfile.read_misa;
       $display ("================================================================");
       $display ("%0d: Pipeline State:  inum:%0d  cur_priv:%0d  mstatus:%0x",
-		mcycle, rg_inum, rg_cur_priv, mstatus);
+		mcycle, minstret, rg_cur_priv, mstatus);
       $display ("    ", fshow_mstatus (misa, mstatus));
 
       $display ("    Stage3: ", fshow (stage3.out));
@@ -415,7 +404,6 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
       rg_cur_priv <= m_Priv_Mode;
       rg_halt     <= False;
       rg_state    <= CPU_RESET2;
-      rg_inum     <= 1;
 
       // These three lines are for simulation only:
       Bool v1 <- $test$plusargs ("v1");
@@ -429,10 +417,9 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 	 $display ("%0d: CPU.rl_reset_start", mcycle);
 
 `ifdef INCLUDE_TANDEM_VERIF
-      Info_CPU_to_Verifier to_verifier = ?;
-      to_verifier.pc = fromInteger(pc_tv_cmd);
-      to_verifier.instr = fromInteger(tv_cmd_reset);
-      f_to_verifier.enq (to_verifier);
+      let trace_data = mkTrace_RESET;
+      f_trace_data.enq (trace_data);
+
       rg_prev_mip <= mip_reset_value;
 `endif
    endrule: rl_reset_start
@@ -500,11 +487,8 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
       MIP new_mip = csr_regfile.read_csr_mip;
       rg_prev_mip <= new_mip;
 
-      Info_CPU_to_Verifier to_verifier = ?;
-      to_verifier.pc = fromInteger(pc_tv_cmd);
-      to_verifier.instr = fromInteger(tv_cmd_mip);
-      to_verifier.data1 = zeroExtend (mip_to_word (new_mip));
-      f_to_verifier.enq (to_verifier);
+      let trace_data = mkTrace_MIP (mip_to_word (new_mip));
+      f_trace_data.enq (trace_data);
 
       if (cur_verbosity > 1)
 	 $display ("%0d: CPU.rl_stage1_mip_cmd: new MIP = ", mcycle, fshow(new_mip));
@@ -548,12 +532,14 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 
 `ifdef INCLUDE_TANDEM_VERIF
 	 // To Verifier
-	 f_to_verifier.enq (stage2.out.to_verifier);
+	 f_trace_data.enq (stage2.out.trace_data);
 `endif
 
-	 // Accounting
-	 rg_inum <= rg_inum + 1;
-	 fa_emit_instr_trace (rg_inum, stage2.out.data_to_stage3.pc, stage2.out.data_to_stage3.instr, rg_cur_priv);
+	 // Increment csr_INSTRET.
+	 // Note: this instr cannot be a CSRRx updating INSTRET, since
+	 // CSRRx is done off-pipe
+	 csr_regfile.csr_minstret_incr;
+	 fa_emit_instr_trace (minstret, stage2.out.data_to_stage3.pc, stage2.out.data_to_stage3.instr, rg_cur_priv);
       end
 
       // ----------------
@@ -593,7 +579,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 
       let epc      = stage2.out.trap_info.epc;
       let exc_code = stage2.out.trap_info.exc_code;
-      let badaddr  = stage2.out.trap_info.badaddr;
+      let tval     = stage2.out.trap_info.tval;
       let instr    = stage2.out.data_to_stage3.instr;
 
       // Take trap
@@ -604,7 +590,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 							    epc,
 							    False,          // interrupt_req
 							    exc_code,
-							    badaddr);
+							    tval);
       rg_cur_priv <= new_priv;
 
       fa_start_ifetch (next_pc, new_priv);
@@ -613,27 +599,28 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 
       // Accounting
       csr_regfile.csr_minstret_incr;
-      rg_inum <= rg_inum + 1;
 
 `ifdef INCLUDE_TANDEM_VERIF
-      // Send trapping instr info to Tandem Verifier
-      let to_verifier = Info_CPU_to_Verifier {exc_taken: True,
-					      pc:        epc,
-					      addr:      next_pc,
-					      data1:     new_mstatus,
-					      data2:     mcause,
-					      instr_valid: True,
-					      instr:     instr
-					     };
-      f_to_verifier.enq (to_verifier);
+      // Trace Data
+      let trace_data = stage2.out.trace_data;
+      trace_data.op = TRACE_TRAP;
+      trace_data.pc = next_pc;
+      // trace_data.instr_sz    should already be set
+      // trace_data.instr       should already be set
+      trace_data.rd    = zeroExtend (new_priv);
+      trace_data.word1 = new_mstatus;
+      trace_data.word2 = mcause;
+      trace_data.word3 = epc;
+      trace_data.word4 = tval;
+      f_trace_data.enq (trace_data);
 `endif
 
-      fa_emit_instr_trace (rg_inum, epc, instr, rg_cur_priv);
+      fa_emit_instr_trace (minstret, epc, instr, rg_cur_priv);
 
       // Debug
       if (cur_verbosity != 0)
 	 $display ("    mcause:0x%0h  epc 0x%0h  tval:0x%0h  new pc 0x%0h, new mstatus 0x%0h",
-		   mcause, epc, badaddr, next_pc, new_mstatus);
+		   mcause, epc, tval, next_pc, new_mstatus);
    endrule: rl_stage2_nonpipe
 
    // ================================================================
@@ -659,12 +646,12 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 		      : extend (rs1));                    // CSRRWI
 
       Bool read_not_write = False;    // CSRRW always writes the CSR
-      Bool permitted = csr_regfile.access_permitted (rg_cur_priv, csr_addr, read_not_write);
+      Bool permitted = csr_regfile.access_permitted_1 (rg_cur_priv, csr_addr, read_not_write);
 
       if (! permitted) begin
 	 rg_state <= CPU_TRAP;
 	 // Debug
-	 fa_emit_instr_trace (rg_inum, stage1.out.data_to_stage2.pc, instr, rg_cur_priv);
+	 fa_emit_instr_trace (minstret, stage1.out.data_to_stage2.pc, instr, rg_cur_priv);
 	 if (cur_verbosity > 1) begin
 	    $display ("    rl_stage1_CSRR_W: Trap on CSR permissions: Rs1 %0d Rs1_val 0x%0h csr 0x%0h Rd %0d",
 		      rs1, rs1_val, csr_addr, rd);
@@ -680,8 +667,8 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 	 end
 
 	 // Writeback to GPR file
-	 let rd_val = csr_val;
-	 gpr_regfile.write_rd (rd, csr_val);
+	 let new_rd_val = csr_val;
+	 gpr_regfile.write_rd (rd, new_rd_val);
 
 	 // Writeback to CSR file
 	 // TODO: should become an actionvalue returning the actual written value as new_csr_val
@@ -690,26 +677,25 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 
 	 // Accounting
 	 csr_regfile.csr_minstret_incr;
-	 rg_inum <= rg_inum + 1;
 
 	 // Restart the pipe
 	 rg_state <= CPU_CSRRX_RESTART;
 
 `ifdef INCLUDE_TANDEM_VERIF
-	 // Send info Tandem Verifier
-	 let to_verifier = Info_CPU_to_Verifier {exc_taken:   False,
-						 pc:          stage1.out.data_to_stage2.pc,
-						 addr:        extend (csr_addr),
-						 data1:       rd_val,
-						 data2:       new_csr_val,
-						 instr_valid: True,
-						 instr:       instr
-						 };
-	 f_to_verifier.enq (to_verifier);
+	 // Trace data
+	 let trace_data = stage1.out.data_to_stage2.trace_data;
+	 trace_data.op = TRACE_CSRRX;
+	 // trace_data.pc, instr_sz and instr    should already be set
+	 trace_data.rd = rd;
+	 trace_data.word1 = new_rd_val;
+	 trace_data.word2 = 1;                        // whether we've written csr or not
+	 trace_data.word3 = zeroExtend (csr_addr);
+	 trace_data.word4 = new_csr_val;
+	 f_trace_data.enq (trace_data);
 `endif
 
 	 // Debug
-	 fa_emit_instr_trace (rg_inum, stage1.out.data_to_stage2.pc, instr, rg_cur_priv);
+	 fa_emit_instr_trace (minstret, stage1.out.data_to_stage2.pc, instr, rg_cur_priv);
 	 if (cur_verbosity > 1) begin
 	    $display ("    S1: write CSRRW/CSRRWI Rs1 %0d Rs1_val 0x%0h csr 0x%0h csr_val 0x%0h Rd %0d",
 		      rs1, rs1_val, csr_addr, csr_val, rd);
@@ -740,12 +726,12 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 		      : extend (rs1));                    // CSRRSI, CSRRCI
 
       Bool read_not_write = (rs1_val == 0);    // CSRR_S_or_C only reads, does not write CSR, if rs1_val == 0
-      Bool permitted = csr_regfile.access_permitted (rg_cur_priv, csr_addr, read_not_write);
+      Bool permitted = csr_regfile.access_permitted_2 (rg_cur_priv, csr_addr, read_not_write);
 
       if (! permitted) begin
 	 rg_state <= CPU_TRAP;
 	 // Debug
-	 fa_emit_instr_trace (rg_inum, stage1.out.data_to_stage2.pc, instr, rg_cur_priv);
+	 fa_emit_instr_trace (minstret, stage1.out.data_to_stage2.pc, instr, rg_cur_priv);
 	 if (cur_verbosity > 1) begin
 	    $display ("    rl_stage1_CSRR_W: Trap on CSR permissions: Rs1 %0d Rs1_val 0x%0h csr 0x%0h Rd %0d",
 		      rs1, rs1_val, csr_addr, rd);
@@ -758,39 +744,39 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 	 WordXL csr_val = fromMaybe (?, m_csr_val);
 
 	 // Writeback to GPR file
-	 let rd_val = csr_val;
-	 gpr_regfile.write_rd (rd, csr_val);
+	 let new_rd_val = csr_val;
+	 gpr_regfile.write_rd (rd, new_rd_val);
 
-	 // Writeback to CSR file
+	 // Writeback to CSR file, but only if rs1 != 0
 	 // TODO: should be an actionvalue returning the actual written value as new_csr_val2
-	 let new_csr_val = (  ((funct3 == f3_CSRRS) || (funct3 == f3_CSRRSI))
-			    ? (csr_val | rs1_val)                // CSRRS, CSRRSI
-			    : csr_val & (~ rs1_val));            // CSRRC, CSRRCI
-	 csr_regfile.write_csr (csr_addr, new_csr_val);
-	 let new_csr_val2 = new_csr_val;
+	 let x = (  ((funct3 == f3_CSRRS) || (funct3 == f3_CSRRSI))
+		  ? (csr_val | rs1_val)                // CSRRS, CSRRSI
+		  : csr_val & (~ rs1_val));            // CSRRC, CSRRCI
+	 if (rs1 != 0)
+	    csr_regfile.write_csr (csr_addr, x);
+	 let new_csr_val = x;
 
 	 // Accounting
 	 csr_regfile.csr_minstret_incr;
-	 rg_inum <= rg_inum + 1;
 
 	 // Restart the pipe
 	 rg_state <= CPU_CSRRX_RESTART;
 
 `ifdef INCLUDE_TANDEM_VERIF
-	 // Send info Tandem Verifier
-	 let to_verifier = Info_CPU_to_Verifier {exc_taken:   False,
-						 pc:          stage1.out.data_to_stage2.pc,
-						 addr:        extend (csr_addr),
-						 data1:       rd_val,
-						 data2:       new_csr_val2,
-						 instr_valid: True,
-						 instr:       instr
-						 };
-	 f_to_verifier.enq (to_verifier);
+	 // Trace data
+	 let trace_data = stage1.out.data_to_stage2.trace_data;
+	 trace_data.op = TRACE_CSRRX;
+	 // trace_data.pc, instr_sz and instr    should already be set
+	 trace_data.rd = rd;
+	 trace_data.word1 = new_rd_val;
+	 trace_data.word2 = ((rs1 != 0) ? 1 : 0);    // whether we've written csr or not
+	 trace_data.word3 = zeroExtend (csr_addr);
+	 trace_data.word4 = new_csr_val;
+	 f_trace_data.enq (trace_data);
 `endif
 
 	 // Debug
-	 fa_emit_instr_trace (rg_inum, stage1.out.data_to_stage2.pc, instr, rg_cur_priv);
+	 fa_emit_instr_trace (minstret, stage1.out.data_to_stage2.pc, instr, rg_cur_priv);
 	 if (cur_verbosity > 1) begin
 	    $display ("    S1: write CSRRW/CSRRWI Rs1 %0d Rs1_val 0x%0h csr 0x%0h csr_val 0x%0h Rd %0d",
 		      rs1, rs1_val, csr_addr, csr_val, rd);
@@ -807,7 +793,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
       rg_state <= CPU_RUNNING;
       if (cur_verbosity > 1)
 	 $display ("%0d: rl_stage1_restart_after_csrrx: inum:%0d  pc:%0x  cur_priv:%0d",
-		   mcycle, rg_inum, stage1.out.next_pc, rg_cur_priv);
+		   mcycle, minstret, stage1.out.next_pc, rg_cur_priv);
    endrule
 
    // ================================================================
@@ -836,23 +822,19 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 
       // Accounting
       csr_regfile.csr_minstret_incr;
-      rg_inum <= rg_inum + 1;
 
 `ifdef INCLUDE_TANDEM_VERIF
-      // Send info Tandem Verifier
-      let to_verifier = Info_CPU_to_Verifier {exc_taken:   False,
-					      pc:          stage1.out.data_to_stage2.pc,
-					      addr:        next_pc,
-					      data1:       new_mstatus,
-					      data2:       0,
-					      instr_valid: True,
-					      instr:       stage1.out.data_to_stage2.instr
-					     };
-      f_to_verifier.enq (to_verifier);
+      // Trace data
+      let trace_data = stage1.out.data_to_stage2.trace_data;
+      trace_data.op = TRACE_RET;
+      // trace_data.pc, instr_sz, instr    should already be set
+      trace_data.rd    = zeroExtend (new_priv);
+      trace_data.word1 = new_mstatus;
+      f_trace_data.enq (trace_data);
 `endif
 
       // Debug
-      fa_emit_instr_trace (rg_inum, stage1.out.data_to_stage2.pc, stage1.out.data_to_stage2.instr, rg_cur_priv);
+      fa_emit_instr_trace (minstret, stage1.out.data_to_stage2.pc, stage1.out.data_to_stage2.instr, rg_cur_priv);
       if (cur_verbosity != 0)
 	 $display ("    xRET: next_pc:0x%0h  new mstatus:0x%0h  new priv:%0d", next_pc, new_mstatus, new_priv);
    endrule: rl_stage1_xRET
@@ -888,23 +870,15 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 
       // Accounting
       csr_regfile.csr_minstret_incr;
-      rg_inum <= rg_inum + 1;
 
 `ifdef INCLUDE_TANDEM_VERIF
-      // Send info Tandem Verifier
-      let to_verifier = Info_CPU_to_Verifier {exc_taken: False,
-					      pc:        stage1.out.data_to_stage2.pc,
-					      addr:      0,
-					      data1:     0,
-					      data2:     0,
-					      instr_valid: True,
-					      instr:     stage1.out.data_to_stage2.instr
-                                             };
-      f_to_verifier.enq (to_verifier);
+      // Trace data
+      let trace_data = stage1.out.data_to_stage2.trace_data;
+      f_trace_data.enq (trace_data);
 `endif
 
       // Debug
-      fa_emit_instr_trace (rg_inum, stage1.out.data_to_stage2.pc, stage1.out.data_to_stage2.instr, rg_cur_priv);
+      fa_emit_instr_trace (minstret, stage1.out.data_to_stage2.pc, stage1.out.data_to_stage2.instr, rg_cur_priv);
       if (cur_verbosity > 1)
 	 $display ("    CPU.rl_finish_FENCE_I");
    endrule: rl_finish_FENCE_I
@@ -942,23 +916,15 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 
       // Accounting
       csr_regfile.csr_minstret_incr;
-      rg_inum <= rg_inum + 1;
 
 `ifdef INCLUDE_TANDEM_VERIF
-      // Send info Tandem Verifier
-      let to_verifier = Info_CPU_to_Verifier {exc_taken: False,
-					      pc:        stage1.out.data_to_stage2.pc,
-					      addr:      0,
-					      data1:     0,
-					      data2:     0,
-					      instr_valid: True,
-					      instr:     stage1.out.data_to_stage2.instr
-                                             };
-      f_to_verifier.enq (to_verifier);
+      // Trace data
+      let trace_data = stage1.out.data_to_stage2.trace_data;
+      f_trace_data.enq (trace_data);
 `endif
 
       // Debug
-      fa_emit_instr_trace (rg_inum, stage1.out.data_to_stage2.pc, stage1.out.data_to_stage2.instr, rg_cur_priv);
+      fa_emit_instr_trace (minstret, stage1.out.data_to_stage2.pc, stage1.out.data_to_stage2.instr, rg_cur_priv);
       if (cur_verbosity > 1)
 	 $display ("    CPU.rl_finish_FENCE");
    endrule: rl_finish_FENCE
@@ -992,23 +958,15 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 
       // Accounting
       csr_regfile.csr_minstret_incr;
-      rg_inum <= rg_inum + 1;
 
 `ifdef INCLUDE_TANDEM_VERIF
-      // Send info Tandem Verifier
-      let to_verifier = Info_CPU_to_Verifier {exc_taken:   False,
-					      pc:          stage1.out.data_to_stage2.pc,
-					      addr:        0,
-					      data1:       0,
-					      data2:       0,
-					      instr_valid: True,
-					      instr:       stage1.out.data_to_stage2.instr
-                                             };
-      f_to_verifier.enq (to_verifier);
+      // Trace data
+      let trace_data = stage1.out.data_to_stage2.trace_data;
+      f_trace_data.enq (trace_data);
 `endif
 
       // Debug
-      fa_emit_instr_trace (rg_inum, stage1.out.data_to_stage2.pc, stage1.out.data_to_stage2.instr, rg_cur_priv);
+      fa_emit_instr_trace (minstret, stage1.out.data_to_stage2.pc, stage1.out.data_to_stage2.instr, rg_cur_priv);
       if (cur_verbosity > 1)
 	 $display ("    CPU.rl_finish_SFENCE_VMA");
    endrule: rl_finish_SFENCE_VMA
@@ -1027,7 +985,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
       rg_state <= CPU_WFI_PAUSED;
 
       // Debug
-      fa_emit_instr_trace (rg_inum, stage1.out.data_to_stage2.pc, stage1.out.data_to_stage2.instr, rg_cur_priv);
+      fa_emit_instr_trace (minstret, stage1.out.data_to_stage2.pc, stage1.out.data_to_stage2.instr, rg_cur_priv);
       if (cur_verbosity > 1)
 	 $display ("    CPU.rl_stage1_WFI");
    endrule: rl_stage1_WFI
@@ -1040,7 +998,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
       // Debug
       if (cur_verbosity >= 1)
 	 $display ("    WFI resume: inum:%0d  PC:0x%0h  instr:0x%0h  priv:%0d",
-		   rg_inum, stage1.out.data_to_stage2.pc, stage1.out.data_to_stage2.instr, rg_cur_priv);
+		   minstret, stage1.out.data_to_stage2.pc, stage1.out.data_to_stage2.instr, rg_cur_priv);
 
       // Resume pipe (it will handle the interrupt, if one is pending)
       rg_state <= CPU_RUNNING;
@@ -1049,20 +1007,13 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 
       // Accounting
       csr_regfile.csr_minstret_incr;
-      rg_inum <= rg_inum + 1;
 
 `ifdef INCLUDE_TANDEM_VERIF
-      // Send info Tandem Verifier
-      let to_verifier = Info_CPU_to_Verifier {exc_taken:   False,
-					      pc:          stage1.out.data_to_stage2.pc,
-					      addr:        0,
-					      data1:       0,
-					      data2:       0,
-					      instr_valid: True,
-					      instr:       stage1.out.data_to_stage2.instr
-                                             };
-      f_to_verifier.enq (to_verifier);
+      // Trace data
+      let trace_data = stage1.out.data_to_stage2.trace_data;
+      f_trace_data.enq (trace_data);
 `endif
+
    endrule: rl_WFI_resume
 
    // ----------------
@@ -1095,7 +1046,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 
       let epc      = stage1.out.trap_info.epc;
       let exc_code = stage1.out.trap_info.exc_code;
-      let badaddr  = stage1.out.trap_info.badaddr;
+      let tval     = stage1.out.trap_info.tval;
       let instr    = stage1.out.data_to_stage2.instr;
 
       // Take trap
@@ -1106,27 +1057,25 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 							    epc,
 							    False,          // interrupt_req,
 							    exc_code,
-							    badaddr);       // v1.10 - mtval
+							    tval);
       rg_cur_priv <= new_priv;
       fa_start_ifetch (next_pc, new_priv);
       stage1.set_full (True);
       rg_state <= CPU_RUNNING;
 
-      // Accounting
-      csr_regfile.csr_minstret_incr;
-      rg_inum <= rg_inum + 1;
-
 `ifdef INCLUDE_TANDEM_VERIF
-      // Send info on trapping instr Tandem Verifier
-      let to_verifier = Info_CPU_to_Verifier {exc_taken: True,
-					      pc:        epc,
-					      addr:      next_pc,
-					      data1:     new_mstatus,
-					      data2:     mcause,
-					      instr_valid: True,
-					      instr:     instr
-                                             };
-      f_to_verifier.enq (to_verifier);
+      // Trace data
+      let trace_data = stage1.out.data_to_stage2.trace_data;
+      trace_data.op = TRACE_TRAP;
+      trace_data.pc = next_pc;
+      // trace_data.instr_sz    should already be set
+      // trace_data.instr       should already be set
+      trace_data.rd    = zeroExtend (new_priv);
+      trace_data.word1 = new_mstatus;
+      trace_data.word2 = mcause;
+      trace_data.word3 = epc;
+      trace_data.word4 = tval;
+      f_trace_data.enq (trace_data);
 `endif
 
       // Simulation heuristic: finish if trap back to this instr
@@ -1140,11 +1089,11 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 `endif
 
       // Debug
-      fa_emit_instr_trace (rg_inum, epc, instr, rg_cur_priv);
+      fa_emit_instr_trace (minstret, epc, instr, rg_cur_priv);
       if (cur_verbosity != 0) begin
 	 $display ("%0d: CPU.rl_stage1_trap: priv:%0d  mcause:0x%0h  epc:0x%0h",
 		   mcycle, rg_cur_priv, mcause, epc);
-	 $display ("    tval:0x%0h  new pc:0x%0h  new mstatus:0x%0h", badaddr, next_pc, new_mstatus);
+	 $display ("    tval:0x%0h  new pc:0x%0h  new mstatus:0x%0h", tval, next_pc, new_mstatus);
       end
    endrule: rl_stage1_trap
 
@@ -1224,7 +1173,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 							    epc,
 							    True,           // interrupt_req,
 							    exc_code,
-							    0);             // badaddr
+							    0);             // tval
       rg_cur_priv <= new_priv;
 
       // Just enq the next_pc into stage1,
@@ -1240,20 +1189,13 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
       // Accounting: none (instruction is abandoned)
 
 `ifdef INCLUDE_TANDEM_VERIF
-      // Send info on trapping instr Tandem Verifier
-      let to_verifier = Info_CPU_to_Verifier {exc_taken: True,
-					      pc:        epc,
-					      addr:      next_pc,
-					      data1:     new_mstatus,
-					      data2:     mcause,
-					      instr_valid: True,
-					      instr:     instr
-                                             };
-      f_to_verifier.enq (to_verifier);
+      // Trace data
+      let trace_data = mkTrace_INTR (next_pc, new_priv, new_mstatus, mcause, epc, 0);
+      f_trace_data.enq (trace_data);
 `endif
 
       // Debug
-      fa_emit_instr_trace (rg_inum, epc, instr, rg_cur_priv);
+      fa_emit_instr_trace (minstret, epc, instr, rg_cur_priv);
       if (cur_verbosity > 0)
 	 $display ("%0d: CPU.rl_stage1_interrupt: epc 0x%0h  next PC 0x%0h  new_priv %0d  new mstatus 0x%0h",
 		   mcycle, epc, next_pc, new_priv, new_mstatus);
@@ -1278,7 +1220,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
       // Report CPI only stop-req, but not on step-req (where it's not very useful)
       if (rg_stop_req) begin
 	 $display ("%0d: CPU.rl_stop: Stop for debugger. inum %0d priv %0d PC 0x%0h instr 0x%0h",
-		   mcycle, rg_inum, rg_cur_priv, pc, instr);
+		   mcycle, minstret, rg_cur_priv, pc, instr);
 	 fa_report_CPI;
       end
       else begin
@@ -1466,7 +1408,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
    // Optional interface to Tandem Verifier
 
 `ifdef INCLUDE_TANDEM_VERIF
-   interface Get  to_verifier = toGet (f_to_verifier);
+   interface Get  trace_data_out = toGet (f_trace_data);
 `endif
 
    // ----------------

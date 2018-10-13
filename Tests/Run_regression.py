@@ -257,6 +257,7 @@ def do_regular_file_function (level, dirname, basename, sim_path, test_families,
     else:
         sys.stdout.write ("    FAIL")
 
+    # Save stdouts in log file
     log_filename = os.path.join (logs_path, basename + ".log")
     sys.stdout.write ("      Writing log: {0}.log\n".format (basename))
 
@@ -264,6 +265,12 @@ def do_regular_file_function (level, dirname, basename, sim_path, test_families,
     fd.write (completed_process1.stdout)
     fd.write (completed_process2.stdout)
     fd.close ()
+
+    # If Tandem Verification trace file was created, save it as well
+    if os.path.exists ("./trace.dat"):
+        trace_filename = os.path.join (logs_path, basename + ".trace_data")
+        os.rename ("./trace.dat", trace_filename)
+        sys.stdout.write ("      Trace output saved in: {0}\n".format (trace_filename))
 
     return
 

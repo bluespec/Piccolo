@@ -42,7 +42,7 @@ BSC_FLAGS += -keep-fires -aggressive-conditions -no-warn-action-shadowing \
 		-suppress-warnings G0020 \
 		-D Near_Mem_Caches \
 		-D FABRIC64 \
-		+RTS -K64M -RTS  -show-range-conflict
+		+RTS -K128M -RTS  -show-range-conflict
 
 TMP_DIRS  = -bdir build  -simdir build  -info-dir build
 
@@ -72,7 +72,7 @@ mkSim:
 		$(TMP_DIRS) \
 		-e $(TOPMODULE) -o ./$(SIM_EXE_FILE) \
 		$(BSC_C_FLAGS) \
-		$(REPO)/src_Testbench/Top/C_ConsoleIO_functions.c
+		$(REPO)/src_Testbench/Top/C_Imported_Functions.c
 	@echo "INFO: linked bsc-compiled objects into Bluesim executable"
 
 # ================================================================

@@ -126,6 +126,19 @@ module mkCPU_Stage1 #(Bit #(4)         verbosity,
 
    let alu_outputs = fv_ALU (alu_inputs);
 
+   let data_to_stage2 = Data_Stage1_to_Stage2 {priv:       cur_priv,
+					       pc:         pc,
+					       instr:      instr,
+					       op_stage2:  alu_outputs.op_stage2,
+					       rd:         alu_outputs.rd,
+					       addr:       alu_outputs.addr,
+					       val1:       alu_outputs.val1,
+					       val2:       alu_outputs.val2
+`ifdef INCLUDE_TANDEM_VERIF
+					       , trace_data: alu_outputs.trace_data
+`endif
+					       };
+
    // ----------------
    // Combinational output function
 
@@ -149,11 +162,12 @@ module mkCPU_Stage1 #(Bit #(4)         verbosity,
 
       // Trap on ICache exception
       else if (icache.exc) begin
-	 output_stage1.ostatus   = OSTATUS_NONPIPE;
-	 output_stage1.control   = CONTROL_TRAP;
-	 output_stage1.trap_info = Trap_Info {epc:      pc,
-					      exc_code: icache.exc_code,
-					      badaddr:  pc};    // TODO: '?', perhaps?
+	 output_stage1.ostatus    = OSTATUS_NONPIPE;
+	 output_stage1.control    = CONTROL_TRAP;
+	 output_stage1.trap_info  = Trap_Info {epc:      pc,
+					       exc_code: icache.exc_code,
+					       tval:     pc};    // TODO: '?', perhaps?
+	 output_stage1.data_to_stage2 = data_to_stage2;
       end
 
       // ALU outputs: pipe (straight/branch)
@@ -164,30 +178,20 @@ module mkCPU_Stage1 #(Bit #(4)         verbosity,
 			? OSTATUS_PIPE
 			: OSTATUS_NONPIPE);
 
-	 // TODO: change name 'badaddr' to 'tval'
-	 let badaddr = 0;
+	 let tval = 0;
 	 if (alu_outputs.exc_code == exc_code_ILLEGAL_INSTRUCTION)
-	    badaddr = zeroExtend (instr);
+	    tval = zeroExtend (instr);
 	 else if (alu_outputs.exc_code == exc_code_INSTR_ADDR_MISALIGNED)
-	    badaddr = alu_outputs.addr;    // branch target pc
+	    tval = alu_outputs.addr;    // branch target pc
 	 let trap_info = Trap_Info {epc:      pc,
 				    exc_code: alu_outputs.exc_code,
-				    badaddr:  badaddr};  // v1.10 - mtval
+				    tval:     tval};
 
 	 let next_pc = ((alu_outputs.control == CONTROL_BRANCH) ? alu_outputs.addr : pc + 4);
 
-	 let data_to_stage2 = Data_Stage1_to_Stage2 {priv:      cur_priv,
-						     pc:        pc,
-						     instr:     instr,
-						     op_stage2: alu_outputs.op_stage2,
-						     rd:        alu_outputs.rd,
-						     addr:      alu_outputs.addr,
-						     val1:      alu_outputs.val1,
-						     val2:      alu_outputs.val2 };
-
 	 output_stage1.ostatus        = ostatus;
-	 output_stage1.trap_info      = trap_info;
 	 output_stage1.control        = alu_outputs.control;
+	 output_stage1.trap_info      = trap_info;
 	 output_stage1.next_pc        = next_pc;
 	 output_stage1.data_to_stage2 = data_to_stage2;
       end

@@ -51,7 +51,7 @@ interface CPU_IFC;
    // Optional interface to Tandem Verifier
 
 `ifdef INCLUDE_TANDEM_VERIF
-   interface Get #(Info_CPU_to_Verifier)  to_verifier;
+   interface Get #(Trace_Data)  trace_data_out;
 `endif
 
    // ----------------

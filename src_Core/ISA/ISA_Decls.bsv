@@ -30,6 +30,9 @@ import BuildVector  :: *;
 
 typedef 3 NO_OF_PRIVMODES;
 
+// ================================================================
+// XLEN and related constants
+
 `ifdef RV32
 
 typedef 32 XLEN;
@@ -96,8 +99,9 @@ function  Byte_in_Word  fn_addr_to_byte_in_wordxl (Addr a);
    return a [addr_hi_byte_in_wordxl : addr_lo_byte_in_wordxl ];
 endfunction
 
-// ----------------
-// can have one or two fpu sizes (should they be merged sooner than later ?)
+// ================================================================
+// FLEN and related constants, for floating point data
+// Can have one or two fpu sizes (should they be merged sooner than later ?).
 
 // Cannot define ISA_D unless ISA_F is also defined
 // ISA_F - 32 bit FPU
@@ -125,6 +129,12 @@ typedef  Vector #(Bytes_per_WordFL, Byte)      WordFL_B;
 
 `endif
 
+`ifdef ISA_F
+`define ISA_F_OR_D
+`elif ISA_D
+`define ISA_F_OR_D
+`endif
+
 // ================================================================
 // Tokens are used for signalling/synchronization, and have no payload
 
@@ -132,6 +142,9 @@ typedef Bit #(0) Token;
 
 // ================================================================
 // Instruction fields
+
+typedef enum { ISIZE16BIT, ISIZE32BIT
+   } ISize deriving (Bits, Eq, FShow);
 
 typedef  Bit #(32)  Instr;
 typedef  Bit #(7)   Opcode;
@@ -319,10 +332,12 @@ deriving (Eq, Bits, FShow);
 // ================================================================
 // LOAD/STORE instructions
 
-Bit #(2) f3_SIZE_B = 2'b00;
-Bit #(2) f3_SIZE_H = 2'b01;
-Bit #(2) f3_SIZE_W = 2'b10;
-Bit #(2) f3_SIZE_D = 2'b11;
+typedef Bit #(2) MemReqSize;
+
+MemReqSize f3_SIZE_B = 2'b00;
+MemReqSize f3_SIZE_H = 2'b01;
+MemReqSize f3_SIZE_W = 2'b10;
+MemReqSize f3_SIZE_D = 2'b11;
 
 // ----------------
 // Load instructions

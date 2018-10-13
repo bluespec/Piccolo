@@ -1,4 +1,4 @@
-// Copyright (c) 2013-2017 Bluespec, Inc. All Rights Reserved
+// Copyright (c) 2013-2018 Bluespec, Inc. All Rights Reserved
 
 // This program reads an ELF file and outputs a Verilog hex memory
 // image file (suitable for reading using $readmemh).
@@ -137,6 +137,7 @@ void c_mem_load_elf (char *elf_filename,
 	Elf_Data *data = 0;
 	// If we find a code/data section, load it into the model
 	if (   ((shdr.sh_type == SHT_PROGBITS)
+		|| (shdr.sh_type == SHT_NOBITS)
 		|| (shdr.sh_type == SHT_INIT_ARRAY)
 		|| (shdr.sh_type == SHT_FINI_ARRAY))
 	    && ((shdr.sh_flags & SHF_WRITE)
@@ -158,7 +159,9 @@ void c_mem_load_elf (char *elf_filename,
 		exit (1);
 	    }
 
-	    memcpy (& (mem_buf [shdr.sh_addr]), data->d_buf, data->d_size);
+	    if (shdr.sh_type != SHT_NOBITS) {
+		memcpy (& (mem_buf [shdr.sh_addr]), data->d_buf, data->d_size);
+	    }
 	    fprintf (stdout, "addr %16" PRIx64 " to addr %16" PRIx64 "; size 0x%8lx (= %0ld) bytes\n",
 		     shdr.sh_addr, shdr.sh_addr + data->d_size, data->d_size, data->d_size);
 
@@ -224,7 +227,7 @@ void c_mem_load_elf (char *elf_filename,
 #define MIN_MEM_ADDR_16MB  BASE_ADDR_B
 #define MAX_MEM_ADDR_16MB  (BASE_ADDR_B + 0x1000000lu)
 
-// For 16 MB memory at 0x_8000_0000
+// For 256 MB memory at 0x_8000_0000
 #define MIN_MEM_ADDR_256MB  BASE_ADDR_B
 #define MAX_MEM_ADDR_256MB  (BASE_ADDR_B + 0x10000000lu)
 
@@ -298,8 +301,14 @@ int main (int argc, char *argv [])
 
     // Zero out the memory buffer before loading the ELF file
     bzero (mem_buf, MAX_MEM_SIZE);
+    // bzero (& (mem_buf [BASE_ADDR_B]), MAX_MEM_SIZE - BASE_ADDR_B);
 
     c_mem_load_elf (argv [1], "_start", "exit");
+
+    if ((min_addr < BASE_ADDR_B) || (MAX_MEM_ADDR_256MB <= max_addr)) {
+	print_usage (stderr, argc, argv);
+	exit (1);
+    }
 
     FILE *fp_out = fopen (argv [2], "w");
     if (fp_out == NULL) {
@@ -307,13 +316,9 @@ int main (int argc, char *argv [])
 	return 1;
     }
 
-    if ((min_addr < BASE_ADDR_B) || (MAX_MEM_ADDR_256MB <= max_addr)) {
-	print_usage (stderr, argc, argv);
-	exit (1);
-    }
-
     fprintf (stdout, "Writing mem hex to file '%s'\n", argv [2]);
     write_mem_hex_file (fp_out, BASE_ADDR_B, max_addr);
+    // write_mem_hex_file (fp_out, BASE_ADDR_B, MAX_MEM_ADDR_256MB);
 
     fclose (fp_out);
 }

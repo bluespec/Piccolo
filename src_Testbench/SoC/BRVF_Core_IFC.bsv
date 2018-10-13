@@ -57,9 +57,11 @@ interface BRVF_Core_IFC;
 
 `ifdef INCLUDE_TANDEM_VERIF
    // ----------------------------------------------------------------
-   // Optional Tandem Verifier interface
+   // Optional Tandem Verifier interface output tuples (n,vb),
+   // where 'vb' is a vector of bytes
+   // with relevant bytes in locations [0]..[n-1]
 
-   interface Get #(Info_CPU_to_Verifier)  tv_verifier_info_get;
+   interface Get #(Tuple2 #(Bit #(32), TV_Vec_Bytes)) tv_vb_out;
 `endif
 
 `ifdef INCLUDE_GDB_CONTROL

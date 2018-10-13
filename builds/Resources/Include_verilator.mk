@@ -94,7 +94,7 @@ mkSim:
 		$(VERILATOR_FLAGS) \
 		--cc  $(TOPMODULE)_edited.v \
 		--exe  sim_main.cpp \
-		$(REPO)/src_Testbench/Top/C_ConsoleIO_functions.c
+		$(REPO)/src_Testbench/Top/C_Imported_Functions.c
 	@echo "INFO: Linking verilated files"
 	cd obj_dir; \
 	   ln -s -f ../$(VERILATOR_RESOURCES)/sim_main.cpp; \

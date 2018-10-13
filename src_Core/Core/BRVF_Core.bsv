@@ -34,7 +34,7 @@ import BRVF_Core_IFC  :: *;
 
 `ifdef INCLUDE_TANDEM_VERIF
 import TV_Info        :: *;
-import TV_Extra       :: *;
+import TV_Encode      :: *;
 `endif
 
 // ================================================================
@@ -54,6 +54,10 @@ module mkBRVF_Core #(parameter Bit #(64)  pc_reset_value)  (BRVF_Core_IFC);
    // Reset requests from SoC and responses to SoC
    FIFOF #(Bit #(0)) f_reset_reqs <- mkFIFOF;
    FIFOF #(Bit #(0)) f_reset_rsps <- mkFIFOF;
+
+`ifdef INCLUDE_TANDEM_VERIF
+   TV_Encode_IFC tv_encode <- mkTV_Encode;
+`endif
 
 `ifdef INCLUDE_GDB_CONTROL
    // ================================================================
@@ -80,6 +84,10 @@ module mkBRVF_Core #(parameter Bit #(64)  pc_reset_value)  (BRVF_Core_IFC);
       let req <- debug_module.hart0_get_reset_req.get;
       cpu.hart0_server_reset.request.put (?);
       f_reset_client.enq (reset_client_dm);
+
+`ifdef INCLUDE_TANDEM_VERIF
+      tv_encode.reset;
+`endif
    endrule
 
    rule rl_cpu_hart0_reset_from_dm_complete (f_reset_client.first == reset_client_dm);
@@ -98,6 +106,10 @@ module mkBRVF_Core #(parameter Bit #(64)  pc_reset_value)  (BRVF_Core_IFC);
 
       cpu.hart0_server_reset.request.put (?);
       f_reset_client.enq (reset_client_soc);
+
+`ifdef INCLUDE_TANDEM_VERIF
+      tv_encode.reset;
+`endif
    endrule
 
    rule rl_cpu_hart0_reset_from_cpu_complete (f_reset_client.first == reset_client_soc);
@@ -106,7 +118,12 @@ module mkBRVF_Core #(parameter Bit #(64)  pc_reset_value)  (BRVF_Core_IFC);
       f_reset_rsps.enq (?);
    endrule
 
+   // ================================================================
+   // Tandem Verification outputs
+
 `ifdef INCLUDE_TANDEM_VERIF
+   mkConnection (cpu.trace_data_out, tv_encode.trace_data_in);
+
 `ifdef INCLUDE_GDB_CONTROL
    let memtv <- mkMemoryTV;
    mkConnection(debug_module.master, memtv.slave);
@@ -118,13 +135,6 @@ module mkBRVF_Core #(parameter Bit #(64)  pc_reset_value)  (BRVF_Core_IFC);
    Register_TV_IFC#(12) csrtv <- mkRegisterTV(0);
    mkConnection(debug_module.hart0_csr_mem_client, csrtv.server);
    mkConnection(csrtv.client, cpu.hart0_csr_mem_server);
-
-   FIFOF#(Info_CPU_to_Verifier) f_tv_merged <- mkFIFOF;
-
-   rule merge_tv_cpu;
-      let tmp <- cpu.to_verifier.get;
-      f_tv_merged.enq(tmp);
-   endrule
 
    rule merge_tv_mem;
       let tmp <- memtv.to_verifier.get;
@@ -173,11 +183,7 @@ module mkBRVF_Core #(parameter Bit #(64)  pc_reset_value)  (BRVF_Core_IFC);
    // ----------------
    // Optional Tandem Verifier interface
 
-`ifdef INCLUDE_GDB_CONTROL
-   interface Get  tv_verifier_info_get = toGet(f_tv_merged);
-`else
-   interface Get  tv_verifier_info_get = cpu.to_verifier;
-`endif
+   interface Get tv_vb_out = tv_encode.tv_vb_out;
 `endif
 
 `ifdef INCLUDE_GDB_CONTROL

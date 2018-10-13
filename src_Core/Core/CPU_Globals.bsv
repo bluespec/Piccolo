@@ -21,9 +21,7 @@ package CPU_Globals;
 
 import ISA_Decls :: *;
 
-`ifdef INCLUDE_TANDEM_VERIF
 import TV_Info   :: *;
-`endif
 
 // ================================================================
 // Output status of each stage
@@ -102,7 +100,7 @@ endfunction
 typedef struct {
    Addr      epc;
    Exc_Code  exc_code;
-   Addr      badaddr;    // Only relevant for mem exceptions
+   Addr      tval;
    } Trap_Info
 deriving (Bits, FShow);
 
@@ -208,6 +206,10 @@ typedef struct {
 
    Word       val2;     // OP_Stage2_ST: store-val;
                         // OP_Stage2_M and OP_Stage2_FD: arg2
+
+`ifdef INCLUDE_TANDEM_VERIF
+   Trace_Data  trace_data;
+`endif
    } Data_Stage1_to_Stage2
 deriving (Bits);
 
@@ -233,9 +235,7 @@ typedef struct {
    // feedforward data
    Data_Stage2_to_Stage3  data_to_stage3;
 
-`ifdef INCLUDE_TANDEM_VERIF
-   Info_CPU_to_Verifier   to_verifier;
-`endif
+   Trace_Data             trace_data;
    } Output_Stage2
 deriving (Bits);
 
@@ -273,7 +273,7 @@ deriving (Bits);
 instance FShow #(Data_Stage2_to_Stage3);
    function Fmt fshow (Data_Stage2_to_Stage3 x);
       Fmt fmt =   $format ("data_to_Stage3 {pc:%h  instr:%h  priv:%0d\n", x.pc, x.instr, x.priv);
-      fmt = fmt + $format ("        rd_valid:", fshow (x.rd_valid), " rd:%0d  rd_val:%h\n", x.rd, x.rd_val);
+      fmt = fmt + $format ("        rd_valid:", fshow (x.rd_valid), " rd:%0d  rd_val:%h", x.rd, x.rd_val);
       return fmt;
    endfunction
 endinstance

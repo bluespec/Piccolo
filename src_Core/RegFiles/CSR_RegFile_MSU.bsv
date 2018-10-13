@@ -110,7 +110,9 @@ interface CSR_RegFile_IFC;
 
    // Access permission
    (* always_ready *)
-   method Bool access_permitted (Priv_Mode  priv, CSR_Addr  csr_addr, Bool  read_not_write);
+   method Bool access_permitted_1 (Priv_Mode  priv, CSR_Addr  csr_addr, Bool  read_not_write);
+   (* always_ready *)
+   method Bool access_permitted_2 (Priv_Mode  priv, CSR_Addr  csr_addr, Bool  read_not_write);
 
    // Fault on reading counters?
    (* always_ready *)
@@ -787,6 +789,24 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
       endaction
    endfunction
 
+   // Access permission
+   function Bool fv_access_permitted (Priv_Mode  priv, CSR_Addr  csr_addr,  Bool read_not_write);
+      Bool exists  = fv_csr_exists (csr_addr);    // Is this CSR implemented?
+
+      Bool priv_ok = priv >= csr_addr [9:8];      // Accessible at current privilege?
+
+      // TVM fault: cannot access SATP if MSTATUS.TVM is set
+      Bool tvm_fault = ((csr_addr == csr_satp) && (csr_mstatus.fv_read [mstatus_tvm_bitpos] == 1'b1));
+
+      // TODO: MxDELEG fault: MIDELEG and MEDELEG do not exist in
+      //     systems with only m_Priv and systems with m_Priv and u_Priv but
+      //     without support for U-mode traps
+
+      Bool rw_ok = (read_not_write || (csr_addr [11:10] != 2'b11));
+
+      return (exists && priv_ok && (! tvm_fault) && rw_ok);
+   endfunction
+
    // ----------------------------------------------------------------
    // Interrupt requests
 
@@ -1062,6 +1082,15 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
    endmethod
 
    // Access permission
+   method Bool access_permitted_1 (Priv_Mode  priv, CSR_Addr  csr_addr,  Bool read_not_write);
+      return fv_access_permitted (priv, csr_addr, read_not_write);
+   endmethod
+
+   method Bool access_permitted_2 (Priv_Mode  priv, CSR_Addr  csr_addr,  Bool read_not_write);
+      return fv_access_permitted (priv, csr_addr, read_not_write);
+   endmethod
+
+   /*
    method Bool access_permitted (Priv_Mode  priv, CSR_Addr  csr_addr,  Bool read_not_write);
       Bool exists  = fv_csr_exists (csr_addr);    // Is this CSR implemented?
 
@@ -1078,6 +1107,7 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
 
       return (exists && priv_ok && (! tvm_fault) && rw_ok);
    endmethod      
+   */
 
    // Fault on reading counters?
    method Bool csr_counter_read_fault (Priv_Mode  priv, CSR_Addr  csr_addr);

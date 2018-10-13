@@ -26,7 +26,25 @@ uint8_t c_trygetchar (uint8_t  dummy);
 // Writes character to stdout
 
 extern
-void c_putchar (uint8_t ch);
+uint32_t c_putchar (uint8_t ch);
+
+// ================================================================
+// Trace file outputs
+
+extern
+uint32_t c_trace_file_open (uint8_t dummy);
+
+extern
+uint32_t c_trace_file_load_byte_in_buffer (uint32_t j, uint8_t data);
+
+extern
+uint32_t c_trace_file_load_word64_in_buffer (uint32_t byte_offset, uint64_t data);
+
+extern
+uint32_t c_trace_file_write_buffer (uint32_t n);
+
+extern
+uint32_t c_trace_file_close (uint8_t dummy);
 
 // ================================================================
 
