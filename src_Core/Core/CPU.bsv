@@ -487,7 +487,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
       MIP new_mip = csr_regfile.read_csr_mip;
       rg_prev_mip <= new_mip;
 
-      let trace_data = mkTrace_MIP (mip_to_word (new_mip));
+      let trace_data = mkTrace_CSR_WRITE (csr_mip, mip_to_word (new_mip));
       f_trace_data.enq (trace_data);
 
       if (cur_verbosity > 1)
@@ -610,7 +610,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
       trace_data.rd    = zeroExtend (new_priv);
       trace_data.word1 = new_mstatus;
       trace_data.word2 = mcause;
-      trace_data.word3 = epc;
+      trace_data.word3 = zeroExtend (epc);
       trace_data.word4 = tval;
       f_trace_data.enq (trace_data);
 `endif
@@ -1073,7 +1073,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
       trace_data.rd    = zeroExtend (new_priv);
       trace_data.word1 = new_mstatus;
       trace_data.word2 = mcause;
-      trace_data.word3 = epc;
+      trace_data.word3 = zeroExtend (epc);
       trace_data.word4 = tval;
       f_trace_data.enq (trace_data);
 `endif

@@ -60,139 +60,197 @@ module mkTV_Encode (TV_Encode_IFC);
    rule rl_log_trace_RESET (rg_reset_done && (f_trace_data.first.op == TRACE_RESET));
       let td <- pop (f_trace_data);
 
-      // Encode the td into a Byte Vec
-      Vector #(1, Byte) vb_first = replicate (te_op_begin_group);
-      Vector #(1, Byte) vb1      = replicate (te_op_mem_hart_reset);
-      Vector #(1, Byte) vb_last  = replicate (te_op_end_group);
+      // Encode components of td into byte vecs
+      match { .n0, .vb0 } = encode_byte (te_op_begin_group);
+      match { .n1, .vb1 } = encode_byte (te_op_hart_reset);
+      match { .nN, .vbN } = encode_byte (te_op_end_group);
 
-      match { .nn0, .x0 } = vsubst ( ?,   0,  vb_first, 1);
-      match { .nn1, .x1 } = vsubst (x0, nn0,  vb1, 1);
-      match { .nn2, .x2 } = vsubst (x1, nn1,  vb_last, 1);
+      // Concatenate components into a single byte vec
+      match { .nn0, .x0 } = vsubst (  0,  ?,  n0, vb0);
+      match { .nn1, .x1 } = vsubst (nn0, x0,  n1, vb1);
+      match { .nnN, .xN } = vsubst (nn1, x1,  nN, vbN);
 
-      let n  = nn2;
-      let vb = x2;
-
-      f_vb.enq (tuple2 (n, vb));
+      f_vb.enq (tuple2 (nnN, xN));
    endrule
 
-   rule rl_log_trace_MIP (rg_reset_done && (f_trace_data.first.op == TRACE_MIP));
+   rule rl_log_trace_GPR_WRITE (rg_reset_done && (f_trace_data.first.op == TRACE_GPR_WRITE));
       let td <- pop (f_trace_data);
 
-      // Encode the td into a Byte Vec
-      match { .n, .vb } = encode_reg (fv_csr_regnum (csr_mip), td.word1);
+      // Encode components of td into byte vecs
+      match { .n0, .vb0 } = encode_byte (te_op_begin_group);
+      match { .n1, .vb1 } = encode_byte (te_op_state_init);
+      match { .n2, .vb2 } = encode_reg (fv_gpr_regnum (td.rd), td.word1);
+      match { .nN, .vbN } = encode_byte (te_op_end_group);
 
-      f_vb.enq (tuple2 (n, vb));
+      // Concatenate components into a single byte vec
+      match { .nn0, .x0 } = vsubst (  0,  ?,  n0, vb0);
+      match { .nn1, .x1 } = vsubst (nn0, x0,  n1, vb1);
+      match { .nn2, .x2 } = vsubst (nn1, x1,  n2, vb2);
+      match { .nnN, .xN } = vsubst (nn2, x2,  nN, vbN);
+
+      f_vb.enq (tuple2 (nnN, xN));
+   endrule
+
+   rule rl_log_trace_FPR_WRITE (rg_reset_done && (f_trace_data.first.op == TRACE_FPR_WRITE));
+      let td <- pop (f_trace_data);
+
+      // Encode components of td into byte vecs
+      match { .n0, .vb0 } = encode_byte (te_op_begin_group);
+      match { .n1, .vb1 } = encode_byte (te_op_state_init);
+      match { .n2, .vb2 } = encode_reg (fv_fpr_regnum (td.rd), td.word1);
+      match { .nN, .vbN } = encode_byte (te_op_end_group);
+
+      // Concatenate components into a single byte vec
+      match { .nn0, .x0 } = vsubst (  0,  ?,  n0, vb0);
+      match { .nn1, .x1 } = vsubst (nn0, x0,  n1, vb1);
+      match { .nn2, .x2 } = vsubst (nn1, x1,  n2, vb2);
+      match { .nnN, .xN } = vsubst (nn2, x2,  nN, vbN);
+
+      f_vb.enq (tuple2 (nnN, xN));
+   endrule
+
+   rule rl_log_trace_CSR_WRITE (rg_reset_done && (f_trace_data.first.op == TRACE_CSR_WRITE));
+      let td <- pop (f_trace_data);
+
+      // Encode components of td into byte vecs
+      match { .n0, .vb0 } = encode_byte (te_op_begin_group);
+      match { .n1, .vb1 } = encode_byte (te_op_state_init);
+      match { .n2, .vb2 } = encode_reg (fv_csr_regnum (truncate (td.word3)), td.word4);
+      match { .nN, .vbN } = encode_byte (te_op_end_group);
+
+      // Concatenate components into a single byte vec
+      match { .nn0, .x0 } = vsubst (  0,  ?,  n0, vb0);
+      match { .nn1, .x1 } = vsubst (nn0, x0,  n1, vb1);
+      match { .nn2, .x2 } = vsubst (nn1, x1,  n2, vb2);
+      match { .nnN, .xN } = vsubst (nn2, x2,  nN, vbN);
+
+      f_vb.enq (tuple2 (nnN, vbN));
+   endrule
+
+   rule rl_log_trace_MEM_WRITE (rg_reset_done && (f_trace_data.first.op == TRACE_MEM_WRITE));
+      let td <- pop (f_trace_data);
+
+      Bit #(2)  mem_req_size        = td.word1 [1:0];
+      Byte      size_and_mem_req_op = {2'b0, mem_req_size, te_mem_req_op_Store };
+
+      // Encode components of td into byte vecs
+      match { .n0, .vb0 } = encode_byte (te_op_begin_group);
+      match { .n1, .vb1 } = encode_byte (te_op_state_init);
+      match { .n2, .vb2 } = encode_paddr (td.word3);
+      match { .n3, .vb3 } = encode_byte (size_and_mem_req_op);
+      match { .n4, .vb4 } = encode_stval (mem_req_size, td.word2);
+      match { .nN, .vbN } = encode_byte (te_op_end_group);
+
+      // Concatenate components into a single byte vec
+      match { .nn0, .x0 } = vsubst (  0,  ?,  n0, vb0);
+      match { .nn1, .x1 } = vsubst (nn0, x0,  n1, vb1);
+      match { .nn2, .x2 } = vsubst (nn1, x1,  n2, vb2);
+      match { .nn3, .x3 } = vsubst (nn2, x2,  n3, vb3);
+      match { .nn4, .x4 } = vsubst (nn3, x3,  n4, vb4);
+      match { .nnN, .xN } = vsubst (nn4, x4,  nN, vbN);
+
+      f_vb.enq (tuple2 (nnN, xN));
    endrule
 
    rule rl_log_trace_OTHER (rg_reset_done && (f_trace_data.first.op == TRACE_OTHER));
       let td <- pop (f_trace_data);
 
-      // Encode the td into a Byte Vec
-      Vector #(1, Byte) vb_first = replicate (te_op_begin_group);
+      // Encode components of td into byte vecs
+      match { .n0, .vb0 } = encode_byte (te_op_begin_group);
       match { .n1, .vb1 } = encode_reg (fv_csr_regnum (csr_addr_dpc), td.pc);
       match { .n2, .vb2 } = encode_instr (td.instr_sz, td.instr);
-      Vector #(1, Byte) vb_last = replicate (te_op_end_group);
+      match { .nN, .vbN } = encode_byte (te_op_end_group);
 
-      match { .nn0, .x0 } = vsubst ( ?,   0,  vb_first, 1);
-      match { .nn1, .x1 } = vsubst (x0, nn0,  vb1, n1);
-      match { .nn2, .x2 } = vsubst (x1, nn1,  vb2, n2);
-      match { .nn3, .x3 } = vsubst (x2, nn2,  vb_last, 1);
+      // Concatenate components into a single byte vec
+      match { .nn0, .x0 } = vsubst (  0,  ?,  n0, vb0);
+      match { .nn1, .x1 } = vsubst (nn0, x0,  n1, vb1);
+      match { .nn2, .x2 } = vsubst (nn1, x1,  n2, vb2);
+      match { .nnN, .xN } = vsubst (nn2, x2,  nN, vbN);
 
-      let n  = nn3;
-      let vb = x3;
-
-      f_vb.enq (tuple2 (n, vb));
+      f_vb.enq (tuple2 (nnN, xN));
    endrule
 
    rule rl_log_trace_I_RD (rg_reset_done && (f_trace_data.first.op == TRACE_I_RD));
       let td <- pop (f_trace_data);
 
-      // Encode the td into a Byte Vec
-      Vector #(1, Byte) vb_first = replicate (te_op_begin_group);
+      // Encode components of td into byte vecs
+      match { .n0, .vb0 } = encode_byte (te_op_begin_group);
       match { .n1, .vb1 } = encode_reg (fv_csr_regnum (csr_addr_dpc), td.pc);
       match { .n2, .vb2 } = encode_instr (td.instr_sz, td.instr);
       match { .n3, .vb3 } = encode_reg (fv_gpr_regnum (td.rd), td.word1);
-      Vector #(1, Byte) vb_last = replicate (te_op_end_group);
+      match { .nN, .vbN } = encode_byte (te_op_end_group);
 
-      match { .nn0, .x0 } = vsubst ( ?,   0,  vb_first, 1);
-      match { .nn1, .x1 } = vsubst (x0, nn0,  vb1, n1);
-      match { .nn2, .x2 } = vsubst (x1, nn1,  vb2, n2);
-      match { .nn3, .x3 } = vsubst (x2, nn2,  vb3, n3);
-      match { .nn4, .x4 } = vsubst (x3, nn3,  vb_last, 1);
+      // Concatenate components into a single byte vec
+      match { .nn0, .x0 } = vsubst (  0,  ?,  n0, vb0);
+      match { .nn1, .x1 } = vsubst (nn0, x0,  n1, vb1);
+      match { .nn2, .x2 } = vsubst (nn1, x1,  n2, vb2);
+      match { .nn3, .x3 } = vsubst (nn2, x2,  n3, vb3);
+      match { .nnN, .xN } = vsubst (nn3, x3,  nN, vbN);
 
-      let n  = nn4;
-      let vb = x4;
-
-      f_vb.enq (tuple2 (n, vb));
+      f_vb.enq (tuple2 (nnN, xN));
    endrule
 
    rule rl_log_trace_F_RD (rg_reset_done && (f_trace_data.first.op == TRACE_F_RD));
       let td <- pop (f_trace_data);
 
-      // Encode the td into a Byte Vec
-      Vector #(1, Byte) vb_first = replicate (te_op_begin_group);
+      // Encode components of td into byte vecs
+      match { .n0, .vb0 } = encode_byte (te_op_begin_group);
       match { .n1, .vb1 } = encode_reg (fv_csr_regnum (csr_addr_dpc), td.pc);
       match { .n2, .vb2 } = encode_instr (td.instr_sz, td.instr);
       match { .n3, .vb3 } = encode_reg (fv_fpr_regnum (td.rd), td.word1);
-      Vector #(1, Byte) vb_last = replicate (te_op_end_group);
+      match { .nN, .vbN } = encode_byte (te_op_end_group);
 
-      match { .nn0, .x0 } = vsubst ( ?,   0,  vb_first, 1);
-      match { .nn1, .x1 } = vsubst (x0, nn0,  vb1, n1);
-      match { .nn2, .x2 } = vsubst (x1, nn1,  vb2, n2);
-      match { .nn3, .x3 } = vsubst (x2, nn2,  vb_last, 1);
+      // Concatenate components into a single byte vec
+      match { .nn0, .x0 } = vsubst (  0,  ?,  n0, vb0);
+      match { .nn1, .x1 } = vsubst (nn0, x0,  n1, vb1);
+      match { .nn2, .x2 } = vsubst (nn1, x1,  n2, vb2);
+      match { .nnN, .xN } = vsubst (nn2, x2,  nN, vbN);
 
-      let n  = nn3;
-      let vb = x3;
-
-      f_vb.enq (tuple2 (n, vb));
+      f_vb.enq (tuple2 (nnN, xN));
    endrule
 
    rule rl_log_trace_I_LOAD (rg_reset_done && (f_trace_data.first.op == TRACE_I_LOAD));
       let td <- pop (f_trace_data);
 
-      // Encode the td into a Byte Vec
-      Vector #(1, Byte) vb_first = replicate (te_op_begin_group);
+      // Encode components of td into byte vecs
+      match { .n0, .vb0 } = encode_byte (te_op_begin_group);
       match { .n1, .vb1 } = encode_reg (fv_csr_regnum (csr_addr_dpc), td.pc);
       match { .n2, .vb2 } = encode_instr (td.instr_sz, td.instr);
       match { .n3, .vb3 } = encode_reg (fv_gpr_regnum (td.rd), td.word1);
-      match { .n4, .vb4 } = encode_eaddr (td.word3);
-      Vector #(1, Byte) vb_last = replicate (te_op_end_group);
+      match { .n4, .vb4 } = encode_eaddr (truncate (td.word3));
+      match { .nN, .vbN } = encode_byte (te_op_end_group);
 
-      match { .nn0, .x0 } = vsubst ( ?,   0,  vb_first, 1);
-      match { .nn1, .x1 } = vsubst (x0, nn0,  vb1, n1);
-      match { .nn2, .x2 } = vsubst (x1, nn1,  vb2, n2);
-      match { .nn3, .x3 } = vsubst (x2, nn2,  vb3, n3);
-      match { .nn4, .x4 } = vsubst (x3, nn3,  vb4, n4);
-      match { .nn5, .x5 } = vsubst (x4, nn4,  vb_last, 1);
+      // Concatenate components into a single byte vec
+      match { .nn0, .x0 } = vsubst (  0,  ?,  n0, vb0);
+      match { .nn1, .x1 } = vsubst (nn0, x0,  n1, vb1);
+      match { .nn2, .x2 } = vsubst (nn1, x1,  n2, vb2);
+      match { .nn3, .x3 } = vsubst (nn2, x2,  n3, vb3);
+      match { .nn4, .x4 } = vsubst (nn3, x3,  n4, vb4);
+      match { .nnN, .xN } = vsubst (nn4, x4,  nN, vbN);
 
-      let n  = nn5;
-      let vb = x5;
-
-      f_vb.enq (tuple2 (n, vb));
+      f_vb.enq (tuple2 (nnN, xN));
    endrule
 
    rule rl_log_trace_F_LOAD (rg_reset_done && (f_trace_data.first.op == TRACE_F_LOAD));
       let td <- pop (f_trace_data);
 
-      // Encode the td into a Byte Vec
-      Vector #(1, Byte) vb_first = replicate (te_op_begin_group);
+      // Encode components of td into byte vecs
+      match { .n0, .vb0 } = encode_byte (te_op_begin_group);
       match { .n1, .vb1 } = encode_reg (fv_csr_regnum (csr_addr_dpc), td.pc);
       match { .n2, .vb2 } = encode_instr (td.instr_sz, td.instr);
       match { .n3, .vb3 } = encode_reg (fv_fpr_regnum (td.rd), td.word1);
-      match { .n4, .vb4 } = encode_eaddr (td.word3);
-      Vector #(1, Byte) vb_last = replicate (te_op_end_group);
+      match { .n4, .vb4 } = encode_eaddr (truncate (td.word3));
+      match { .nN, .vbN } = encode_byte (te_op_end_group);
 
-      match { .nn0, .x0 } = vsubst ( ?,   0,  vb_first, 1);
-      match { .nn1, .x1 } = vsubst (x0, nn0,  vb1, n1);
-      match { .nn2, .x2 } = vsubst (x1, nn1,  vb2, n2);
-      match { .nn3, .x3 } = vsubst (x2, nn2,  vb3, n3);
-      match { .nn4, .x4 } = vsubst (x3, nn3,  vb4, n4);
-      match { .nn5, .x5 } = vsubst (x4, nn4,  vb_last, 1);
+      // Concatenate components into a single byte vec
+      match { .nn0, .x0 } = vsubst (  0,  ?,  n0, vb0);
+      match { .nn1, .x1 } = vsubst (nn0, x0,  n1, vb1);
+      match { .nn2, .x2 } = vsubst (nn1, x1,  n2, vb2);
+      match { .nn3, .x3 } = vsubst (nn2, x2,  n3, vb3);
+      match { .nn4, .x4 } = vsubst (nn3, x3,  n4, vb4);
+      match { .nnN, .xN } = vsubst (nn4, x4,  nN, vbN);
 
-      let n  = nn5;
-      let vb = x5;
-
-      f_vb.enq (tuple2 (n, vb));
+      f_vb.enq (tuple2 (nnN, xN));
    endrule
 
    rule rl_log_trace_STORE (rg_reset_done && (f_trace_data.first.op == TRACE_STORE));
@@ -201,25 +259,23 @@ module mkTV_Encode (TV_Encode_IFC);
       let funct3 = instr_funct3 (td.instr);    // TODO: what if it's a 16b instr?
       let mem_req_size = funct3 [1:0];
 
-      // Encode the td into a Byte Vec
-      Vector #(1, Byte) vb_first = replicate (te_op_begin_group);
+      // Encode components of td into byte vecs
+      match { .n0, .vb0 } = encode_byte (te_op_begin_group);
       match { .n1, .vb1 } = encode_reg (fv_csr_regnum (csr_addr_dpc), td.pc);
       match { .n2, .vb2 } = encode_instr (td.instr_sz, td.instr);
       match { .n3, .vb3 } = encode_stval (mem_req_size, td.word2);
-      match { .n4, .vb4 } = encode_eaddr (td.word3);
-      Vector #(1, Byte) vb_last = replicate (te_op_end_group);
+      match { .n4, .vb4 } = encode_eaddr (truncate (td.word3));
+      match { .nN, .vbN } = encode_byte (te_op_end_group);
 
-      match { .nn0, .x0 } = vsubst ( ?,   0,  vb_first, 1);
-      match { .nn1, .x1 } = vsubst (x0, nn0,  vb1, n1);
-      match { .nn2, .x2 } = vsubst (x1, nn1,  vb2, n2);
-      match { .nn3, .x3 } = vsubst (x2, nn2,  vb3, n3);
-      match { .nn4, .x4 } = vsubst (x3, nn3,  vb4, n4);
-      match { .nn5, .x5 } = vsubst (x4, nn4,  vb_last, 1);
+      // Concatenate components into a single byte vec
+      match { .nn0, .x0 } = vsubst (  0,  ?,  n0, vb0);
+      match { .nn1, .x1 } = vsubst (nn0, x0,  n1, vb1);
+      match { .nn2, .x2 } = vsubst (nn1, x1,  n2, vb2);
+      match { .nn3, .x3 } = vsubst (nn2, x2,  n3, vb3);
+      match { .nn4, .x4 } = vsubst (nn3, x3,  n4, vb4);
+      match { .nnN, .xN } = vsubst (nn4, x4,  nN, vbN);
 
-      let n  = nn5;
-      let vb = x5;
-
-      f_vb.enq (tuple2 (n, vb));
+      f_vb.enq (tuple2 (nnN, xN));
    endrule
 
    rule rl_log_trace_AMO (rg_reset_done && (f_trace_data.first.op == TRACE_AMO));
@@ -228,135 +284,125 @@ module mkTV_Encode (TV_Encode_IFC);
       let funct3 = instr_funct3 (td.instr);    // TODO: what if it's a 16b instr?
       let mem_req_size = funct3 [1:0];
 
-      // Encode the td into a Byte Vec
-      Vector #(1, Byte) vb_first = replicate (te_op_begin_group);
+      // Encode components of td into byte vecs
+      match { .n0, .vb0 } = encode_byte (te_op_begin_group);
       match { .n1, .vb1 } = encode_reg (fv_csr_regnum (csr_addr_dpc), td.pc);
       match { .n2, .vb2 } = encode_instr (td.instr_sz, td.instr);
       match { .n3, .vb3 } = encode_reg (fv_gpr_regnum (td.rd), td.word1);
       match { .n4, .vb4 } = encode_stval (mem_req_size, td.word2);
-      match { .n5, .vb5 } = encode_eaddr (td.word3);
-      Vector #(1, Byte) vb_last = replicate (te_op_end_group);
+      match { .n5, .vb5 } = encode_eaddr (truncate (td.word3));
+      match { .nN, .vbN } = encode_byte (te_op_end_group);
 
-      match { .nn0, .x0 } = vsubst ( ?,   0,  vb_first, 1);
-      match { .nn1, .x1 } = vsubst (x0, nn0,  vb1, n1);
-      match { .nn2, .x2 } = vsubst (x1, nn1,  vb2, n2);
-      match { .nn3, .x3 } = vsubst (x2, nn2,  vb3, n3);
-      match { .nn4, .x4 } = vsubst (x3, nn3,  vb4, n4);
-      match { .nn5, .x5 } = vsubst (x4, nn4,  vb5, n5);
-      match { .nn6, .x6 } = vsubst (x5, nn5,  vb_last, 1);
+      // Concatenate components into a single byte vec
+      match { .nn0, .x0 } = vsubst (  0,  ?,  n0, vb0);
+      match { .nn1, .x1 } = vsubst (nn0, x0,  n1, vb1);
+      match { .nn2, .x2 } = vsubst (nn1, x1,  n2, vb2);
+      match { .nn3, .x3 } = vsubst (nn2, x2,  n3, vb3);
+      match { .nn4, .x4 } = vsubst (nn3, x3,  n4, vb4);
+      match { .nn5, .x5 } = vsubst (nn4, x4,  n5, vb5);
+      match { .nnN, .xN } = vsubst (nn5, x5,  nN, vbN);
 
-      let n  = nn6;
-      let vb = x6;
-
-      f_vb.enq (tuple2 (n, vb));
+      f_vb.enq (tuple2 (nnN, xN));
    endrule
 
    rule rl_log_trace_CSRRX (rg_reset_done && (f_trace_data.first.op == TRACE_CSRRX));
       let td <- pop (f_trace_data);
 
-      // Encode the td into a Byte Vec
-      Vector #(1, Byte) vb_first = replicate (te_op_begin_group);
+      // Encode components of td into byte vecs
+      match { .n0, .vb0 } = encode_byte (te_op_begin_group);
       match { .n1, .vb1 } = encode_reg (fv_csr_regnum (csr_addr_dpc), td.pc);
       match { .n2, .vb2 } = encode_instr (td.instr_sz, td.instr);
       match { .n3, .vb3 } = encode_reg (fv_gpr_regnum (td.rd), td.word1);
       match { .n4, .vb4 } = ((td.word2 == 0)
 			     ? tuple2 (0, ?)    // CSR was not written
 			     : encode_reg (fv_csr_regnum (truncate (td.word3)), td.word4));
-      Vector #(1, Byte) vb_last = replicate (te_op_end_group);
+      match { .nN, .vbN } = encode_byte (te_op_end_group);
 
-      match { .nn0, .x0 } = vsubst ( ?,   0,  vb_first, 1);
-      match { .nn1, .x1 } = vsubst (x0, nn0,  vb1, n1);
-      match { .nn2, .x2 } = vsubst (x1, nn1,  vb2, n2);
-      match { .nn3, .x3 } = vsubst (x2, nn2,  vb3, n3);
-      match { .nn4, .x4 } = vsubst (x3, nn3,  vb4, n4);
-      match { .nn5, .x5 } = vsubst (x4, nn4,  vb_last, 1);
+      // Concatenate components into a single byte vec
+      match { .nn0, .x0 } = vsubst (  0,  ?,  n0, vb0);
+      match { .nn1, .x1 } = vsubst (nn0, x0,  n1, vb1);
+      match { .nn2, .x2 } = vsubst (nn1, x1,  n2, vb2);
+      match { .nn3, .x3 } = vsubst (nn2, x2,  n3, vb3);
+      match { .nn4, .x4 } = vsubst (nn3, x3,  n4, vb4);
+      match { .nnN, .xN } = vsubst (nn4, x4,  nN, vbN);
 
-      let n  = nn5;
-      let vb = x5;
-
-      f_vb.enq (tuple2 (n, vb));
+      f_vb.enq (tuple2 (nnN, xN));
    endrule
 
    rule rl_log_trace_TRAP (rg_reset_done && (f_trace_data.first.op == TRACE_TRAP));
       let td <- pop (f_trace_data);
 
-      // Encode the td into a Byte Vec
-      Vector #(1, Byte) vb_first = replicate (te_op_begin_group);
+      // Encode components of td into byte vecs
+      match { .n0, .vb0 } = encode_byte (te_op_begin_group);
       match { .n1, .vb1 } = encode_reg (fv_csr_regnum (csr_addr_dpc), td.pc);
       match { .n2, .vb2 } = encode_instr (td.instr_sz, td.instr);
       match { .n3, .vb3 } = encode_priv (td.rd);
       match { .n4, .vb4 } = encode_reg (fv_csr_regnum (csr_addr_mstatus), td.word1);
       match { .n5, .vb5 } = encode_reg (fv_csr_regnum (csr_mcause),  td.word2);
-      match { .n6, .vb6 } = encode_reg (fv_csr_regnum (csr_mepc),    td.word3);
+      match { .n6, .vb6 } = encode_reg (fv_csr_regnum (csr_mepc),    truncate (td.word3));
       match { .n7, .vb7 } = encode_reg (fv_csr_regnum (csr_mtval),   td.word4);
-      Vector #(1, Byte) vb_last = replicate (te_op_end_group);
+      match { .nN, .vbN } = encode_byte (te_op_end_group);
 
-      match { .nn0, .x0 } = vsubst ( ?,   0,  vb_first, 1);
-      match { .nn1, .x1 } = vsubst (x0, nn0,  vb1, n1);
-      match { .nn2, .x2 } = vsubst (x1, nn1,  vb2, n2);
-      match { .nn3, .x3 } = vsubst (x2, nn2,  vb3, n3);
-      match { .nn4, .x4 } = vsubst (x3, nn3,  vb4, n4);
-      match { .nn5, .x5 } = vsubst (x4, nn4,  vb5, n5);
-      match { .nn6, .x6 } = vsubst (x5, nn5,  vb6, n6);
-      match { .nn7, .x7 } = vsubst (x6, nn6,  vb7, n7);
-      match { .nn8, .x8 } = vsubst (x7, nn7,  vb_last, 1);
+      // Concatenate components into a single byte vec
+      match { .nn0, .x0 } = vsubst (  0,  ?,  n0, vb0);
+      match { .nn1, .x1 } = vsubst (nn0, x0,  n1, vb1);
+      match { .nn2, .x2 } = vsubst (nn1, x1,  n2, vb2);
+      match { .nn3, .x3 } = vsubst (nn2, x2,  n3, vb3);
+      match { .nn4, .x4 } = vsubst (nn3, x3,  n4, vb4);
+      match { .nn5, .x5 } = vsubst (nn4, x4,  n5, vb5);
+      match { .nn6, .x6 } = vsubst (nn5, x5,  n6, vb6);
+      match { .nn7, .x7 } = vsubst (nn6, x6,  n7, vb7);
+      match { .nnN, .xN } = vsubst (nn7, x7,  nN, vbN);
 
-      let n  = nn8;
-      let vb = x8;
-      
-      f_vb.enq (tuple2 (n, vb));
+      f_vb.enq (tuple2 (nnN, xN));
    endrule
 
    rule rl_log_trace_INTR (rg_reset_done && (f_trace_data.first.op == TRACE_INTR));
       let td <- pop (f_trace_data);
 
-      // Encode the td into a Byte Vec
-      Vector #(1, Byte) vb_first = replicate (te_op_begin_group);
+      // Encode components of td into byte vecs
+      match { .n0, .vb0 } = encode_byte (te_op_begin_group);
       match { .n1, .vb1 } = encode_reg (fv_csr_regnum (csr_addr_dpc), td.pc);
       match { .n2, .vb2 } = encode_priv (td.rd);
       match { .n3, .vb3 } = encode_reg (fv_csr_regnum (csr_addr_mstatus), td.word1);
       match { .n4, .vb4 } = encode_reg (fv_csr_regnum (csr_mcause),  td.word2);
-      match { .n5, .vb5 } = encode_reg (fv_csr_regnum (csr_mepc),    td.word3);
+      match { .n5, .vb5 } = encode_reg (fv_csr_regnum (csr_mepc),    truncate (td.word3));
       match { .n6, .vb6 } = encode_reg (fv_csr_regnum (csr_mtval),   td.word4);
-      Vector #(1, Byte) vb_last = replicate (te_op_end_group);
+      match { .nN, .vbN } = encode_byte (te_op_end_group);
 
-      match { .nn0, .x0 } = vsubst ( ?,   0,  vb_first, 1);
-      match { .nn1, .x1 } = vsubst (x0, nn0,  vb1, n1);
-      match { .nn2, .x2 } = vsubst (x1, nn1,  vb2, n2);
-      match { .nn3, .x3 } = vsubst (x2, nn2,  vb3, n3);
-      match { .nn4, .x4 } = vsubst (x3, nn3,  vb4, n4);
-      match { .nn5, .x5 } = vsubst (x4, nn4,  vb5, n5);
-      match { .nn6, .x6 } = vsubst (x5, nn5,  vb6, n6);
-      match { .nn7, .x7 } = vsubst (x6, nn6,  vb_last, 1);
+      // Concatenate components into a single byte vec
+      match { .nn0, .x0 } = vsubst (  0,  ?,  n0, vb0);
+      match { .nn1, .x1 } = vsubst (nn0, x0,  n1, vb1);
+      match { .nn2, .x2 } = vsubst (nn1, x1,  n2, vb2);
+      match { .nn3, .x3 } = vsubst (nn2, x2,  n3, vb3);
+      match { .nn4, .x4 } = vsubst (nn3, x3,  n4, vb4);
+      match { .nn5, .x5 } = vsubst (nn4, x4,  n5, vb5);
+      match { .nn6, .x6 } = vsubst (nn5, x5,  n6, vb6);
+      match { .nnN, .xN } = vsubst (nn6, x6,  nN, vbN);
 
-      let n  = nn7;
-      let vb = x7;
-      
-      f_vb.enq (tuple2 (n, vb));
+      f_vb.enq (tuple2 (nnN, xN));
    endrule
 
    rule rl_log_trace_RET (rg_reset_done && (f_trace_data.first.op == TRACE_RET));
       let td <- pop (f_trace_data);
 
-      // Encode the td into a Byte Vec
-      Vector #(1, Byte) vb_first = replicate (te_op_begin_group);
+      // Encode components of td into byte vecs
+      match { .n0, .vb0 } = encode_byte (te_op_begin_group);
       match { .n1, .vb1 } = encode_reg (fv_csr_regnum (csr_addr_dpc), td.pc);
       match { .n2, .vb2 } = encode_instr (td.instr_sz, td.instr);
       match { .n3, .vb3 } = encode_priv (td.rd);
       match { .n4, .vb4 } = encode_reg (fv_csr_regnum (csr_addr_mstatus), td.word1);
-      Vector #(1, Byte) vb_last = replicate (te_op_end_group);
+      match { .nN, .vbN } = encode_byte (te_op_end_group);
 
-      match { .nn0, .x0 } = vsubst ( ?,   0,  vb_first, 1);
-      match { .nn1, .x1 } = vsubst (x0, nn0,  vb1, n1);
-      match { .nn2, .x2 } = vsubst (x1, nn1,  vb2, n2);
-      match { .nn3, .x3 } = vsubst (x2, nn2,  vb3, n3);
-      match { .nn4, .x4 } = vsubst (x3, nn3,  vb4, n4);
-      match { .nn5, .x5 } = vsubst (x4, nn4,  vb_last, 1);
+      // Concatenate components into a single byte vec
+      match { .nn0, .x0 } = vsubst (  0,  ?,  n0, vb0);
+      match { .nn1, .x1 } = vsubst (nn0, x0,  n1, vb1);
+      match { .nn2, .x2 } = vsubst (nn1, x1,  n2, vb2);
+      match { .nn3, .x3 } = vsubst (nn2, x2,  n3, vb3);
+      match { .nn4, .x4 } = vsubst (nn3, x3,  n4, vb4);
+      match { .nnN, .xN } = vsubst (nn4, x4,  nN, vbN);
 
-      let n  = nn5;
-      let vb = x5;
-      
-      f_vb.enq (tuple2 (n, vb));
+      f_vb.enq (tuple2 (nnN, xN));
    endrule
 
    // ----------------------------------------------------------------
@@ -390,8 +436,8 @@ Bit #(8) te_op_incr_reg_OR     = 6;
 Bit #(8) te_op_microarch_state = 7;
 Bit #(8) te_op_mem_req         = 8;
 Bit #(8) te_op_mem_rsp         = 9;
-Bit #(8) te_op_mem_hart_reset  = 10;
-Bit #(8) te_op_mem_state_init  = 11;
+Bit #(8) te_op_hart_reset      = 10;
+Bit #(8) te_op_state_init      = 11;
 Bit #(8) te_op_16b_instr       = 16;
 Bit #(8) te_op_32b_instr       = 17;
 
@@ -413,7 +459,7 @@ Bit #(4) te_mem_req_op_AMO_min    = 9;
 Bit #(4) te_mem_req_op_AMO_max    = 10;
 Bit #(4) te_mem_req_op_AMO_minu   = 11;
 Bit #(4) te_mem_req_op_AMO_maxu   = 12;
-Bit #(4) te_mem_req_op_AMO_ifetch = 13;
+Bit #(4) te_mem_req_op_ifetch     = 13;
 
 Bit #(4) te_mem_result_success    = 0;
 Bit #(4) te_mem_result_failure    = 1;
@@ -452,8 +498,8 @@ endfunction
 
 function Tuple2 #(Bit #(32),
 		  Vector #(TV_VB_SIZE, Byte))
-   vsubst (Vector #(TV_VB_SIZE, Byte) vb1, Bit #(32) j1,
-	   Vector #(m, Byte)     vb2, Bit #(32) j2);
+   vsubst (Bit #(32) j1, Vector #(TV_VB_SIZE, Byte) vb1,
+	   Bit #(32) j2, Vector #(m, Byte)          vb2);
 
    function Byte f (Integer j);
       Byte      x  = vb1 [j];
@@ -463,11 +509,23 @@ function Tuple2 #(Bit #(32),
       return x;
    endfunction
 
-   return tuple2 (j1 + j2, genWith (f));
+   let v = genWith (f);
+   let n = j1 + j2;
+
+   return tuple2 (n, v);
 endfunction
 
 // ================================================================
 // Encoding of Trace_Data into byte vectors
+// Every function below returns:
+//     (n, vb) :: Tuple2 #(Bit #(32), Vector #(TV_VB_SIZE, Byte))
+// where vb is a vector of bytes with relevant bytes in vb[0]..vb[n-1]
+
+// ================================================================
+
+function Tuple2 #(Bit #(32), Vector #(TV_VB_SIZE, Byte)) encode_byte (Byte x);
+   return tuple2 (1, replicate (x));
+endfunction
 
 function Tuple2 #(Bit #(32), Vector #(TV_VB_SIZE, Byte)) encode_instr (ISize isize, Bit #(32) instr);
 
@@ -527,6 +585,28 @@ function Tuple2 #(Bit #(32), Vector #(TV_VB_SIZE, Byte)) encode_eaddr (WordXL wo
    vb [8] = word [55:48];
    vb [9] = word [63:56];
    n = 10;
+`endif
+   return tuple2 (n, vb);
+endfunction
+
+function Tuple2 #(Bit #(32), Vector #(TV_VB_SIZE, Byte)) encode_paddr (Bit #(64) word);
+   Vector #(TV_VB_SIZE, Byte) vb = newVector;
+   Bit #(32)            n;
+   vb [0] = word[7:0];
+   vb [1] = word [15:8];
+   vb [2] = word [23:16];
+   vb [3] = word [31:24];
+   vb [4] = word [39:32];
+   vb [5] = word [47:40];
+   vb [6] = word [55:48];
+   vb [7] = word [63:56];
+`ifdef RV32
+   n = 4;    // MLEN = 32
+`ifdef SV32
+   n = 5;    // MLEN = 34
+`endif
+`else
+   n = 8;    // MLEN = 64
 `endif
    return tuple2 (n, vb);
 endfunction

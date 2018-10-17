@@ -23,10 +23,12 @@ all: gen_RTL  mkSim
 # ----------------
 # Search path for bsc for .bsv files
 
-REPO = ../..
+REPO ?= ../..
 
 CORE_DIRS = $(REPO)/src_Core/ISA:$(REPO)/src_Core/RegFiles:$(REPO)/src_Core/Core:$(REPO)/src_Core/Near_Mem_VM:$(REPO)/src_Core/BSV_Additional_Libs
+
 TESTBENCH_DIRS  = $(REPO)/src_Testbench/Top:$(REPO)/src_Testbench/SoC:$(REPO)/src_Testbench/Fabrics/AXI4_Lite
+
 BSC_PATH = -p $(CORE_DIRS):$(TESTBENCH_DIRS):+
 
 # ----------------
@@ -78,7 +80,7 @@ VERILATOR_FLAGS = --stats -O3 -CFLAGS -O3 -LDFLAGS -static --x-assign fast --x-i
 # VERILATOR_FLAGS += --trace  --trace-depth 2  -CFLAGS -DVM_TRACE
 
 VTOP                = V$(TOPMODULE)_edited
-VERILATOR_RESOURCES = ../Resources/Verilator_resources
+VERILATOR_RESOURCES = $(REPO)/builds/Resources/Verilator_resources
 
 .PHONY: mkSim
 mkSim:

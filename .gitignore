@@ -9,4 +9,5 @@ elf_to_hex
 Mem.hex
 exe*
 *.log
+Tests/Logs
 *_edited.v

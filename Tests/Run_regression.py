@@ -3,28 +3,34 @@
 # Copyright (c) 2018 Bluespec, Inc.
 # See LICENSE for license details
 
-usage_line = \
-"Usage:\n" \
-"    $ CMD    <simulation_executable>  <root-dir-for-ISA-tests>  <logs_dir>  <optional_verbosity>\n"
+usage_line = (
+    "  Usage:\n"
+    "    $ CMD    <simulation_executable>  <root-dir-for-ISA-tests>  <logs_dir>  <opt arch>  <opt verbosity>\n"
+)
 
-help_lines = \
-"  Runs the RISC-V simulation executable with ELF files from root-dir and its sub-directories.\n" \
-"  Runs it only on those ELF files that are relevant to the architecture implemented by the simulator.\n" \
-"      The architecture must be somewhere in the simulation executable pathname (see example below).\n" \
-"  For each ELF file FOO, saves simulation output in <logs_dir>/FOO.log. \n" \
-"  The optional verbosity flag is:\n" \
-"      v1:    Print instruction trace during simulation\n" \
-"      v2:    Print pipeline stage state during simulation\n" \
-"\n" \
-"  Example:\n" \
-"      $ CMD ../builds/RV32IMU_verilator/exe_HW_sim  ./isa  ./Logs  v1\n" \
-"    will run the verilator simulation executable on the following RISC-V ISA tests:\n" \
-"            isa/rv32ui-p*\n"    \
-"            isa/rv32mi-p*\n"    \
-"            isa/rv32um-p*\n"    \
-"    which are relevant for architecture RV32IMU (taken from the simulation executable path)\n" \
-"    and will leave a transcript of each test's simulation output in files like ./Logs/rv32ui-p-add.log\n" \
-"    Each log will contain an instruction trace (because of the 'v1' arg).\n"
+help_lines = (
+    "  Runs the RISC-V simulation executable on ELF files taken from root-dir and its sub-directories.\n"
+    "\n"
+    "  Runs it only on those ELF files that are relevant to an architecture.\n"
+    "    If <opt arch> is given, that is the architecture.\n"
+    "    Otherwise, the archictecture must be in the simulation executable pathname (see example below).\n"
+    "\n"
+    "  For each ELF file FOO, saves simulation output in <logs_dir>/FOO.log. \n"
+    "\n"
+    "  If <opt verbosity> is given, it must be one of the following:\n"
+    "      v1:    Print instruction trace during simulation\n"
+    "      v2:    Print pipeline stage state during simulation\n"
+    "\n"
+    "  Example:\n"
+    "      $ CMD ../builds/RV32IMU_verilator/exe_HW_sim  ./isa  ./Logs  v1\n"
+    "    will run the verilator simulation executable on the following RISC-V ISA tests:\n"
+    "            isa/rv32ui-p*\n"
+    "            isa/rv32mi-p*\n"
+    "            isa/rv32um-p*\n"
+    "    which are relevant for architecture RV32IMU (taken from the simulation executable path)\n"
+    "    and will leave a transcript of each test's simulation output in files like ./Logs/rv32ui-p-add.log\n"
+    "    Each log will contain an instruction trace (because of the 'v1' arg).\n"
+)
 
 import sys
 import os
@@ -44,7 +50,7 @@ def main (argv = None):
     print ("Use flag --help  or --h for a help message")
     if ((len (argv) <= 1) or
         (argv [1] == '-h') or (argv [1] == '--help') or
-        ((len (argv) != 4) and (len (argv) != 5))):
+        (len (argv) < 4)):
 
         sys.stdout.write (usage_line.replace ("CMD", argv [0]))
         sys.stdout.write ("\n")
@@ -58,7 +64,24 @@ def main (argv = None):
         sys.stderr.write ("    Simulation path: " + sim_path + "\n")
         sys.exit (1)
 
-    arch_string = extract_arch_string (sim_path)
+    # Get the architecture string from optional argument or else from sim executable path
+    arch_string = None
+    for arg in argv [4:]:
+        if arg.startswith ("RV"):
+            sys.stdout.write ("Taking architecture string from command-line arg {0}\n".format (arg))
+            arch_string = extract_arch_string (arg)
+    if arch_string == None:
+        sys.stdout.write ("Taking architecture string from simulation-executable path\n")
+        arch_string = extract_arch_string (sim_path)
+    if (arch_string == None):
+        sys.stderr.write ("ERROR: no architecture specified?\n")
+        sys.stdout.write ("\n")
+        sys.stdout.write (usage_line.replace ("CMD", argv [0]))
+        sys.stdout.write ("\n")
+        sys.stdout.write (help_lines.replace ("CMD", argv [0]))
+        sys.stdout.write ("\n")
+        return 1
+    sys.stdout.write ("Architecture is: {0}\n".format (arch_string))
 
     test_families = select_test_families (arch_string)
     print ("Testing the following families of ISA tests")
@@ -73,15 +96,11 @@ def main (argv = None):
         os.mkdir (logs_path)
 
     verbosity = 0
-    if (len (argv) == 5):
-        if (argv [4] == "v1"):
+    for arg in argv [4:]:
+         if arg == "v1":
             verbosity = 1
-        elif (argv [4] == "v2"):
+         elif arg == "v2":
             verbosity = 2
-        else:
-            sys.stdout.write ("Unknown command-line argument: {0}\n".format (argv [4]))
-            print ("Use flag --help  or --h for a help message")
-            return -1
 
     # Perform the recursive traversal
     max_level = 20
@@ -93,24 +112,24 @@ def main (argv = None):
 
 
 # ================================================================
-# Extract the architecture string (e.g., RV64AIMSU) from the simulation path
+# Extract the architecture string (e.g., RV64AIMSU) from the string s
 
-def extract_arch_string (sim_path):
-    s = sim_path.upper()
-    j_rv32 = s.find ("RV32")
-    j_rv64 = s.find ("RV64")
+def extract_arch_string (s):
+    s1     = s.upper()
+    j_rv32 = s1.find ("RV32")
+    j_rv64 = s1.find ("RV64")
 
     if (j_rv32 >= 0):
         j = j_rv32
     elif (j_rv64 >= 0):
         j = j_rv64
     else:
-        sys.stderr.write ("ERROR: cannot find architecture string beginning with RV32 or RV64 in simulator path\n")
-        sys.stderr.write ("    Simulator path: " + s + "\n")
+        sys.stderr.write ("ERROR: cannot find architecture string beginning with RV32 or RV64 in: \n")
+        sys.stderr.write ("    '" + s + "'\n")
         sys.exit (1)
 
     k = j + 4
-    rv = s [j:k]
+    rv = s1 [j:k]
 
     extns = ""
     while (k < len (s)):
@@ -120,7 +139,6 @@ def extract_arch_string (sim_path):
         k     = k + 1
 
     arch = rv + extns
-    sys.stdout.write ("Architecture is: {0}\n".format (arch))
     return arch
 
 # ================================================================

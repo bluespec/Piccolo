@@ -6,7 +6,7 @@
 # Regression: run all ISA tests relevant for the chosen simulator
 
 # ----------------
-# Choose an architecture simulator
+# Choose a prefix for the simulation executable dir
 
 ARCH ?= RV32IMU
 # ARCH ?= RV32AIMU
@@ -20,6 +20,12 @@ SIM ?= Bluesim
 # SIM ?= verilator
 
 # ----------------
+# Optionally choose an architecture explicitly,
+# overriding the simulation executable path
+
+OPTARCH ?=
+
+# ----------------
 SIM_DIR = ../builds/$(ARCH)_$(SIM)
 
 # ================================================================
@@ -29,7 +35,7 @@ test:
 	@echo "Running regressions; saving logs in Logs/"
 	./Run_regression.py \
 		$(SIM_DIR)/exe_HW_sim \
-		./isa  ./Logs
+		./isa  ./Logs  $(OPTARCH)
 	@echo "Finished running regressions; saved logs in Logs/"
 
 # ================================================================
