@@ -53,9 +53,8 @@ interface CSR_RegFile_IFC;
    (* always_ready *)
    method ActionValue #(Maybe #(Word)) mav_read_csr (CSR_Addr csr_addr);
 
-   // CSR write
    (* always_ready *)
-   method Action write_csr (CSR_Addr csr_addr, Word word);
+   method ActionValue #(WordXL) mav_csr_write (CSR_Addr csr_addr, WordXL word);
 
    // Read MISA
    (* always_ready *)
@@ -666,9 +665,11 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
    // ----------------------------------------------------------------
    // CSR writes
 
-   function Action fav_write_csr (CSR_Addr csr_addr, WordXL wordxl);
-      action
-	 Bool success = True;
+   function ActionValue #(WordXL) fav_csr_write (CSR_Addr csr_addr, WordXL wordxl);
+      actionvalue
+	 Bool    success = True;
+	 WordXL  result  = 0;
+
 	 if ((csr_mhpmcounter3 <= csr_addr) && (csr_addr <= csr_mhpmcounter31))
 	    noAction;
 `ifdef RV32
@@ -681,32 +682,75 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
 	    case (csr_addr)
 	       // User mode csrs
 `ifdef ISA_FD
-	       csr_fflags:     rg_fflags <= wordxl [4:0];
-	       csr_frm:        rg_frm    <= wordxl [7:5];
+	       csr_fflags:     begin
+				  result     = zeroExtend (wordxl [4:0]);
+				  rg_fflags <= wordxl [4:0];
+			       end
+	       csr_frm:        begin
+				  result  = zeroExtend (wordxl [2:0]);
+				  rg_frm <= wordxl [2:0];
+			       end
 	       csr_fcsr:       begin
+				  result     = zeroExtend (wordxl [7:0]);
 				  rg_fflags <= wordxl [4:0];
 				  rg_frm    <= wordxl [7:5];
 			       end
 `endif
 
 `ifdef ISA_PRIV_S
-	       csr_addr_sstatus: csr_mstatus.fa_sstatus_write (misa, wordxl);
+	       csr_addr_sstatus: begin
+				    result <- csr_mstatus.fav_sstatus_write (misa, wordxl);
+				 end
 	       csr_sedeleg:    noAction;               // Hardwired to 0 (no delegation)
 	       csr_sideleg:    noAction;               // Hardwired to 0 (no delegation)
-	       csr_sie:        rg_mie        <= word_to_sie (wordxl, rg_mie, rg_mideleg);
-	       csr_stvec:      rg_stvec      <= word_to_mtvec (wordxl);
+	       csr_sie:        begin
+				  let sie = word_to_sie (wordxl, rg_mie, rg_mideleg);
+				  result  = sie_to_word (sie, rg_mideleg);
+				  rg_mie <= sie;
+			       end
+	       csr_stvec:      begin
+				  let mtvec = word_to_mtvec (wordxl);
+				  result    = mtvec_to_word (mtvec);
+				  rg_stvec <= mtvec;
+			       end
 	       csr_scounteren: noAction;
 
-	       csr_sscratch:   rg_sscratch <= wordxl;
-	       csr_sepc:       rg_sepc     <= wordxl;
-	       csr_scause:     rg_scause   <= word_to_mcause (wordxl);
-	       csr_stval:      rg_stval    <= wordxl;
-	       csr_sip:        rg_mip      <= word_to_sip (wordxl, rg_mip, rg_mideleg);
+	       csr_sscratch:   begin
+				  result       = wordxl;
+				  rg_sscratch <= result;
+			       end
+	       csr_sepc:       begin
+				  result       = wordxl;
+				  rg_sepc     <= result;
+			       end
+	       csr_scause:     begin
+				  let mcause   = word_to_mcause (wordxl);
+				  result       = mcause_to_word (mcause);
+				  rg_scause   <= mcause;
+			       end
+	       csr_stval:      begin
+				  result    = wordxl;
+				  rg_stval <= result;
+			       end
+	       csr_sip:        begin
+				  let sip = word_to_sip (wordxl, rg_mip, rg_mideleg);
+				  result  = sip_to_word (sip, rg_mideleg);
+				  rg_mip <= sip;
+			       end
 
-	       csr_satp:       rg_satp <= wordxl;
+	       csr_satp:       begin
+				  result   = wordxl;
+				  rg_satp <= result;
+			       end
 
-	       csr_medeleg:    rg_medeleg <= (truncate (wordxl) & 'h_B3FF);  // 16 bits relevant and some are 0
-	       csr_mideleg:    rg_mideleg <= (truncate (wordxl) & 'h_0FFF);  // 12 bits relevant
+	       csr_medeleg:    begin
+				  result      = (wordxl & 'h_B3FF);  // 16 bits relevant and some are 0
+				  rg_medeleg <= truncate (result);
+			       end
+	       csr_mideleg:    begin
+				  result      = (wordxl & 'h_0FFF);  // 12 bits relevant
+				  rg_mideleg <= truncate (result);
+			       end
 `endif
 
 	       // Machine mode
@@ -715,17 +759,48 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
 	       csr_mimpid:    noAction;
 	       csr_mhartid:   noAction;
 
-	       csr_addr_mstatus: csr_mstatus.fa_write (misa, wordxl);
+	       csr_addr_mstatus: begin
+				    result <- csr_mstatus.fav_write (misa, wordxl);
+				 end
 	       csr_misa:      noAction;
-	       csr_mie:       rg_mie        <= word_to_mie (wordxl);
-	       csr_mtvec:     rg_mtvec      <= word_to_mtvec (wordxl);
-	       csr_mcounteren:rg_mcounteren <= word_to_mcounteren(wordxl);
+	       csr_mie:       begin
+				 let mie = word_to_mie (wordxl);
+				 result  = mie_to_word (mie);
+				 rg_mie <= mie;
+			      end
+	       csr_mtvec:     begin
+				 let mtvec = word_to_mtvec (wordxl);
+				 result    = mtvec_to_word (mtvec);
+				 rg_mtvec <= mtvec;
+			      end
+	       csr_mcounteren: begin
+				  let mcounteren = word_to_mcounteren(wordxl);
+				  result         = mcounteren_to_word (mcounteren);
+				  rg_mcounteren <= mcounteren;
+			       end
 
-	       csr_mscratch:  rg_mscratch <= wordxl;
-	       csr_mepc:      rg_mepc     <= wordxl;
-	       csr_mcause:    rg_mcause   <= word_to_mcause (wordxl);
-	       csr_mtval:     rg_mtval    <= wordxl;
-	       csr_mip:       rg_mip      <= word_to_mip (wordxl, rg_mip);
+	       csr_mscratch:  begin
+				 result       = wordxl;
+				 rg_mscratch <= result;
+			      end
+	       csr_mepc:      begin
+				 result   = wordxl;
+				 rg_mepc <= result;
+			      end
+	       csr_mcause:    begin
+				 let mcause = word_to_mcause (wordxl);
+				 result     = mcause_to_word (mcause);
+				 rg_mcause <= mcause;
+			      end
+	       csr_mtval:     begin
+				 result    = wordxl;
+				 rg_mtval <= result;
+			      end
+	       csr_mip:       begin
+				 let mip = word_to_mip (wordxl, rg_mip);
+				 result  = mip_to_word (mip);
+				 rg_mip <= mip;
+			      end
 
 	       // TODO: PMPs
 	       // csr_pmpcfg0:   rf_pmpcfg.upd (0, wordxl);
@@ -751,33 +826,75 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
 	       // csr_pmpaddr15: vrg_pmpaddr [15] <= wordxl;
 
 `ifdef RV32
-	       csr_mcycle:    rw_mcycle.wset   ({ rg_mcycle   [63:32], wordxl });
-	       csr_minstret:  rw_minstret.wset ({ rg_minstret [63:32], wordxl });
-	       csr_mcycleh:   rw_mcycle.wset   ({ wordxl, rg_mcycle   [31:0] });
-	       csr_minstreth: rw_minstret.wset ({ wordxl, rg_minstret [31:0] });
+	       csr_mcycle:    begin
+				 result = wordxl;
+				 rw_mcycle.wset   ({ rg_mcycle   [63:32], wordxl });
+			      end
+	       csr_minstret:  begin
+				 result = wordxl;
+				 rw_minstret.wset ({ rg_minstret [63:32], wordxl });
+			      end
+	       csr_mcycleh:   begin
+				 result = wordxl;
+				 rw_mcycle.wset   ({ wordxl, rg_mcycle   [31:0] });
+			      end
+	       csr_minstreth: begin
+				 result = wordxl
+				 rw_minstret.wset ({ wordxl, rg_minstret [31:0] });
+			      end
 `else
-	       csr_mcycle:    rw_mcycle.wset   (wordxl);
-	       csr_minstret:  rw_minstret.wset (wordxl);
+	       csr_mcycle:    begin
+				 result = wordxl;
+				 rw_mcycle.wset (result);
+			      end
+	       csr_minstret:  begin
+				 result = wordxl;
+				 rw_minstret.wset (result);
+			      end
 `endif
 
-	       csr_addr_tselect:  rg_tselect <= wordxl;
-	       csr_addr_tdata1:   rg_tdata1  <= wordxl;
-	       csr_addr_tdata2:   rg_tdata2  <= wordxl;
-	       csr_addr_tdata3:   rg_tdata3  <= wordxl;
+	       csr_addr_tselect:  begin
+				     result      = wordxl;
+				     rg_tselect <= result;
+				  end
+	       csr_addr_tdata1:   begin
+				     result     = wordxl;
+				     rg_tdata1 <= result;
+				  end
+	       csr_addr_tdata2:   begin
+				     result     = wordxl;
+				     rg_tdata2 <= result;
+				  end
+	       csr_addr_tdata3:   begin
+				     result     = wordxl;
+				     rg_tdata3 <= result;
+				  end
 
 `ifdef INCLUDE_GDB_CONTROL
-	       csr_addr_dcsr:       rg_dcsr <= zeroExtend ({// xdebugver: read-only
-							    rg_dcsr [31:28],
-							    // ebreakm/s/u, stepie, stopcount, stoptime
-							    wordxl [27:9],
-							    // cause: read-only
-							    rg_dcsr [8:6],
-							    // step, prv
-							    wordxl [5:0]}
-							   );
-	       csr_addr_dpc:        rg_dpc  <= wordxl;
-	       csr_addr_dscratch0:  rg_dscratch0  <= wordxl;
-	       csr_addr_dscratch1:  rg_dscratch1  <= wordxl;
+	       csr_addr_dcsr:       begin
+				       result = zeroExtend ({// xdebugver: read-only
+							     rg_dcsr [31:28],
+							     // ebreakm/s/u, stepie, stopcount, stoptime
+							     wordxl [27:9],
+							     // cause: read-only
+							     rg_dcsr [8:6],
+							     // step, prv
+							     wordxl [5:0]}
+							    );
+				       rg_dcsr <= result;
+				    end
+	       csr_addr_dpc:        begin
+				       result  = wordxl;
+				       rg_dpc <= result;
+				    end
+	       csr_addr_dscratch0:  begin
+				       result        = wordxl;
+				       rg_dscratch0 <= result;
+				    end
+	       csr_addr_dscratch1:  begin
+				       result        = wordxl;
+				       rg_dscratch1 <= result;
+				    end
 `endif
 
 	       default:       success = False;
@@ -786,7 +903,9 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
 	 if ((! success) && (cfg_verbosity > 1))
 	    $display ("%0d: ERROR: CSR-write addr 0x%0h val 0x%0h not successful", rg_mcycle,
 		      csr_addr, wordxl);
-      endaction
+
+	 return result;
+      endactionvalue
    endfunction
 
    // Access permission
@@ -811,7 +930,7 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
    // Interrupt requests
 
    (* execution_order = "read_csr,  rl_record_external_interrupt" *)
-   (* execution_order = "write_csr, rl_record_external_interrupt" *)
+   (* execution_order = "mav_csr_write, rl_record_external_interrupt" *)
    rule rl_record_external_interrupt;
       let ei_req <- pop (f_ei_reqs);
 
@@ -832,7 +951,7 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
    endrule
 
    (* execution_order = "read_csr,  rl_record_timer_interrupt_req" *)
-   (* execution_order = "write_csr, rl_record_timer_interrupt_req" *)
+   (* execution_order = "mav_csr_write, rl_record_timer_interrupt_req" *)
    rule rl_record_timer_interrupt_req;
       let ti_req <- pop (f_ti_reqs);
 
@@ -853,7 +972,7 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
    endrule
 
    (* execution_order = "read_csr,  rl_record_software_interrupt" *)
-   (* execution_order = "write_csr, rl_record_software_interrupt" *)
+   (* execution_order = "mav_csr_write, rl_record_software_interrupt" *)
    rule rl_record_software_interrupt;
       let si_req <- pop (f_si_reqs);
 
@@ -937,8 +1056,9 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
    endmethod
 
    // CSR write
-   method Action write_csr (CSR_Addr csr_addr, Word word);
-      fav_write_csr (csr_addr, word);
+   method ActionValue #(WordXL) mav_csr_write (CSR_Addr csr_addr, WordXL word);
+      let result <- fav_csr_write (csr_addr, word);
+      return result;
    endmethod
 
    // Read MISA
@@ -1089,25 +1209,6 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
    method Bool access_permitted_2 (Priv_Mode  priv, CSR_Addr  csr_addr,  Bool read_not_write);
       return fv_access_permitted (priv, csr_addr, read_not_write);
    endmethod
-
-   /*
-   method Bool access_permitted (Priv_Mode  priv, CSR_Addr  csr_addr,  Bool read_not_write);
-      Bool exists  = fv_csr_exists (csr_addr);    // Is this CSR implemented?
-
-      Bool priv_ok = priv >= csr_addr [9:8];      // Accessible at current privilege?
-
-      // TVM fault: cannot access SATP if MSTATUS.TVM is set
-      Bool tvm_fault = ((csr_addr == csr_satp) && (csr_mstatus.fv_read [mstatus_tvm_bitpos] == 1'b1));
-
-      // TODO: MxDELEG fault: MIDELEG and MEDELEG do not exist in
-      //     systems with only m_Priv and systems with m_Priv and u_Priv but
-      //     without support for U-mode traps
-
-      Bool rw_ok = (read_not_write || (csr_addr [11:10] != 2'b11));
-
-      return (exists && priv_ok && (! tvm_fault) && rw_ok);
-   endmethod      
-   */
 
    // Fault on reading counters?
    method Bool csr_counter_read_fault (Priv_Mode  priv, CSR_Addr  csr_addr);

@@ -671,9 +671,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 	 gpr_regfile.write_rd (rd, new_rd_val);
 
 	 // Writeback to CSR file
-	 // TODO: should become an actionvalue returning the actual written value as new_csr_val
-	 csr_regfile.write_csr (csr_addr, rs1_val);
-	 let new_csr_val = rs1_val;
+	 let new_csr_val <- csr_regfile.mav_csr_write (csr_addr, rs1_val);
 
 	 // Accounting
 	 csr_regfile.csr_minstret_incr;
@@ -748,13 +746,14 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 	 gpr_regfile.write_rd (rd, new_rd_val);
 
 	 // Writeback to CSR file, but only if rs1 != 0
-	 // TODO: should be an actionvalue returning the actual written value as new_csr_val2
 	 let x = (  ((funct3 == f3_CSRRS) || (funct3 == f3_CSRRSI))
 		  ? (csr_val | rs1_val)                // CSRRS, CSRRSI
 		  : csr_val & (~ rs1_val));            // CSRRC, CSRRCI
-	 if (rs1 != 0)
-	    csr_regfile.write_csr (csr_addr, x);
-	 let new_csr_val = x;
+
+	 WordXL new_csr_val = ?;
+	 if (rs1 != 0) begin
+	    new_csr_val <- csr_regfile.mav_csr_write (csr_addr, x);
+	 end
 
 	 // Accounting
 	 csr_regfile.csr_minstret_incr;
@@ -1371,9 +1370,9 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
       let req <- pop (f_csr_reqs);
       Bit #(12) csr_addr = req.address;
       let data = req.data;
-      csr_regfile.write_csr (csr_addr, data);
+      let new_csr_val <- csr_regfile.mav_csr_write (csr_addr, data);
       if (cur_verbosity > 1)
-	 $display ("%0d: CPU.rl_debug_write_csr: Write csr %0d => 0x%0h", mcycle, csr_addr, data);
+	 $display ("%0d: CPU.rl_debug_write_csr: Write csr 0x%0h 0x%0h => 0x%0h", mcycle, csr_addr, data, new_csr_val);
    endrule
 `endif
 
