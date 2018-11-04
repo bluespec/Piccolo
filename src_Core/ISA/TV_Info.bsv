@@ -201,7 +201,7 @@ endfunction
 // op    pc    instr_sz    instr    rd    word1    word2    word3    word4
 // x     x     x           x        x     rdval    stval    eaddr
 function Trace_Data mkTrace_AMO (WordXL pc, ISize isize, Bit #(32) instr,
-				    RegName rd, WordXL rdval, WordXL stval, WordXL eaddr);
+				 RegName rd, WordXL rdval, WordXL stval, WordXL eaddr);
    Trace_Data td = ?;
    td.op       = TRACE_AMO;
    td.pc       = pc;

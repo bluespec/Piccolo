@@ -824,12 +824,9 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 
 `ifdef INCLUDE_TANDEM_VERIF
       // Trace data
-      let trace_data = stage1.out.data_to_stage2.trace_data;
-      trace_data.op = TRACE_RET;
-      // trace_data.pc, instr_sz, instr    should already be set
-      trace_data.rd    = zeroExtend (new_priv);
-      trace_data.word1 = new_mstatus;
-      f_trace_data.enq (trace_data);
+      let td  = stage1.out.data_to_stage2.trace_data;
+      let td1 = mkTrace_RET (next_pc, td.instr_sz, td.instr, new_priv, new_mstatus);
+      f_trace_data.enq (td1);
 `endif
 
       // Debug
@@ -852,6 +849,14 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
       rg_state <= CPU_FENCE_I;
       near_mem.server_fence_i.request.put (?);
 
+`ifdef INCLUDE_TANDEM_VERIF
+      // Trace data
+      let trace_data = stage1.out.data_to_stage2.trace_data;
+      f_trace_data.enq (trace_data);
+`endif
+
+      // Debug
+      fa_emit_instr_trace (minstret, stage1.out.data_to_stage2.pc, stage1.out.data_to_stage2.instr, rg_cur_priv);
       if (cur_verbosity > 1)
 	 $display ("%0d: CPU.rl_stage1_FENCE_I", mcycle);
    endrule
@@ -870,14 +875,6 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
       // Accounting
       csr_regfile.csr_minstret_incr;
 
-`ifdef INCLUDE_TANDEM_VERIF
-      // Trace data
-      let trace_data = stage1.out.data_to_stage2.trace_data;
-      f_trace_data.enq (trace_data);
-`endif
-
-      // Debug
-      fa_emit_instr_trace (minstret, stage1.out.data_to_stage2.pc, stage1.out.data_to_stage2.instr, rg_cur_priv);
       if (cur_verbosity > 1)
 	 $display ("    CPU.rl_finish_FENCE_I");
    endrule: rl_finish_FENCE_I
