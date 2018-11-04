@@ -178,11 +178,15 @@ module mkCPU_Stage1 #(Bit #(4)         verbosity,
 			? OSTATUS_PIPE
 			: OSTATUS_NONPIPE);
 
+	 // Compute MTVAL in case of traps
 	 let tval = 0;
 	 if (alu_outputs.exc_code == exc_code_ILLEGAL_INSTRUCTION)
-	    tval = zeroExtend (instr);
+	    tval = zeroExtend (instr);  // The instruction
 	 else if (alu_outputs.exc_code == exc_code_INSTR_ADDR_MISALIGNED)
-	    tval = alu_outputs.addr;    // branch target pc
+	    tval = alu_outputs.addr;    // The branch target pc
+	 else if (alu_outputs.exc_code == exc_code_BREAKPOINT)
+	    tval = pc;                  // The faulting virtual address
+
 	 let trap_info = Trap_Info {epc:      pc,
 				    exc_code: alu_outputs.exc_code,
 				    tval:     tval};

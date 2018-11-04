@@ -240,6 +240,10 @@ def do_regular_file_function (level, dirname, basename, sim_path, test_families,
         # print ("Ignoring file: " + full_filename)
         return
 
+    # TEMPORARY FILTER WHILE DEBUGGING:
+    # if basename.find ("rv64si-p-csr") == -1: return
+    # sys.stdout.write ("WARNING: TEMPORARY FILTER IN EFFECT; REMOVE AFTER DEBUGGING\n")
+
     # For debugging only
     # prefix = ""
     # for j in range (level): prefix = "  " + prefix

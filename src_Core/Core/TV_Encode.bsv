@@ -332,21 +332,44 @@ module mkTV_Encode (TV_Encode_IFC);
    rule rl_log_trace_TRAP (rg_reset_done && (f_trace_data.first.op == TRACE_TRAP));
       let td <- pop (f_trace_data);
 
+      // Use new priv mode to decide which trap regs are updated (M, S or U priv)
+      Priv_Mode priv            = truncate (td.rd);
+      CSR_Addr  csr_addr_status = csr_addr_mstatus;
+      CSR_Addr  csr_addr_cause  = csr_addr_mcause;
+      CSR_Addr  csr_addr_epc    = csr_addr_mepc;
+      CSR_Addr  csr_addr_tval   = csr_addr_mtval;
+      if (priv == s_Priv_Mode) begin
+	 csr_addr_status = csr_addr_sstatus;
+	 csr_addr_cause  = csr_addr_scause;
+	 csr_addr_epc    = csr_addr_sepc;
+	 csr_addr_tval   = csr_addr_stval;
+      end
+      else if (priv == u_Priv_Mode) begin
+	 csr_addr_status = csr_addr_ustatus;
+	 csr_addr_cause  = csr_addr_ucause;
+	 csr_addr_epc    = csr_addr_uepc;
+	 csr_addr_tval   = csr_addr_utval;
+      end
+
       // Encode components of td into byte vecs
       match { .n0, .vb0 } = encode_byte (te_op_begin_group);
       match { .n1, .vb1 } = encode_reg (fv_csr_regnum (csr_addr_dpc), td.pc);
       match { .n2, .vb2 } = encode_instr (td.instr_sz, td.instr);
       match { .n3, .vb3 } = encode_priv (td.rd);
-      match { .n4, .vb4 } = encode_reg (fv_csr_regnum (csr_addr_mstatus), td.word1);
-      match { .n5, .vb5 } = encode_reg (fv_csr_regnum (csr_mcause),  td.word2);
-      match { .n6, .vb6 } = encode_reg (fv_csr_regnum (csr_mepc),    truncate (td.word3));
-      match { .n7, .vb7 } = encode_reg (fv_csr_regnum (csr_mtval),   td.word4);
+      match { .n4, .vb4 } = encode_reg (fv_csr_regnum (csr_addr_status), td.word1);
+      match { .n5, .vb5 } = encode_reg (fv_csr_regnum (csr_addr_cause),  td.word2);
+      match { .n6, .vb6 } = encode_reg (fv_csr_regnum (csr_addr_epc),    truncate (td.word3));
+      match { .n7, .vb7 } = encode_reg (fv_csr_regnum (csr_addr_tval),   td.word4);
       match { .nN, .vbN } = encode_byte (te_op_end_group);
 
+      Bool is_instr_fault = (   (truncate (td.word2) == exc_code_INSTR_ACCESS_FAULT)
+			     || (truncate (td.word2) == exc_code_INSTR_PAGE_FAULT));
+
       // Concatenate components into a single byte vec
+      // Omit the instruction if it's an instruction fault since the instruction is then bogus
       match { .nn0, .x0 } = vsubst (  0,  ?,  n0, vb0);
       match { .nn1, .x1 } = vsubst (nn0, x0,  n1, vb1);
-      match { .nn2, .x2 } = vsubst (nn1, x1,  n2, vb2);
+      match { .nn2, .x2 } = (is_instr_fault ? tuple2 (nn1, x1) : vsubst (nn1, x1,  n2, vb2));
       match { .nn3, .x3 } = vsubst (nn2, x2,  n3, vb3);
       match { .nn4, .x4 } = vsubst (nn3, x3,  n4, vb4);
       match { .nn5, .x5 } = vsubst (nn4, x4,  n5, vb5);
@@ -360,14 +383,33 @@ module mkTV_Encode (TV_Encode_IFC);
    rule rl_log_trace_INTR (rg_reset_done && (f_trace_data.first.op == TRACE_INTR));
       let td <- pop (f_trace_data);
 
+      // Use new priv mode to decide which trap regs are updated (M, S or U priv)
+      Priv_Mode priv            = truncate (td.rd);
+      CSR_Addr  csr_addr_status = csr_addr_mstatus;
+      CSR_Addr  csr_addr_cause  = csr_addr_mcause;
+      CSR_Addr  csr_addr_epc    = csr_addr_mepc;
+      CSR_Addr  csr_addr_tval   = csr_addr_mtval;
+      if (priv == s_Priv_Mode) begin
+	 csr_addr_status = csr_addr_sstatus;
+	 csr_addr_cause  = csr_addr_scause;
+	 csr_addr_epc    = csr_addr_sepc;
+	 csr_addr_tval   = csr_addr_stval;
+      end
+      else if (priv == u_Priv_Mode) begin
+	 csr_addr_status = csr_addr_ustatus;
+	 csr_addr_cause  = csr_addr_ucause;
+	 csr_addr_epc    = csr_addr_uepc;
+	 csr_addr_tval   = csr_addr_utval;
+      end
+
       // Encode components of td into byte vecs
       match { .n0, .vb0 } = encode_byte (te_op_begin_group);
       match { .n1, .vb1 } = encode_reg (fv_csr_regnum (csr_addr_dpc), td.pc);
       match { .n2, .vb2 } = encode_priv (td.rd);
-      match { .n3, .vb3 } = encode_reg (fv_csr_regnum (csr_addr_mstatus), td.word1);
-      match { .n4, .vb4 } = encode_reg (fv_csr_regnum (csr_mcause),  td.word2);
-      match { .n5, .vb5 } = encode_reg (fv_csr_regnum (csr_mepc),    truncate (td.word3));
-      match { .n6, .vb6 } = encode_reg (fv_csr_regnum (csr_mtval),   td.word4);
+      match { .n3, .vb3 } = encode_reg (fv_csr_regnum (csr_addr_status), td.word1);
+      match { .n4, .vb4 } = encode_reg (fv_csr_regnum (csr_addr_cause),  td.word2);
+      match { .n5, .vb5 } = encode_reg (fv_csr_regnum (csr_addr_epc),    truncate (td.word3));
+      match { .n6, .vb6 } = encode_reg (fv_csr_regnum (csr_addr_tval),   td.word4);
       match { .nN, .vbN } = encode_byte (te_op_end_group);
 
       // Concatenate components into a single byte vec

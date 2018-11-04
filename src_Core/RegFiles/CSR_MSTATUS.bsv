@@ -90,12 +90,12 @@ module mkCSR_MSTATUS #(MISA misa_reset_value) (CSR_MSTATUS_IFC);
    endmethod
 
    method ActionValue #(WordXL) fav_sstatus_write (MISA misa,  WordXL wordxl);
-      let wordxl1 = fv_fixup_mstatus (misa,
-				      fv_sstatus_to_mstatus (misa,
-							     rg_mstatus,
-							     wordxl));
-      rg_mstatus <= wordxl1;
-      return wordxl1;
+      let new_mstatus = fv_fixup_mstatus (misa,
+					  fv_sstatus_to_mstatus (misa,
+								 rg_mstatus,
+								 wordxl));
+      rg_mstatus <= new_mstatus;
+      return fv_mstatus_to_sstatus (new_mstatus);
    endmethod
 `endif
 
