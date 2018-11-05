@@ -60,31 +60,6 @@ function Bit #(TSub #(XLEN,5)) scause_mbz_5 (WordXL scause_val); return scause_v
 function Bit #(4) scause_exception_code (WordXL scause_val); return scause_val [3:0]; endfunction
 
 // ================================================================
-// SIP and SIE (these are restricted views of MIP and MIE)
-
-function WordXL sip_to_word (MIP sip, Bit #(12) mideleg);
-   Bit #(12) mask = 'h333 & mideleg;
-   return extend (pack (sip) & mask);
-endfunction
-
-function MIP word_to_sip (WordXL x, MIP mip, Bit #(12) mideleg);
-   Bit #(12) mask = 'h333 & mideleg;
-   Bit #(12) unchanged_bits = pack (mip) & (~ mask);
-   Bit #(12) changed_bits = truncate (x) & mask;
-   return unpack (unchanged_bits | changed_bits);
-endfunction
-
-function WordXL sie_to_word (MIE sie, Bit #(12) mideleg);
-   Bit #(12) mask = 'h333 & mideleg;
-   return extend (pack (sie) & mask);
-endfunction
-
-function MIE word_to_sie (WordXL x, MIE mie, Bit #(12) mideleg);
-   Bit #(12) mask = 'h333 & mideleg;
-   Bit #(12) unchanged_bits = pack (mie) & (~ mask);
-   Bit #(12) changed_bits = truncate (x) & mask;
-   return unpack (unchanged_bits | changed_bits);
-endfunction
 
 `ifdef ISA_PRIV_S
 // ================================================================

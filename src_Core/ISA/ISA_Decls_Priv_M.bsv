@@ -41,7 +41,7 @@ CSR_Addr   csr_addr_marchid        = 12'hF12;    // Architecture ID
 CSR_Addr   csr_addr_mimpid         = 12'hF13;    // Implementation ID
 CSR_Addr   csr_addr_mhartid        = 12'hF14;    // Hardware thread ID
 
-CSR_Addr   csr_addr_mstatus   = 12'h300;    // Machine status
+CSR_Addr   csr_addr_mstatus        = 12'h300;    // Machine status
 CSR_Addr   csr_addr_misa           = 12'h301;    // ISA and extensions
 CSR_Addr   csr_addr_medeleg        = 12'h302;    // Machine exception delegation
 CSR_Addr   csr_addr_mideleg        = 12'h303;    // Machine interrupt delegation
@@ -50,31 +50,31 @@ CSR_Addr   csr_addr_mtvec          = 12'h305;    // Machine trap handler base ad
 CSR_Addr   csr_addr_mcounteren     = 12'h306;    // Machine counter enable
 
 CSR_Addr   csr_addr_mscratch       = 12'h340;    // Scratch reg for machine trap handlers
-CSR_Addr   csr_addr_mepc      = 12'h341;    // Machine exception program counter
-CSR_Addr   csr_addr_mcause    = 12'h342;    // Machine trap cause
-CSR_Addr   csr_addr_mtval     = 12'h343;    // Machine bad address
+CSR_Addr   csr_addr_mepc           = 12'h341;    // Machine exception program counter
+CSR_Addr   csr_addr_mcause         = 12'h342;    // Machine trap cause
+CSR_Addr   csr_addr_mtval          = 12'h343;    // Machine bad address
 CSR_Addr   csr_addr_mip            = 12'h344;    // Machine interrupt pending
 
-CSR_Addr   csr_pmpcfg0        = 12'h3A0;    // PMP Config
-CSR_Addr   csr_pmpcfg1        = 12'h3A1;    // PMP Config
-CSR_Addr   csr_pmpcfg2        = 12'h3A2;    // PMP Config
-CSR_Addr   csr_pmpcfg3        = 12'h3A3;    // PMP Config
-CSR_Addr   csr_pmpaddr0       = 12'h3B0;    // PMP address register
-CSR_Addr   csr_pmpaddr1       = 12'h3B1;    // PMP address register
-CSR_Addr   csr_pmpaddr2       = 12'h3B2;    // PMP address register
-CSR_Addr   csr_pmpaddr3       = 12'h3B3;    // PMP address register
-CSR_Addr   csr_pmpaddr4       = 12'h3B4;    // PMP address register
-CSR_Addr   csr_pmpaddr5       = 12'h3B5;    // PMP address register
-CSR_Addr   csr_pmpaddr6       = 12'h3B6;    // PMP address register
-CSR_Addr   csr_pmpaddr7       = 12'h3B7;    // PMP address register
-CSR_Addr   csr_pmpaddr8       = 12'h3B8;    // PMP address register
-CSR_Addr   csr_pmpaddr9       = 12'h3B9;    // PMP address register
-CSR_Addr   csr_pmpaddr10      = 12'h3BA;    // PMP address register
-CSR_Addr   csr_pmpaddr11      = 12'h3BB;    // PMP address register
-CSR_Addr   csr_pmpaddr12      = 12'h3BC;    // PMP address register
-CSR_Addr   csr_pmpaddr13      = 12'h3BD;    // PMP address register
-CSR_Addr   csr_pmpaddr14      = 12'h3BE;    // PMP address register
-CSR_Addr   csr_pmpaddr15      = 12'h3BF;    // PMP address register
+CSR_Addr   csr_addr_pmpcfg0        = 12'h3A0;    // PMP Config
+CSR_Addr   csr_addr_pmpcfg1        = 12'h3A1;    // PMP Config
+CSR_Addr   csr_addr_pmpcfg2        = 12'h3A2;    // PMP Config
+CSR_Addr   csr_addr_pmpcfg3        = 12'h3A3;    // PMP Config
+CSR_Addr   csr_addr_pmpaddr0       = 12'h3B0;    // PMP address register
+CSR_Addr   csr_addr_pmpaddr1       = 12'h3B1;    // PMP address register
+CSR_Addr   csr_addr_pmpaddr2       = 12'h3B2;    // PMP address register
+CSR_Addr   csr_addr_pmpaddr3       = 12'h3B3;    // PMP address register
+CSR_Addr   csr_addr_pmpaddr4       = 12'h3B4;    // PMP address register
+CSR_Addr   csr_addr_pmpaddr5       = 12'h3B5;    // PMP address register
+CSR_Addr   csr_addr_pmpaddr6       = 12'h3B6;    // PMP address register
+CSR_Addr   csr_addr_pmpaddr7       = 12'h3B7;    // PMP address register
+CSR_Addr   csr_addr_pmpaddr8       = 12'h3B8;    // PMP address register
+CSR_Addr   csr_addr_pmpaddr9       = 12'h3B9;    // PMP address register
+CSR_Addr   csr_addr_pmpaddr10      = 12'h3BA;    // PMP address register
+CSR_Addr   csr_addr_pmpaddr11      = 12'h3BB;    // PMP address register
+CSR_Addr   csr_addr_pmpaddr12      = 12'h3BC;    // PMP address register
+CSR_Addr   csr_addr_pmpaddr13      = 12'h3BD;    // PMP address register
+CSR_Addr   csr_addr_pmpaddr14      = 12'h3BE;    // PMP address register
+CSR_Addr   csr_addr_pmpaddr15      = 12'h3BF;    // PMP address register
 
 CSR_Addr   csr_addr_mcycle         = 12'hB00;    // Machine cycle counter
 CSR_Addr   csr_addr_minstret       = 12'hB02;    // Machine Instructions retired counter
@@ -492,52 +492,6 @@ endfunction
 
 // ================================================================
 // MIP and MIE fields (interrupt pending, interrupt enable)
-
-typedef struct {
-   Vector #(Num_Priv_Modes, Bit #(1)) eips;
-   Vector #(Num_Priv_Modes, Bit #(1)) tips;
-   Vector #(Num_Priv_Modes, Bit #(1)) sips;
-   } MIP
-deriving (Bits, FShow);
-
-typedef struct {
-   Vector #(Num_Priv_Modes, Bit #(1)) eies;
-   Vector #(Num_Priv_Modes, Bit #(1)) ties;
-   Vector #(Num_Priv_Modes, Bit #(1)) sies;
-   } MIE
-deriving (Bits, FShow);
-
-function WordXL mip_to_word (MIP mip);
-   return extend (pack (mip));
-endfunction
-
-function MIP word_to_mip (WordXL x, MIP mip);
-   // MEIP, MTIP, and MSIP are externally controlled
-   Bit #(12) mask = 'h333;
-   Bit #(12) unchanged_bits = pack (mip) & (~ mask);
-   Bit #(12) changed_bits = truncate (x) & mask;
-   return unpack (unchanged_bits | changed_bits);
-endfunction
-
-function MIP mip_reset_value;
-   return unpack (0);
-endfunction
-
-function WordXL mie_to_word (MIE mie);
-   return extend (pack (mie));
-endfunction
-
-function MIE word_to_mie (WordXL x);
-   return MIE {
-      eies: unpack ( {x[11], 1'b0, x[9], x[8]} ),
-      ties: unpack ( {x[7] , 1'b0, x[5], x[4]} ),
-      sies: unpack ( {x[3] , 1'b0, x[1], x[0]} )
-   };
-endfunction
-
-function MIE mie_reset_value;
-   return unpack (0);
-endfunction
 
 Integer mip_usip_bitpos =  0;
 Integer mip_ssip_bitpos =  1;

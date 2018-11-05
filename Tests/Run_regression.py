@@ -241,7 +241,7 @@ def do_regular_file_function (level, dirname, basename, sim_path, test_families,
         return
 
     # TEMPORARY FILTER WHILE DEBUGGING:
-    # if basename.find ("rv64si-p-csr") == -1: return
+    # if basename.find ("rv64ui-v-add") == -1: return
     # sys.stdout.write ("WARNING: TEMPORARY FILTER IN EFFECT; REMOVE AFTER DEBUGGING\n")
 
     # For debugging only
@@ -256,7 +256,8 @@ def do_regular_file_function (level, dirname, basename, sim_path, test_families,
     if (verbosity == 1): command2.append ("+v1")
     elif (verbosity == 2): command2.append ("+v2")
 
-    sys.stdout.write ("Test {0}\n".format (basename))
+    num_executed = num_executed + 1
+    sys.stdout.write ("Test {0}: {1}\n".format (num_executed, basename))
 
     sys.stdout.write ("    Exec:")
     for x in command1:
@@ -271,7 +272,6 @@ def do_regular_file_function (level, dirname, basename, sim_path, test_families,
     # Run command as a sub-process
     completed_process1 = run_command (command1)
     completed_process2 = run_command (command2)
-    num_executed = num_executed + 1
     passed = completed_process2.stdout.find ("PASS") != -1
     if passed:
         sys.stdout.write ("    PASS")

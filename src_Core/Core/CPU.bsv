@@ -216,17 +216,15 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 `ifdef INCLUDE_TANDEM_VERIF
    FIFOF #(Trace_Data) f_trace_data  <- mkFIFOF;
 
-   // State for deciding if a MIP update needs to be sent
-   Reg #(MIP) rg_prev_mip <- mkRegU;
+   // State for deciding if a MIP update needs to be sent into the trace file
+   Reg #(WordXL) rg_prev_mip <- mkReg (0);
 `endif
 
    function Bool mip_cmd_needed ();
 `ifdef INCLUDE_TANDEM_VERIF
       // If the MTIP, MSIP, or xEIP bits of MIP have changed, then send a MIP update
-      MIP new_mip = csr_regfile.read_csr_mip;
-      Bool mip_has_changed = ((new_mip.tips[m_Priv_Mode] != rg_prev_mip.tips[m_Priv_Mode]) ||
-	                      (new_mip.sips[m_Priv_Mode] != rg_prev_mip.sips[m_Priv_Mode]) ||
-	                      (new_mip.eips              != rg_prev_mip.eips));
+      WordXL new_mip = csr_regfile.csr_mip_read;
+      Bool mip_has_changed = (new_mip != rg_prev_mip);
       return mip_has_changed;
 `else
       return False;
@@ -420,7 +418,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
       let trace_data = mkTrace_RESET;
       f_trace_data.enq (trace_data);
 
-      rg_prev_mip <= mip_reset_value;
+      rg_prev_mip <= 0;
 `endif
    endrule: rl_reset_start
 
@@ -484,14 +482,14 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 `ifdef INCLUDE_TANDEM_VERIF
    rule rl_stage1_mip_cmd (   (rg_state == CPU_RUNNING)
 			   && stage1_send_mip_cmd);
-      MIP new_mip = csr_regfile.read_csr_mip;
+      WordXL new_mip = csr_regfile.csr_mip_read;
       rg_prev_mip <= new_mip;
 
-      let trace_data = mkTrace_CSR_WRITE (csr_addr_mip, mip_to_word (new_mip));
+      let trace_data = mkTrace_CSR_WRITE (csr_addr_mip, new_mip);
       f_trace_data.enq (trace_data);
 
       if (cur_verbosity > 1)
-	 $display ("%0d: CPU.rl_stage1_mip_cmd: new MIP = ", mcycle, fshow(new_mip));
+	 $display ("%0d: CPU.rl_stage1_mip_cmd: MIP new 0x%0h, old 0x%0h", mcycle, new_mip, rg_prev_mip);
    endrule
 `endif
 
@@ -532,7 +530,8 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 
 `ifdef INCLUDE_TANDEM_VERIF
 	 // To Verifier
-	 f_trace_data.enq (stage2.out.trace_data);
+	 let trace_data = stage2.out.trace_data;
+	 f_trace_data.enq (trace_data);
 `endif
 
 	 // Increment csr_INSTRET.
@@ -982,6 +981,15 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 
       rg_state <= CPU_WFI_PAUSED;
 
+      // Accounting
+      csr_regfile.csr_minstret_incr;
+
+`ifdef INCLUDE_TANDEM_VERIF
+      // Trace data
+      let trace_data = stage1.out.data_to_stage2.trace_data;
+      f_trace_data.enq (trace_data);
+`endif
+
       // Debug
       fa_emit_instr_trace (minstret, stage1.out.data_to_stage2.pc, stage1.out.data_to_stage2.instr, rg_cur_priv);
       if (cur_verbosity > 1)
@@ -1002,16 +1010,6 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
       rg_state <= CPU_RUNNING;
       fa_start_ifetch (stage1.out.next_pc, rg_cur_priv);
       stage1.set_full (True);
-
-      // Accounting
-      csr_regfile.csr_minstret_incr;
-
-`ifdef INCLUDE_TANDEM_VERIF
-      // Trace data
-      let trace_data = stage1.out.data_to_stage2.trace_data;
-      f_trace_data.enq (trace_data);
-`endif
-
    endrule: rl_WFI_resume
 
    // ----------------
