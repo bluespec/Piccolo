@@ -161,6 +161,8 @@ endmodule: mkDM_GPR_Tap
 // ================================================================
 // DM-to-CPU FPR tap (for writes to FPRs)
 
+`ifdef ISA_F_OR_D
+
 interface DM_FPR_Tap_IFC;
    interface MemoryClient #(5, FLEN)  client;
    interface MemoryServer #(5, FLEN)  server;
@@ -197,6 +199,8 @@ module mkDM_FPR_Tap (DM_FPR_Tap_IFC);
 
    interface Get trace_data_out = toGet (f_trace_data);
 endmodule: mkDM_FPR_Tap
+
+`endif
 
 // ================================================================
 // DM-to-CPU CSR tap (for writes to CSRs)
