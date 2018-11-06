@@ -858,16 +858,16 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
 
 `ifdef INCLUDE_GDB_CONTROL
 	       csr_addr_dcsr:       begin
-				       result = zeroExtend ({// xdebugver: read-only
+				       Bit #(32) new_dcsr = {// xdebugver: read-only
 							     rg_dcsr [31:28],
 							     // ebreakm/s/u, stepie, stopcount, stoptime
 							     wordxl [27:9],
 							     // cause: read-only
 							     rg_dcsr [8:6],
 							     // step, prv
-							     wordxl [5:0]}
-							    );
-				       rg_dcsr <= result;
+							     wordxl [5:0]};
+				       result   = zeroExtend (new_dcsr);
+				       rg_dcsr <= new_dcsr;
 				    end
 	       csr_addr_dpc:        begin
 				       result  = wordxl;
