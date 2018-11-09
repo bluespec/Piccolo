@@ -271,7 +271,12 @@ module mkBRVF_Core #(parameter Bit #(64)  pc_reset_value)  (BRVF_Core_IFC);
    // ----------------
    // Optional TV interface
 
-   interface Get tv_vb_out = tv_encode.tv_vb_out;
+   interface Get tv_verifier_info_get;
+      method ActionValue #(Info_CPU_to_Verifier) get();
+         match { .n, .v } <- tv_encode.tv_vb_out.get;
+         return (Info_CPU_to_Verifier { num_bytes: n, vec_bytes: v });
+      endmethod
+   endinterface
 `endif
 
 `ifdef INCLUDE_GDB_CONTROL
