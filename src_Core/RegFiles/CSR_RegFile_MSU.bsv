@@ -826,7 +826,7 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
 				       rw_mcycle.wset   ({ wordxl, rg_mcycle   [31:0] });
 				    end
 	       csr_addr_minstreth:  begin
-				       result = wordxl
+				       result = wordxl;
 				       rw_minstret.wset ({ wordxl, rg_minstret [31:0] });
 				    end
 `else
@@ -1228,11 +1228,17 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
 
    method Action debug;
       $display ("mstatus = 0x%0h", csr_mstatus.fv_read);
+`ifdef ISA_PRIV_S
       $display ("sstatus = 0x%0h", csr_mstatus.fv_sstatus_read);
+`endif
       $display ("mip     = 0x%0h", csr_mip.fv_read);
+`ifdef ISA_PRIV_S
       $display ("sip     = 0x%0h", csr_mip.fv_sip_read);
+`endif
       $display ("mie     = 0x%0h", csr_mie.fv_read);
+`ifdef ISA_PRIV_S
       $display ("sie     = 0x%0h", csr_mie.fv_sie_read);
+`endif
    endmethod      
 endmodule
 
