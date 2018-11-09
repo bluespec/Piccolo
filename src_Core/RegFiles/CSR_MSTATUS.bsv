@@ -52,7 +52,7 @@ endinterface
 // ================================================================
 // IMPLEMENTATION
 
-(* synthesize *)
+//(* synthesize *)
 module mkCSR_MSTATUS #(parameter MISA misa_reset_value) (CSR_MSTATUS_IFC);
    
    Reg #(WordXL) rg_mstatus <- mkReg (fv_mstatus_reset_value (misa_reset_value));
