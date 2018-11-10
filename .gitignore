@@ -11,3 +11,5 @@ exe*
 *.log
 Tests/Logs
 *_edited.v
+*.trace_mem_load
+AA_*

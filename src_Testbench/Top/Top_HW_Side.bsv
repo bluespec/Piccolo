@@ -94,7 +94,9 @@ module mkTop_HW_Side (Empty) ;
 
 `ifdef INCLUDE_TANDEM_VERIF
    rule rl_tv_vb_out;
-      match { .n, .vb } <- soc_top.tv_vb_out.get;
+      let tv_info <- soc_top.tv_verifier_info_get.get;
+      let n  = tv_info.num_bytes;
+      let vb = tv_info.vec_bytes;
 
 `ifndef IVERILOG
       Bit #(32) success = 1;

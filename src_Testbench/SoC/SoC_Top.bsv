@@ -97,7 +97,7 @@ interface SoC_Top_IFC;
 
 `ifdef INCLUDE_TANDEM_VERIF
    // To tandem verifier
-   interface Get #(Tuple2 #(Bit #(32), TV_Vec_Bytes)) tv_vb_out;
+   interface Get #(Info_CPU_to_Verifier) tv_verifier_info_get;
 `endif
 
    // External real memory
@@ -351,7 +351,7 @@ module mkSoC_Top (SoC_Top_IFC);
 
 `ifdef INCLUDE_TANDEM_VERIF
    // To tandem verifier
-   interface tv_vb_out = brvf_core.tv_vb_out;
+   interface tv_verifier_info_get = brvf_core.tv_verifier_info_get;
 `endif
 
    // External real memory

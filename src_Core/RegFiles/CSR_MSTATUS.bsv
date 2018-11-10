@@ -52,7 +52,9 @@ endinterface
 // ================================================================
 // IMPLEMENTATION
 
-//(* synthesize *)
+// TODO: bsc Internal Error in Verilog gen due to parameter being an expression
+//       Uncomment next line after bsc fix
+// (* synthesize *)
 module mkCSR_MSTATUS #(parameter MISA misa_reset_value) (CSR_MSTATUS_IFC);
    
    Reg #(WordXL) rg_mstatus <- mkReg (fv_mstatus_reset_value (misa_reset_value));

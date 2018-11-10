@@ -10,14 +10,18 @@
 
 ARCH ?= RV32IMU
 # ARCH ?= RV32AIMU
-# ARCH ?= RV64AIMsU
+# ARCH ?= RV32AIMSU
+
+# ARCH ?= RV64AIMSU
 
 # ----------------
 # Choose a simulation engine
 
 SIM ?= Bluesim
+# SIM ?= Bluesim_TV
 # SIM ?= iverilog
 # SIM ?= verilator
+# SIM ?= verilator_TV
 
 # ----------------
 # Optionally choose an architecture explicitly,

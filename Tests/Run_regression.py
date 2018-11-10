@@ -229,8 +229,8 @@ def do_regular_file_function (level, dirname, basename, sim_path, test_families,
 
     full_filename = os.path.join (dirname, basename)
 
-    # Ignore filename if has .dump extension (not an ELF file)
-    if basename.find (".dump") != -1: return
+    # Ignore filename if has any extension (heuristic that it's not an ELF file)
+    if "." in basename: return
 
     # Ignore filename if does not match test_families
     ignore = True
