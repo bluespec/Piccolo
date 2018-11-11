@@ -284,6 +284,47 @@ function Tuple2# (Bool, Bool) fv_decode_gpr_read (Decoded_Instr di);
 endfunction
 
 // ================================================================
+// Instruction constructors
+// Used in 'C' decode to construct equivalent 32-bit instructions
+
+// R-type
+function Instr  mkInstr_R_type (Bit #(7) funct7, RegName rs2, RegName rs1, Bit #(3) funct3, RegName rd, Bit #(7) opcode);
+   let instr = { funct7, rs2, rs1, funct3, rd, opcode };
+   return instr;
+endfunction
+
+// I-type
+function Instr  mkInstr_I_type (Bit #(12) imm12, RegName rs1, Bit #(3) funct3, RegName rd, Bit #(7) opcode);
+   let instr = { imm12, rs1, funct3, rd, opcode };
+   return instr;
+endfunction
+
+// S-type
+
+function Instr  mkInstr_S_type (Bit #(12) imm12, RegName rs2, RegName rs1, Bit #(3) funct3, Bit #(7) opcode);
+   let instr = { imm12 [11:5], rs2, rs1, funct3, imm12 [4:0], opcode };
+   return instr;
+endfunction
+
+// B-type
+function Instr  mkInstr_B_type (Bit #(13) imm13, RegName rs2, RegName rs1, Bit #(3) funct3, Bit #(7) opcode);
+   let instr = { imm13 [12], imm13 [10:5], rs2, rs1, funct3, imm13 [4:1], imm13 [11], opcode };
+   return instr;
+endfunction
+
+// U-type
+function Instr  mkInstr_U_type (Bit #(20) imm20, RegName rd, Bit #(7) opcode);
+   let instr = { imm20, rd, opcode };
+   return instr;
+endfunction
+
+// J-type
+function Instr  mkInstr_J_type (Bit #(21) imm21, RegName rd, Bit #(7) opcode);
+   let instr = { imm21 [20], imm21 [10:1], imm21 [11], imm21 [19:12], rd, opcode };
+   return instr;
+endfunction
+
+// ================================================================
 // Symbolic register names
 
 RegName x0  =  0;    RegName x1  =  1;    RegName x2  =  2;    RegName x3  =  3;
@@ -476,6 +517,16 @@ Bit #(3) f3_ADDIW = 3'b000;
 Bit #(3) f3_SLLIW = 3'b001;
 Bit #(3) f3_SRxIW = 3'b101; Bit #(3) f3_SRLIW = 3'b101; Bit #(3) f3_SRAIW = 3'b101;
 
+// OP_IMM.SLLI/SRLI/SRAI for RV32
+Bit #(7)  msbs7_SLLI = 7'b_000_0000;
+Bit #(7)  msbs7_SRLI = 7'b_000_0000;
+Bit #(7)  msbs7_SRAI = 7'b_010_0000;
+
+// OP_IMM.SLLI/SRLI/SRAI for RV64
+Bit #(6)  msbs6_SLLI = 6'b_00_0000;
+Bit #(6)  msbs6_SRLI = 6'b_00_0000;
+Bit #(6)  msbs6_SRAI = 6'b_01_0000;
+
 // ================================================================
 // Integer Register-Register Instructions
 
@@ -491,6 +542,12 @@ Bit #(10) f10_SRL    = 10'b000_0000_101;
 Bit #(10) f10_SRA    = 10'b010_0000_101;
 Bit #(10) f10_OR     = 10'b000_0000_110;
 Bit #(10) f10_AND    = 10'b000_0000_111;
+
+Bit #(7) funct7_ADD  = 7'b_000_0000;    Bit #(3) funct3_ADD = 3'b_000;
+Bit #(7) funct7_SUB  = 7'b_010_0000;    Bit #(3) funct3_SUB = 3'b_000;
+Bit #(7) funct7_XOR  = 7'b_000_0000;    Bit #(3) funct3_XOR = 3'b_100;
+Bit #(7) funct7_OR   = 7'b_000_0000;    Bit #(3) funct3_OR  = 3'b_110;
+Bit #(7) funct7_AND  = 7'b_000_0000;    Bit #(3) funct3_AND = 3'b_111;
 
 // ----------------
 // MUL/DIV/REM family
@@ -530,6 +587,9 @@ Bit #(10) f10_SLLW   = 10'b000_0000_001;
 Bit #(10) f10_SRLW   = 10'b000_0000_101;
 Bit #(10) f10_SRAW   = 10'b010_0000_101;
 
+Bit #(7) funct7_ADDW = 7'b_000_0000;    Bit #(3) funct3_ADDW  = 3'b_000;
+Bit #(7) funct7_SUBW = 7'b_010_0000;    Bit #(3) funct3_SUBW  = 3'b_000;
+
 Bit #(10) f10_MULW   = 10'b000_0001_000;
 Bit #(10) f10_DIVW   = 10'b000_0001_100;
 Bit #(10) f10_DIVUW  = 10'b000_0001_101;
@@ -565,6 +625,7 @@ Bit #(3) f3_BGEU  = 3'b111;
 Opcode op_JAL  = 7'b11_011_11;
 
 Opcode op_JALR = 7'b11_001_11;
+Bit #(3) funct3_JALR = 3'b000;
 
 // ================================================================
 // Floating Point Instructions
@@ -796,6 +857,11 @@ CSR_Addr   csr_addr_hpmcounter28h  = 12'hC9C;    // Upper 32 bits of performance
 CSR_Addr   csr_addr_hpmcounter29h  = 12'hC9D;    // Upper 32 bits of performance-monitoring counter
 CSR_Addr   csr_addr_hpmcounter30h  = 12'hC9E;    // Upper 32 bits of performance-monitoring counter
 CSR_Addr   csr_addr_hpmcounter31h  = 12'hC9F;    // Upper 32 bits of performance-monitoring counter
+
+// ================================================================
+// 'C' Extension ("compressed" instructions)
+
+`include "ISA_Decls_C.bsv"
 
 // ================================================================
 // Supervisor-Level ISA defs

@@ -39,6 +39,8 @@ import GPR_RegFile      :: *;
 import CSR_RegFile      :: *;
 import EX_ALU_functions :: *;
 
+import CPU_Decode_C     :: *;    // 'C' (compressed) extension
+
 // ================================================================
 // Interface
 
