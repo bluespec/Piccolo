@@ -78,11 +78,13 @@ mkSim:
 # ================================================================
 # Test: run the executable on the standard RISCV ISA test specified in TEST
 
+VERBOSITY ?= +v1
+
 .PHONY: test
 test:
 	make -C  $(REPO)/Tests/elf_to_hex
 	$(REPO)/Tests/elf_to_hex/elf_to_hex  $(REPO)/Tests/isa/$(TEST)  Mem.hex
-	./$(SIM_EXE_FILE)  +v1  +tohost
+	./$(SIM_EXE_FILE)  $(VERBOSITY)  +tohost
 
 # ================================================================
 

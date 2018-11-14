@@ -1,10 +1,12 @@
 // Copyright (c) 2013-2018 Bluespec, Inc.  All Rights Reserved
 
 // ================================================================
-// These are functions imported into BSV for terminal I/O during
-// Bluesim or Verilog simulation.
-// See ConsoleIO.bsv for the import declarations.
+// These are functions imported into BSV during Bluesim or Verilog simulation.
+// See C_Imports.bsv for the 'import BDPI' declarations.
 // ================================================================
+
+// ================================================================
+// Includes from C library
 
 #include <sys/types.h>        /*  socket types              */
 #include <poll.h>
@@ -13,8 +15,12 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include <inttypes.h>
 #include <string.h>
+
+// ================================================================
+// Includes for this project
 
 #include "C_Imported_Functions.h"
 
@@ -66,7 +72,7 @@ uint8_t c_trygetchar (uint8_t  dummy)
 
 char message[] = "Hello World!\n";
 
-int main (int argc, char *argv)
+int main (int argc, char *argv [])
 {
     uint8_t ch;
     int j;
@@ -126,6 +132,152 @@ uint32_t c_putchar (uint8_t ch)
     }
 
     return success;
+}
+
+// ================================================================
+// Misc. parameters from a parameters file, if it exists.
+// Each non-empty line of the file should contain
+//     param-name  param-value  comment
+// or  # comment
+
+/*
+#define MAX_PARAMS  128
+
+char   sim_params_filename[] = "sim_params.txt";
+static bool      params_loaded = false;
+static uint64_t  param_vals [MAX_PARAMS];
+
+#define PARAM_LINEBUF_SIZE 1024
+
+static
+void load_params (void)
+{
+    for (uint32_t j = 0; j < MAX_PARAMS; j++)
+	param_vals [j] = 0;
+
+    FILE *fp = fopen ("sim_params.txt", "r");
+    if (fp == NULL) {
+	fprintf (stdout, "INFO: no simulation parameters file: %s\n", sim_params_filename);
+	return;
+    }
+    else {
+	fprintf (stdout, "INFO: loading simulation parameters from file: %s\n", sim_params_filename);
+    }
+
+    while (true) {
+	char     linebuf [PARAM_LINEBUF_SIZE], *p;
+
+	p = fgets (linebuf, PARAM_LINEBUF_SIZE, fp);
+	if (p == NULL)    // EOF
+	    break;
+
+	// Skip leading blanks and tabs
+	int index = 0;
+	while ((index < PARAM_LINEBUF_SIZE)
+	       && ((linebuf [index] == ' ') || (linebuf [index] == '\t')))
+	    index++;
+	if (index == PARAM_LINEBUF_SIZE)
+	    break;
+
+	if (linebuf [index] == '#')  // comment line
+	    continue;
+
+	// Read the parameter code
+	uint32_t param;
+	int n = sscanf (& linebuf [index], "%" SCNd32 "%n", & param, & index);
+	if ((n == EOF) || (n < 1))
+	    continue;
+
+	// Read the parameter value (decimal or hex, depending on the parameter)
+	uint64_t param_val;
+	if (param == sim_param_watch_tohost) {
+	    int n = sscanf (& (linebuf [index]), "%" SCNd64, & param_val);
+	}
+	else if (param == sim_param_tohost_addr) {
+	    int n = sscanf (& (linebuf [index]), "%" SCNx64, & param_val);
+	}
+	else {
+	    int n = sscanf (& (linebuf [index]), "%" SCNd64, & param_val);
+	}
+
+	if ((n == EOF) || (n < 1))
+	    continue;
+	else if (param >= MAX_PARAMS) {
+	    fprintf (stderr, "INFO: ignoring out-of-bounds parameter code %0" PRId32 " (should be < %0d)\n",
+		     param, MAX_PARAMS);
+	    fprintf (stderr, "    Value (decimal) = %0" PRId64, param_val);
+	    fprintf (stderr, "    Value (hex)     = 0x%0" PRIx64, param_val);
+	}
+	else {
+	    param_vals [param] = param_val;
+	}
+    }
+    fclose (fp);
+}
+
+uint64_t c_get_param_val (uint32_t  param)
+{
+    if (! params_loaded) {
+	load_params ();
+	params_loaded = true;
+    }
+
+    uint64_t param_val = 0;
+    if (param < MAX_PARAMS)
+	param_val = param_vals [param];
+    return param_val;
+}
+
+*/
+
+// ================================================================
+// Symbol table
+// Reads the whole symbol-table file on each call,
+// which is ok if it's not called often and the file is small.
+
+static
+char symbol_table_filename [] = "symbol_table.txt";
+
+uint64_t c_get_symbol_val (char * symbol)
+{
+    bool     ok  = false;
+    uint64_t val = 0;
+
+    FILE *fp = fopen (symbol_table_filename, "r");
+    if (fp == NULL) {
+	fprintf (stderr, "c_get_symbol: could not open file: %s\n", symbol_table_filename);
+    }
+    else {
+	int len     = strlen (symbol);
+	int linenum = 0;
+
+	while (true) {
+	    char linebuf [1024], *p;
+	    p = fgets (linebuf, 1024, fp);
+	    if (p == NULL) {   // EOF
+		fprintf (stderr, "c_get_symbol: could not find value for symbol %s\n", symbol);
+		break;
+	    }
+	    else {
+		linenum++;
+
+		int cmp = strncmp (symbol, linebuf, len);
+		if (cmp != 0)    // This symbol is not on this line
+		    continue;
+		else {
+		    int n = sscanf (& (linebuf [len]), "%" SCNx64, & val);
+		    if ((n == EOF) || (n < 1)) {
+			fprintf (stderr, "c_get_symbol: could not find value for symbol %s\n", symbol);
+			fprintf (stderr, "    on file '%s' line %d\n", symbol_table_filename, linenum);
+		    }
+		    else
+			ok = true;
+		    break;
+		}
+	    }
+	}
+    }
+    return val;
 }
 
 // ================================================================
@@ -247,5 +399,16 @@ uint32_t c_trace_file_close (uint8_t dummy)
     }
     return success;
 }
+
+// ================================================================
+// DEBUGGING
+
+/*
+int main (int argc, char *argv [])
+{
+    uint64_t x = c_get_symbol_val ("tohost");
+    fprintf (stdout, "tohost value is 0x%" PRIx64 "\n", x);
+}
+*/
 
 // ================================================================

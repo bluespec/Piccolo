@@ -152,6 +152,8 @@ typedef  Bit #(5)   RegName;       // 32 registers, 0..31
 typedef  32         NumRegs;
 Integer  numRegs = valueOf (NumRegs);
 
+Instr  illegal_instr = 32'h0000_0000;
+
 function  Opcode     instr_opcode   (Instr x); return x [6:0]; endfunction
 
 function  Bit #(2)   instr_funct2   (Instr x); return x [26:25]; endfunction

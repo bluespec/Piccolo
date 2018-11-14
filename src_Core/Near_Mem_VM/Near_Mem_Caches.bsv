@@ -38,7 +38,6 @@ import GetPut_Aux :: *;
 
 import ISA_Decls       :: *;
 import Near_Mem_IFC    :: *;
-// import ICache          :: *;
 import MMU_Cache       :: *;
 import AXI4_Lite_Types :: *;
 
@@ -136,11 +135,13 @@ module mkNear_Mem (Near_Mem_IFC);
       endmethod
 
       // CPU side: IMem response
-      method Bool     valid    = icache.valid;
-      method Addr     pc       = icache.addr;
-      method Instr    instr    = truncate (icache.word64);
-      method Bool     exc      = icache.exc;
-      method Exc_Code exc_code = icache.exc_code;
+      method Bool     valid          = icache.valid;
+      method Bool     is_i32_not_i16 = True;
+      method WordXL   pc             = icache.addr;
+      method Instr    instr          = truncate (icache.word64);
+      method Bool     exc            = icache.exc;
+      method Exc_Code exc_code       = icache.exc_code;
+      method WordXL   tval           = icache.addr;
    endinterface
 
    // Fabric side

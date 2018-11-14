@@ -85,7 +85,7 @@ Bit #(6) funct6_C_XOR      = 6'b_100_0_11;
 Bit #(2) funct2_C_XOR      = 2'b_01;
 
 Bit #(6) funct6_C_SUB      = 6'b_100_0_11;
-Bit #(2) funct2_C_SUB      = 2'b_01;
+Bit #(2) funct2_C_SUB      = 2'b_00;
 
 Bit #(6) funct6_C_ADDW     = 6'b_100_1_11;
 Bit #(2) funct2_C_ADDW     = 2'b_01;
@@ -149,6 +149,15 @@ function Tuple6 #(Bit #(3), Bit #(3), RegName, Bit #(2), RegName, Bit #(2))  fv_
    let rs2          = {2'b01, instr [4:2]};
    let op           = instr [ 1: 0];
    return tuple6 (funct3, imm_at_12_10, rs1, imm_at_6_5, rs2, op);
+endfunction
+
+function Tuple5 #(Bit #(6), RegName, Bit #(2), RegName, Bit #(2))  fv_ifields_CA_type (Instr_C  instr);
+   let funct6       = instr [15:10];
+   let rd_rs1       = {2'b01, instr [9:7]};
+   let funct2       = instr [ 6: 5];
+   let rs2          = {2'b01, instr [4:2]};
+   let op           = instr [ 1: 0];
+   return tuple5 (funct6, rd_rs1, funct2, rs2, op);
 endfunction
 
 function Tuple5 #(Bit #(3), Bit #(3), RegName, Bit #(5), Bit #(2))  fv_ifields_CB_type (Instr_C  instr);

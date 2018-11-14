@@ -9,19 +9,17 @@
 # Choose a prefix for the simulation executable dir
 
 ARCH ?= RV32IMU
-# ARCH ?= RV32AIMU
-# ARCH ?= RV32AIMSU
+# ARCH ?= RV32ACIMSU
 
-# ARCH ?= RV64AIMSU
+# ARCH ?= RV64IMU
+# ARCH ?= RV64ACIMSU
 
 # ----------------
 # Choose a simulation engine
 
 SIM ?= Bluesim
-# SIM ?= Bluesim_TV
 # SIM ?= iverilog
 # SIM ?= verilator
-# SIM ?= verilator_TV
 
 # ----------------
 # Optionally choose an architecture explicitly,

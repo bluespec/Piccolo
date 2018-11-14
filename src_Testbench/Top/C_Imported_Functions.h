@@ -3,9 +3,8 @@
 #pragma once
 
 // ================================================================
-// These are functions imported into BSV for terminal I/O during
-// Bluesim or Verilog simulation.
-// See ConsoleIO.bsv for the import declarations.
+// These are functions imported into BSV during Bluesim or Verilog simulation.
+// See C_Imports.bsv for the 'import BDPI' declarations.
 // ================================================================
 
 #ifdef __cplusplus
@@ -27,6 +26,14 @@ uint8_t c_trygetchar (uint8_t  dummy);
 
 extern
 uint32_t c_putchar (uint8_t ch);
+
+// ================================================================
+// Symbol table
+// Reads the whole symbol-table file on each call,
+// which is ok if it's not called often and the file is small.
+
+extern
+uint64_t c_get_symbol_val (char * symbol);
 
 // ================================================================
 // Trace file outputs

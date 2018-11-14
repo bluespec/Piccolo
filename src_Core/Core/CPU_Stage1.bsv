@@ -39,7 +39,10 @@ import GPR_RegFile      :: *;
 import CSR_RegFile      :: *;
 import EX_ALU_functions :: *;
 
-import CPU_Decode_C     :: *;    // 'C' (compressed) extension
+`ifdef ISA_C
+// 'C' extension (16b compressed instructions)
+import CPU_Decode_C     :: *;
+`endif
 
 // ================================================================
 // Interface
@@ -72,7 +75,7 @@ module mkCPU_Stage1 #(Bit #(4)         verbosity,
 		      FPR_RegFile_IFC  fpr_regfile,
 `endif
 		      CSR_RegFile_IFC  csr_regfile,
-		      IMem_IFC         icache,
+		      IMem_IFC         imem,
 		      Bypass           bypass_from_stage2,
 		      Bypass           bypass_from_stage3,
 		      Priv_Mode        cur_priv)
@@ -82,6 +85,9 @@ module mkCPU_Stage1 #(Bit #(4)         verbosity,
    FIFOF #(Token) f_reset_rsps <- mkFIFOF;
 
    Reg #(Bool) rg_full  <- mkReg (False);
+
+   MISA misa   = csr_regfile.read_misa;
+   Bit #(2) xl = ((xlen == 32) ? misa_mxl_32 : misa_mxl_64);
 
    // ----------------------------------------------------------------
    // BEHAVIOR
@@ -95,10 +101,16 @@ module mkCPU_Stage1 #(Bit #(4)         verbosity,
    // ----------------
    // ALU
 
-   let pc            = icache.pc;
-   let instr         = icache.instr;
-   let decoded_instr = fv_decode (instr);
-   let funct3        = decoded_instr.funct3;
+   let   pc             = imem.pc;
+   let   is_i32_not_i16 = imem.is_i32_not_i16;
+   Instr instr          = imem.instr;
+`ifdef ISA_C
+   Instr_C instr_C = instr [15:0];
+   if (! is_i32_not_i16)
+      instr = fv_decode_C (misa, xl, instr_C);
+`endif
+   let decoded_instr  = fv_decode (instr);
+   let funct3         = decoded_instr.funct3;
 
    // Register rs1 read and bypass
    let rs1 = decoded_instr.rs1;
@@ -119,7 +131,11 @@ module mkCPU_Stage1 #(Bit #(4)         verbosity,
    // ALU function
    let alu_inputs = ALU_Inputs {cur_priv:       cur_priv,
 				pc:             pc,
+				is_i32_not_i16: imem.is_i32_not_i16,
 				instr:          instr,
+`ifdef ISA_C
+				instr_C:        instr_C,
+`endif
 				decoded_instr:  decoded_instr,
 				rs1_val:        rs1_val_bypassed,
 				rs2_val:        rs2_val_bypassed,
@@ -152,8 +168,8 @@ module mkCPU_Stage1 #(Bit #(4)         verbosity,
 	 output_stage1.ostatus = OSTATUS_EMPTY;
       end
 
-      // Stall if ICache not ready
-      else if (! icache.valid) begin
+      // Stall if IMem not ready
+      else if (! imem.valid) begin
 	 output_stage1.ostatus = OSTATUS_BUSY;
       end
 
@@ -162,13 +178,13 @@ module mkCPU_Stage1 #(Bit #(4)         verbosity,
 	 output_stage1.ostatus = OSTATUS_BUSY;
       end
 
-      // Trap on ICache exception
-      else if (icache.exc) begin
+      // Trap on IMem exception
+      else if (imem.exc) begin
 	 output_stage1.ostatus    = OSTATUS_NONPIPE;
 	 output_stage1.control    = CONTROL_TRAP;
 	 output_stage1.trap_info  = Trap_Info {epc:      pc,
-					       exc_code: icache.exc_code,
-					       tval:     pc};    // TODO: '?', perhaps?
+					       exc_code: imem.exc_code,
+					       tval:     imem.tval};
 	 output_stage1.data_to_stage2 = data_to_stage2;
       end
 
@@ -193,7 +209,10 @@ module mkCPU_Stage1 #(Bit #(4)         verbosity,
 				    exc_code: alu_outputs.exc_code,
 				    tval:     tval};
 
-	 let next_pc = ((alu_outputs.control == CONTROL_BRANCH) ? alu_outputs.addr : pc + 4);
+	 let fall_through_pc = pc + (imem.is_i32_not_i16 ? 4 : 2);
+	 let next_pc = ((alu_outputs.control == CONTROL_BRANCH)
+			? alu_outputs.addr
+			: fall_through_pc);
 
 	 output_stage1.ostatus        = ostatus;
 	 output_stage1.control        = alu_outputs.control;
@@ -221,7 +240,7 @@ module mkCPU_Stage1 #(Bit #(4)         verbosity,
 
    // ---- Input
    method Action enq (Addr next_pc, Priv_Mode priv, Bit #(1) sstatus_SUM, Bit #(1) mstatus_MXR, WordXL satp);
-      icache.req (f3_LW, next_pc, priv, sstatus_SUM, mstatus_MXR, satp);
+      imem.req (f3_LW, next_pc, priv, sstatus_SUM, mstatus_MXR, satp);
 
       if (verbosity > 1)
 	 $display ("    CPU_Stage_1.enq: 0x%08x", next_pc);

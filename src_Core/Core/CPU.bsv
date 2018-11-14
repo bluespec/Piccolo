@@ -35,6 +35,11 @@ import ConfigReg    :: *;
 import GetPut_Aux :: *;
 import Semi_FIFOF :: *;
 
+`ifdef ISA_C
+// 'C' extension (16b compressed instructions)
+import CPU_Fetch_C      :: *;
+`endif
+
 // ================================================================
 // Project imports
 
@@ -117,6 +122,14 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
    // Near mem (caches or TCM, for example)
    Near_Mem_IFC  near_mem <- mkNear_Mem;
 
+   // Take imem_in as is, or use wrapper for 'C' extension
+`ifdef ISA_C
+   IMem_IFC imem <- mkCPU_Fetch_C (near_mem.imem);
+`else
+   IMem_IFC imem = near_mem.imem;
+`endif
+
+
    // ----------------
    // For debugging
 
@@ -159,7 +172,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 					   fpr_regfile,
 `endif
 					   csr_regfile,
-					   near_mem.imem,
+					   imem,
 					   stage2.out.bypass,
 					   stage3.out.bypass,
 					   rg_cur_priv);
@@ -502,6 +515,10 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
    // is stalled until downstream stages are empty. Then, we delay for
    // a cycle before restarting the pipe by re-fetching the next
    // instr, since the fetch may need the just-written CSR value.
+
+`ifdef ISA_C
+   (* descending_urgency = "imem_rl_fetch_next_32b, rl_pipe" *)
+`endif
 
    rule rl_pipe (   (rg_state == CPU_RUNNING)
 		 && (! pipe_is_empty)

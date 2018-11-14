@@ -3,10 +3,8 @@
 package C_Imports;
 
 // ================================================================
-// For Bluesim and Verilog simulation,
-// declarations of imported C functions (hence only in simulation)
-// to read and write chars to the console.
-// See_C_Imports_Functions.{h,c} for implementation of these functions.
+// These are functions imported into BSV during Bluesim or Verilog simulation.
+// See C_Imported_Functions.{h,c} for the C declarations and implementations.
 
 // Below, 'dummy' args are not used, and are present only to appease
 // some Verilog simulators that are finicky about 0-arg functions.
@@ -29,6 +27,17 @@ function ActionValue #(Bit #(8)) c_trygetchar (Bit #(8) dummy);
 
 import "BDPI"
 function ActionValue #(Bit #(32)) c_putchar (Bit #(8) ch);
+
+// ================================================================
+// Symbol table
+// Reads the whole symbol-table file on each call,
+// which is ok if it's not called often and the file is small.
+
+//    extern
+//    uint64_t c_get_symbol_val (char * symbol);
+
+import "BDPI"
+function ActionValue #(Bit #(64)) c_get_symbol_val (String symbol);
 
 // ================================================================
 // Writing to trace file (to log traces for tandem verification, etc.)

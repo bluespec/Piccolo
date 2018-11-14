@@ -28,25 +28,30 @@ uint8_t mem_buf [MAX_MEM_SIZE];
 int       bitwidth;
 uint64_t  min_addr;
 uint64_t  max_addr;
-uint64_t  pc_start;     // Addr of '_start' label
-uint64_t  pc_exit;      // Addr of 'exit' label
+
+uint64_t  pc_start;       // Addr of label  '_start'
+uint64_t  pc_exit;        // Addr of label  'exit'
+uint64_t  tohost_addr;    // Addr of label  'tohost'
 
 // ================================================================
 // Load an ELF file.
 
 void c_mem_load_elf (char *elf_filename,
 		     const char *start_symbol,
-		     const char *exit_symbol)
+		     const char *exit_symbol,
+		     const char *tohost_symbol)
 {
     int fd;
     // int n_initialized = 0;
     Elf *e;
 
-    // Default start and exit symbols
+    // Default start, exit and tohost symbols
     if (start_symbol == NULL)
 	start_symbol = "_start";
     if (exit_symbol == NULL)
 	exit_symbol = "exit";
+    if (tohost_symbol == NULL)
+	tohost_symbol = "tohost";
     
     // Verify the elf library version
     if (elf_version (EV_CURRENT) == EV_NONE) {
@@ -122,10 +127,11 @@ void c_mem_load_elf (char *elf_filename,
     Elf_Scn  *scn   = 0;
     GElf_Shdr shdr;
 
-    min_addr = 0xFFFFFFFFFFFFFFFFllu;
-    max_addr = 0x0000000000000000llu;
-    pc_start = 0xFFFFFFFFFFFFFFFFllu;
-    pc_exit  = 0xFFFFFFFFFFFFFFFFllu;
+    min_addr    = 0xFFFFFFFFFFFFFFFFllu;
+    max_addr    = 0x0000000000000000llu;
+    pc_start    = 0xFFFFFFFFFFFFFFFFllu;
+    pc_exit     = 0xFFFFFFFFFFFFFFFFllu;
+    tohost_addr = 0xFFFFFFFFFFFFFFFFllu;
 
     while ((scn = elf_nextscn (e,scn)) != NULL) {
         // get the header information for this section
@@ -167,9 +173,10 @@ void c_mem_load_elf (char *elf_filename,
 
 	}
 
-	// If we find the symbol table, search for the start address location
+	// If we find the symbol table, search for symbols of interest
 	else if (shdr.sh_type == SHT_SYMTAB) {
-	    fprintf (stdout, "Searching for addresses of '%s' and '%s' symbols\n", start_symbol, exit_symbol);
+	    fprintf (stdout, "Searching for addresses of '%s', '%s' and '%s' symbols\n",
+		     start_symbol, exit_symbol, tohost_symbol);
 
  	    // Get the section data
 	    data = elf_getdata (scn, data);
@@ -195,17 +202,32 @@ void c_mem_load_elf (char *elf_filename,
 		else if (strcmp (name, exit_symbol) == 0) {
 		    pc_exit = sym.st_value;
 		}
+		// Look for, and remember addr of 'tohost' symbol
+		else if (strcmp (name, tohost_symbol) == 0) {
+		    tohost_addr = sym.st_value;
+		}
 	    }
 
-	    if (pc_start == -1)
-		fprintf (stdout, "    No '_start' label found\n");
-	    else
-		fprintf (stdout, "    '_start' label addr: %16" PRIx64 " (hex)\n", pc_start);
+	    FILE *fp_symbol_table = fopen ("symbol_table.txt", "w");
+	    if (fp_symbol_table != NULL) {
+		fprintf (stdout, "Writing symbols to:    symbol_table.txt\n");
+		if (pc_start == -1)
+		    fprintf (stdout, "    No '_start' label found\n");
+		else
+		    fprintf (fp_symbol_table, "_start    0x%0" PRIx64 "\n", pc_start);
 
-	    if (pc_exit == -1)
-		fprintf (stdout, "    No 'exit' label found\n");
-	    else
-		fprintf (stdout, "    'exit' label addr:   %16" PRIx64 " (hex)\n", pc_exit);
+		if (pc_exit == -1)
+		    fprintf (stdout, "    No 'exit' label found\n");
+		else
+		    fprintf (fp_symbol_table, "exit      0x%0" PRIx64 "\n", pc_exit);
+
+		if (tohost_addr == -1)
+		    fprintf (stdout, "    No 'tohost' symbol found\n");
+		else
+		    fprintf (fp_symbol_table, "tohost    0x%0" PRIx64 "\n", tohost_addr);
+
+		fclose (fp_symbol_table);
+	    }
 	}
 	else {
 	    fprintf (stdout, "Ignored\n");
@@ -303,7 +325,7 @@ int main (int argc, char *argv [])
     bzero (mem_buf, MAX_MEM_SIZE);
     // bzero (& (mem_buf [BASE_ADDR_B]), MAX_MEM_SIZE - BASE_ADDR_B);
 
-    c_mem_load_elf (argv [1], "_start", "exit");
+    c_mem_load_elf (argv [1], "_start", "exit", "tohost");
 
     if ((min_addr < BASE_ADDR_B) || (MAX_MEM_ADDR_256MB <= max_addr)) {
 	print_usage (stderr, argc, argv);

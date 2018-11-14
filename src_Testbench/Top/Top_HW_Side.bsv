@@ -71,6 +71,17 @@ module mkTop_HW_Side (Empty) ;
 
       rg_banner_printed <= True;
 
+      // Note: see 'CAVEAT FOR IVERILOG USERS' above
+`ifndef IVERILOG
+      // Load tohost addr from symbol-table file
+      Bool watch_tohost <- $test$plusargs ("tohost");
+      Bit #(64) tohost_addr = 0;
+      tohost_addr  <- c_get_symbol_val ("tohost");
+      $display ("INFO: watch_tohost = %0d, tohost_addr = 0x%0h",
+		pack (watch_tohost), tohost_addr);
+      soc_top.set_watch_tohost (watch_tohost, tohost_addr);
+`endif
+
 `ifdef INCLUDE_TANDEM_VERIF
 
       // Note: see 'CAVEAT FOR IVERILOG USERS' above
