@@ -120,7 +120,7 @@ module mkBRVF_Core #(parameter Bit #(64)  pc_reset_value)  (BRVF_Core_IFC);
       let rsp <- cpu.hart0_server_reset.response.get;
 
       Bit #(1) requestor = reset_requestor_soc;
-`ifdef GDB_CONTROL
+`ifdef INCLUDE_GDB_CONTROL
       requestor <- pop (f_reset_requestor);
 `endif
       if (requestor == reset_requestor_soc)
