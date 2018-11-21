@@ -141,8 +141,8 @@ module mkTV_Encode (TV_Encode_IFC);
       match { .n3, .vb3 } = encode_mlen (td.word3);
       match { .n4, .vb4 } = encode_byte (size_and_mem_req_op);
       match { .n5, .vb5 } = encode_mdata (mem_req_size, td.word2);
-      match { .n6, .vb6 } = encode_byte (te_op_mem_rsp);
-      match { .n7, .vb7 } = encode_byte (result_and_size);
+      //match { .n6, .vb6 } = encode_byte (te_op_mem_rsp);
+      //match { .n7, .vb7 } = encode_byte (result_and_size);
       match { .nN, .vbN } = encode_byte (te_op_end_group);
 
       // Concatenate components into a single byte vec
@@ -152,9 +152,10 @@ module mkTV_Encode (TV_Encode_IFC);
       match { .nn3, .x3 } = vsubst (nn2, x2,  n3, vb3);
       match { .nn4, .x4 } = vsubst (nn3, x3,  n4, vb4);
       match { .nn5, .x5 } = vsubst (nn4, x4,  n5, vb5);
-      match { .nn6, .x6 } = vsubst (nn5, x5,  n6, vb6);
-      match { .nn7, .x7 } = vsubst (nn6, x6,  n7, vb7);
-      match { .nnN, .xN } = vsubst (nn7, x7,  nN, vbN);
+      //match { .nn6, .x6 } = vsubst (nn5, x5,  n6, vb6);
+      //match { .nn7, .x7 } = vsubst (nn6, x6,  n7, vb7);
+      //match { .nnN, .xN } = vsubst (nn7, x7,  nN, vbN);
+      match { .nnN, .xN } = vsubst (nn5, x5,  nN, vbN);
 
       f_vb.enq (tuple2 (nnN, xN));
    endrule
