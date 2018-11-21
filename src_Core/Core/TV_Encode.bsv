@@ -131,14 +131,18 @@ module mkTV_Encode (TV_Encode_IFC);
       let td <- pop (f_trace_data);
 
       Bit #(2)  mem_req_size        = td.word1 [1:0];
-      Byte      size_and_mem_req_op = {2'b0, mem_req_size, te_mem_req_op_Store };
+      Byte      size_and_mem_req_op = { 2'b0, mem_req_size, te_mem_req_op_Store };
+      Byte      result_and_size     = { te_mem_result_success, 2'b0, mem_req_size };
 
       // Encode components of td into byte vecs
       match { .n0, .vb0 } = encode_byte (te_op_begin_group);
       match { .n1, .vb1 } = encode_byte (te_op_state_init);
-      match { .n2, .vb2 } = encode_paddr (td.word3);
-      match { .n3, .vb3 } = encode_byte (size_and_mem_req_op);
-      match { .n4, .vb4 } = encode_stval (mem_req_size, td.word2);
+      match { .n2, .vb2 } = encode_byte (te_op_mem_req);
+      match { .n3, .vb3 } = encode_mlen (td.word3);
+      match { .n4, .vb4 } = encode_byte (size_and_mem_req_op);
+      match { .n5, .vb5 } = encode_mdata (mem_req_size, td.word2);
+      //match { .n6, .vb6 } = encode_byte (te_op_mem_rsp);
+      //match { .n7, .vb7 } = encode_byte (result_and_size);
       match { .nN, .vbN } = encode_byte (te_op_end_group);
 
       // Concatenate components into a single byte vec
@@ -147,7 +151,11 @@ module mkTV_Encode (TV_Encode_IFC);
       match { .nn2, .x2 } = vsubst (nn1, x1,  n2, vb2);
       match { .nn3, .x3 } = vsubst (nn2, x2,  n3, vb3);
       match { .nn4, .x4 } = vsubst (nn3, x3,  n4, vb4);
-      match { .nnN, .xN } = vsubst (nn4, x4,  nN, vbN);
+      match { .nn5, .x5 } = vsubst (nn4, x4,  n5, vb5);
+      //match { .nn6, .x6 } = vsubst (nn5, x5,  n6, vb6);
+      //match { .nn7, .x7 } = vsubst (nn6, x6,  n7, vb7);
+      //match { .nnN, .xN } = vsubst (nn7, x7,  nN, vbN);
+      match { .nnN, .xN } = vsubst (nn5, x5,  nN, vbN);
 
       f_vb.enq (tuple2 (nnN, xN));
    endrule
@@ -571,6 +579,50 @@ function Tuple2 #(Bit #(32), Vector #(TV_VB_SIZE, Byte)) encode_byte (Byte x);
    return tuple2 (1, replicate (x));
 endfunction
 
+function Tuple2 #(Bit #(32), Vector #(TV_VB_SIZE, Byte)) encode_mlen (Bit #(64) word);
+   Vector #(TV_VB_SIZE, Byte) vb = newVector;
+   Bit #(32)            n;
+   vb [0] = word[7:0];
+   vb [1] = word [15:8];
+   vb [2] = word [23:16];
+   vb [3] = word [31:24];
+   vb [4] = word [39:32];
+   vb [5] = word [47:40];
+   vb [6] = word [55:48];
+   vb [7] = word [63:56];
+`ifdef RV32
+   n = 4;    // MLEN = 32
+`ifdef SV32
+   n = 5;    // MLEN = 34
+`endif
+`else
+   n = 8;    // MLEN = 64
+`endif
+   return tuple2 (n, vb);
+endfunction
+
+function Tuple2 #(Bit #(32), Vector #(TV_VB_SIZE, Byte)) encode_mdata (MemReqSize mem_req_size, WordXL word);
+   Vector #(TV_VB_SIZE, Byte) vb = newVector;
+   Bit #(32)            n;
+   vb [0] = word[7:0];
+   vb [1] = word [15:8];
+   vb [2] = word [23:16];
+   vb [3] = word [31:24];
+`ifdef RV64
+   vb [4] = word [39:32];
+   vb [5] = word [47:40];
+   vb [6] = word [55:48];
+   vb [7] = word [63:56];
+`endif
+   n = case (mem_req_size)
+	  f3_SIZE_B: 1;
+	  f3_SIZE_H: 2;
+	  f3_SIZE_W: 4;
+	  f3_SIZE_D: 8;
+       endcase;
+   return tuple2 (n, vb);
+endfunction
+
 function Tuple2 #(Bit #(32), Vector #(TV_VB_SIZE, Byte)) encode_instr (ISize isize, Bit #(32) instr);
 
    Vector #(TV_VB_SIZE, Byte) vb = newVector;
@@ -629,28 +681,6 @@ function Tuple2 #(Bit #(32), Vector #(TV_VB_SIZE, Byte)) encode_eaddr (WordXL wo
    vb [8] = word [55:48];
    vb [9] = word [63:56];
    n = 10;
-`endif
-   return tuple2 (n, vb);
-endfunction
-
-function Tuple2 #(Bit #(32), Vector #(TV_VB_SIZE, Byte)) encode_paddr (Bit #(64) word);
-   Vector #(TV_VB_SIZE, Byte) vb = newVector;
-   Bit #(32)            n;
-   vb [0] = word[7:0];
-   vb [1] = word [15:8];
-   vb [2] = word [23:16];
-   vb [3] = word [31:24];
-   vb [4] = word [39:32];
-   vb [5] = word [47:40];
-   vb [6] = word [55:48];
-   vb [7] = word [63:56];
-`ifdef RV32
-   n = 4;    // MLEN = 32
-`ifdef SV32
-   n = 5;    // MLEN = 34
-`endif
-`else
-   n = 8;    // MLEN = 64
 `endif
    return tuple2 (n, vb);
 endfunction
