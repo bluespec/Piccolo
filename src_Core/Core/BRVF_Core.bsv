@@ -88,31 +88,30 @@ module mkBRVF_Core #(parameter Bit #(64)  pc_reset_value)  (BRVF_Core_IFC);
    FIFOF #(Bit #(1)) f_reset_requestor <- mkFIFOF;
 `endif
 
-   function Action fa_reset_actions (Bit #(1) reset_requestor);
-      action
-	 cpu.hart0_server_reset.request.put (?);
-
-`ifdef INCLUDE_TANDEM_VERIF
-	 tv_encode.reset;
-`endif
-
-`ifdef INCLUDE_GDB_CONTROL
-	 f_reset_requestor.enq (reset_requestor);
-`endif
-      endaction
-   endfunction
-
-   // Reset hart0 from SoC
+   // Reset request from SoC
    rule rl_cpu_hart0_reset_from_soc_start;
       let req <- pop (f_reset_reqs);
-      fa_reset_actions (reset_requestor_soc);
+
+      // Reset the hart
+      cpu.hart0_server_reset.request.put (?);
+`ifdef INCLUDE_GDB_CONTROL
+      // Remember the requestor, so we can respond to it
+      f_reset_requestor.enq (reset_requestor_soc);
+`endif
+`ifdef INCLUDE_TANDEM_VERIF
+      // Reset the Tandem Verification encoder
+      tv_encode.reset;
+`endif
    endrule
 
 `ifdef INCLUDE_GDB_CONTROL
-   // Reset hart0 from DM
+   // Reset-hart0 request from from DM
    rule rl_cpu_hart0_reset_from_dm_start;
       let req <- debug_module.hart0_get_reset_req.get;
-      fa_reset_actions (reset_requestor_dm);
+      // Reset the hart
+      cpu.hart0_server_reset.request.put (?);
+      // Remember the requestor, so we can respond to it
+      f_reset_requestor.enq (reset_requestor_dm);
    endrule
 `endif
 
@@ -266,6 +265,13 @@ module mkBRVF_Core #(parameter Bit #(64)  pc_reset_value)  (BRVF_Core_IFC);
    method Action  cpu_external_interrupt_req (x) = cpu.external_interrupt_req (x);
    method Action  cpu_software_interrupt_req (x) = cpu.software_interrupt_req (x);
    method Action  cpu_timer_interrupt_req (x)    = cpu.timer_interrupt_req (x);
+
+   // ----------------------------------------------------------------
+   // Set core's verbosity
+
+   method Action  set_verbosity (Bit #(4)  verbosity, Bit #(64)  logdelay);
+      cpu.set_verbosity (verbosity, logdelay);
+   endmethod
 
 `ifdef INCLUDE_TANDEM_VERIF
    // ----------------

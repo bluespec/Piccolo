@@ -117,7 +117,12 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 `ifdef ISA_F
    FPR_RegFile_IFC  fpr_regfile  <- mkFPR_RegFile;
 `endif
+
    CSR_RegFile_IFC  csr_regfile  <- mkCSR_RegFile;
+   let mcycle   = csr_regfile.read_csr_mcycle;
+   let mstatus  = csr_regfile.read_mstatus;
+   let misa     = csr_regfile.read_misa;
+   let minstret = csr_regfile.read_csr_minstret;
 
    // Near mem (caches or TCM, for example)
    Near_Mem_IFC  near_mem <- mkNear_Mem;
@@ -129,7 +134,6 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
    IMem_IFC imem = near_mem.imem;
 `endif
 
-
    // ----------------
    // For debugging
 
@@ -140,14 +144,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
    Reg #(Bit #(64))  cfg_logdelay <- mkConfigReg (0);
 
    // Current verbosity, taking into account log delay
-   Bit #(4)  cur_verbosity = (  (csr_regfile.read_csr_minstret < cfg_logdelay)
-			      ? 0
-			      : cfg_verbosity);
-
-   let mcycle   = csr_regfile.read_csr_mcycle;
-   let mstatus  = csr_regfile.read_mstatus;
-   let misa     = csr_regfile.read_misa;
-   let minstret = csr_regfile.read_csr_minstret;
+   Bit #(4)  cur_verbosity = ((minstret < cfg_logdelay) ? 0 : cfg_verbosity);
 
    // ----------------
    // Major CPU states
@@ -415,14 +412,6 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
       rg_cur_priv <= m_Priv_Mode;
       rg_halt     <= False;
       rg_state    <= CPU_RESET2;
-
-      // These three lines are for simulation only:
-      Bool v1 <- $test$plusargs ("v1");
-      Bool v2 <- $test$plusargs ("v2");
-      cfg_verbosity <= ((v2 ? 2 : (v1 ? 1 : 0)));
-      /*
-      cfg_verbosity <= 0; // for emulation, where above system tasks are invalid
-      */
 
       if (cur_verbosity != 0)
 	 $display ("%0d: CPU.rl_reset_start", mcycle);
@@ -1416,6 +1405,14 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
    method Action  external_interrupt_req (x) = csr_regfile.external_interrupt_req (x);
    method Action  software_interrupt_req (x) = csr_regfile.software_interrupt_req (x);
    method Action  timer_interrupt_req (x)    = csr_regfile.timer_interrupt_req (x);
+
+   // ----------------
+   // For tracing
+
+   method Action  set_verbosity (Bit #(4)  verbosity, Bit #(64)  logdelay);
+      cfg_verbosity <= verbosity;
+      cfg_logdelay  <= logdelay;
+   endmethod
 
    // ----------------
    // Optional interface to Tandem Verifier

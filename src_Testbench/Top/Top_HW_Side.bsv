@@ -71,6 +71,13 @@ module mkTop_HW_Side (Empty) ;
 
       rg_banner_printed <= True;
 
+      // Set CPU verbosity and logdelay (simulation only)
+      Bool v1 <- $test$plusargs ("v1");
+      Bool v2 <- $test$plusargs ("v2");
+      Bit #(4)  verbosity = ((v2 ? 2 : (v1 ? 1 : 0)));
+      Bit #(64) logdelay  = 0;    // # of instructions after which to set verbosity
+      soc_top.set_verbosity  (verbosity, logdelay);
+
       // Note: see 'CAVEAT FOR IVERILOG USERS' above
 `ifndef IVERILOG
       // Load tohost addr from symbol-table file

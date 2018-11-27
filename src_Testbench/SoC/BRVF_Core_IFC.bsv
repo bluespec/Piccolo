@@ -55,6 +55,10 @@ interface BRVF_Core_IFC;
    method Action cpu_timer_interrupt_req (Bool set_not_clear);
    method Action cpu_software_interrupt_req (Bool set_not_clear);
 
+   // ----------------------------------------------------------------
+   // Set core's verbosity
+   method Action  set_verbosity (Bit #(4)  verbosity, Bit #(64)  logdelay);
+
 `ifdef INCLUDE_TANDEM_VERIF
    // ----------------------------------------------------------------
    // Optional Tandem Verifier interface output tuples (n,vb),

@@ -90,6 +90,9 @@ deriving (Bits, Eq, FShow);
 // The outermost interface of the SoC
 
 interface SoC_Top_IFC;
+   // Set core's verbosity
+   method Action  set_verbosity (Bit #(4)  verbosity, Bit #(64)  logdelay);
+
 `ifdef INCLUDE_GDB_CONTROL
    // To external controller (E.g., GDB)
    interface Server #(Control_Req, Control_Rsp) server_external_control;
@@ -346,6 +349,10 @@ module mkSoC_Top (SoC_Top_IFC);
 
    // ================================================================
    // INTERFACE
+
+   method Action  set_verbosity (Bit #(4)  verbosity, Bit #(64)  logdelay);
+      brvf_core.set_verbosity (verbosity, logdelay);
+   endmethod
 
    // To external controller (E.g., GDB)
 `ifdef INCLUDE_GDB_CONTROL

@@ -48,6 +48,11 @@ interface CPU_IFC;
    method Action  software_interrupt_req (Bool set_not_clear);
 
    // ----------------
+   // Set core's verbosity
+
+   method Action  set_verbosity (Bit #(4)  verbosity, Bit #(64)  logdelay);
+
+   // ----------------
    // Optional interface to Tandem Verifier
 
 `ifdef INCLUDE_TANDEM_VERIF
