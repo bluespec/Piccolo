@@ -45,7 +45,7 @@ endinterface
 (* synthesize *)
 module mkTV_Encode (TV_Encode_IFC);
 
-   Reg #(Bool) rg_reset_done <- mkReg (False);
+   Reg #(Bool) rg_reset_done <- mkReg (True);
 
    // Keep track of last PC for more efficient encoding of incremented PCs
    // TODO: currently always sending full PC
@@ -460,10 +460,7 @@ module mkTV_Encode (TV_Encode_IFC);
    // ----------------------------------------------------------------
    // INTERFACE
 
-   method Action reset () if (! rg_reset_done);
-      f_trace_data.clear;
-      f_vb.clear;
-      rg_reset_done <= True;
+   method Action reset ();
    endmethod
 
    interface Put trace_data_in = toPut (f_trace_data);
