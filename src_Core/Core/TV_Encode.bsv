@@ -592,7 +592,7 @@ function Tuple2 #(Bit #(32), Vector #(TV_VB_SIZE, Byte)) encode_mlen (Bit #(64) 
    vb [7] = word [63:56];
 `ifdef RV32
    n = 4;    // MLEN = 32
-`ifdef SV32
+`ifdef SV34
    n = 5;    // MLEN = 34
 `endif
 `else
