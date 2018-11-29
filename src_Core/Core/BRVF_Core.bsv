@@ -98,10 +98,6 @@ module mkBRVF_Core #(parameter Bit #(64)  pc_reset_value)  (BRVF_Core_IFC);
       // Remember the requestor, so we can respond to it
       f_reset_requestor.enq (reset_requestor_soc);
 `endif
-`ifdef INCLUDE_TANDEM_VERIF
-      // Reset the Tandem Verification encoder
-      tv_encode.reset;
-`endif
    endrule
 
 `ifdef INCLUDE_GDB_CONTROL
