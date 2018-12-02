@@ -58,6 +58,7 @@ module mkBRVF_Core #(parameter Bit #(64)  pc_reset_value)  (BRVF_Core_IFC);
    // The CPU and queues for reset reqs and rsps from SoC
    CPU_IFC  cpu <- mkCPU (pc_reset_value);
 
+   // Reset requests from SoC and responses to SoC
    FIFOF #(Bit #(0)) f_reset_reqs <- mkFIFOF;
    FIFOF #(Bit #(0)) f_reset_rsps <- mkFIFOF;
 
@@ -88,7 +89,7 @@ module mkBRVF_Core #(parameter Bit #(64)  pc_reset_value)  (BRVF_Core_IFC);
    FIFOF #(Bit #(1)) f_reset_requestor <- mkFIFOF;
 `endif
 
-   // Reset request from SoC
+   // Reset-hart0 request from SoC
    rule rl_cpu_hart0_reset_from_soc_start;
       let req <- pop (f_reset_reqs);
 
@@ -101,7 +102,7 @@ module mkBRVF_Core #(parameter Bit #(64)  pc_reset_value)  (BRVF_Core_IFC);
    endrule
 
 `ifdef INCLUDE_GDB_CONTROL
-   // Reset-hart0 request from from DM
+   // Reset-hart0 from Debug Module
    rule rl_cpu_hart0_reset_from_dm_start;
       let req <- debug_module.hart0_get_reset_req.get;
       // Reset the hart

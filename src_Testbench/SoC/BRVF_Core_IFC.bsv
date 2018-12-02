@@ -65,7 +65,7 @@ interface BRVF_Core_IFC;
    // where 'vb' is a vector of bytes
    // with relevant bytes in locations [0]..[n-1]
 
-   interface Get #(Info_CPU_to_Verifier) tv_verifier_info_get;
+   interface Get #(Info_CPU_to_Verifier)  tv_verifier_info_get;
 `endif
 
 `ifdef INCLUDE_GDB_CONTROL

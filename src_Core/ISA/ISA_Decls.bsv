@@ -143,6 +143,7 @@ typedef Bit #(0) Token;
 // ================================================================
 // Instruction fields
 
+// This is used for encoding Tandem Verifier traces
 typedef enum { ISIZE16BIT, ISIZE32BIT
    } ISize deriving (Bits, Eq, FShow);
 

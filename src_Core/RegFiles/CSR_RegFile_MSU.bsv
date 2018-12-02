@@ -55,6 +55,7 @@ interface CSR_RegFile_IFC;
    (* always_ready *)
    method ActionValue #(Maybe #(Word)) mav_read_csr (CSR_Addr csr_addr);
 
+   // CSR write (returning new value)
    (* always_ready *)
    method ActionValue #(WordXL) mav_csr_write (CSR_Addr csr_addr, WordXL word);
 
@@ -682,19 +683,19 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
 	    case (csr_addr)
 	       // User mode csrs
 `ifdef ISA_FD
-	       csr_fflags:     begin
-				  result     = zeroExtend (wordxl [4:0]);
-				  rg_fflags <= wordxl [4:0];
-			       end
-	       csr_frm:        begin
-				  result  = zeroExtend (wordxl [2:0]);
-				  rg_frm <= wordxl [2:0];
-			       end
-	       csr_fcsr:       begin
-				  result     = zeroExtend (wordxl [7:0]);
-				  rg_fflags <= wordxl [4:0];
-				  rg_frm    <= wordxl [7:5];
-			       end
+	       csr_addr_fflags:     begin
+				       result     = zeroExtend (wordxl [4:0]);
+				       rg_fflags <= wordxl [4:0];
+				    end
+	       csr_addr_frm:        begin
+				       result  = zeroExtend (wordxl [2:0]);
+				       rg_frm <= wordxl [2:0];
+				    end
+	       csr_addr_fcsr:       begin
+				       result     = zeroExtend (wordxl [7:0]);
+				       rg_fflags <= wordxl [4:0];
+				       rg_frm    <= wordxl [7:5];
+				    end
 `endif
 
 `ifdef ISA_PRIV_S
@@ -1154,19 +1155,19 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
    // Interrupts
    method Action external_interrupt_req (Bool set_not_clear);
       csr_mip.external_interrupt_req  (set_not_clear);     
-      // TODO: uncomment if (cfg_verbosity > 1)
+      if (cfg_verbosity > 1)
 	 $display ("%0d: CSR_RegFile: external_interrupt_req: %x", rg_mcycle, set_not_clear);
    endmethod
 
    method Action timer_interrupt_req (Bool set_not_clear);
       csr_mip.timer_interrupt_req  (set_not_clear);     
-      // TODO: uncomment if (cfg_verbosity > 1)
+      if (cfg_verbosity > 1)
 	 $display ("%0d: CSR_RegFile: timer_interrupt_req: %x", rg_mcycle, set_not_clear);
    endmethod
 
    method Action software_interrupt_req (Bool set_not_clear);
       csr_mip.software_interrupt_req (set_not_clear);
-      // TODO: uncomment if (cfg_verbosity > 1)
+      if (cfg_verbosity > 1)
 	 $display ("%0d: CSR_RegFile: software_interrupt_req: %x", rg_mcycle, set_not_clear);
    endmethod
 

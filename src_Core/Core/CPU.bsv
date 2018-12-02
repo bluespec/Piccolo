@@ -244,10 +244,10 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
    // ================================================================
    // Debugging: print instruction trace info
 
-   function fa_emit_instr_trace (inum, pc, instr, priv);
+   function fa_emit_instr_trace (instret, pc, instr, priv);
       action
 	 if (cur_verbosity == 1)
-	    $display ("inum:%0d  PC:0x%0h  instr:0x%0h  priv:%0d", inum, pc, instr, priv);
+	    $display ("instret:%0d  PC:0x%0h  instr:0x%0h  priv:%0d", instret, pc, instr, priv);
       endaction
    endfunction
 
@@ -288,7 +288,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 `else
 	 Bit #(1) sstatus_SUM = 0;
 `endif
-	 Bit #(1) mstatus_MXR = (csr_regfile.read_mstatus) [19];
+	 Bit #(1) mstatus_MXR = mstatus [19];
 	 stage1.enq (next_pc, priv,
 		     sstatus_SUM,
 		     mstatus_MXR,
@@ -357,7 +357,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 		      && fn_is_running (rg_state)
 		      && (rg_state != CPU_WFI_PAUSED));
       $display ("================================================================");
-      $display ("%0d: Pipeline State:  inum:%0d  cur_priv:%0d  mstatus:%0x",
+      $display ("%0d: Pipeline State:  minstret:%0d  cur_priv:%0d  mstatus:%0x",
 		mcycle, minstret, rg_cur_priv, mstatus);
       $display ("    ", fshow_mstatus (misa, mstatus));
 
@@ -796,7 +796,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
       stage1.set_full (True);
       rg_state <= CPU_RUNNING;
       if (cur_verbosity > 1)
-	 $display ("%0d: rl_stage1_restart_after_csrrx: inum:%0d  pc:%0x  cur_priv:%0d",
+	 $display ("%0d: rl_stage1_restart_after_csrrx: minstret:%0d  pc:%0x  cur_priv:%0d",
 		   mcycle, minstret, stage1.out.next_pc, rg_cur_priv);
    endrule
 
@@ -1009,7 +1009,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 
       // Debug
       if (cur_verbosity >= 1)
-	 $display ("    WFI resume: inum:%0d  PC:0x%0h  instr:0x%0h  priv:%0d",
+	 $display ("    WFI resume: minstret:%0d  PC:0x%0h  instr:0x%0h  priv:%0d",
 		   minstret, stage1.out.data_to_stage2.pc, stage1.out.data_to_stage2.instr, rg_cur_priv);
 
       // Resume pipe (it will handle the interrupt, if one is pending)
@@ -1221,7 +1221,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 
       // Report CPI only stop-req, but not on step-req (where it's not very useful)
       if (rg_stop_req) begin
-	 $display ("%0d: CPU.rl_stop: Stop for debugger. inum %0d priv %0d PC 0x%0h instr 0x%0h",
+	 $display ("%0d: CPU.rl_stop: Stop for debugger. minstret %0d priv %0d PC 0x%0h instr 0x%0h",
 		   mcycle, minstret, rg_cur_priv, pc, instr);
 	 fa_report_CPI;
       end

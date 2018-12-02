@@ -282,7 +282,7 @@ function ALU_Outputs fv_JALR (ALU_Inputs inputs);
    // nsharma: 2017-05-26 Bug fix
    // nsharma: next_pc[0] should be cleared for JAL/JALR
    // riscv-spec-v2.2. Secn 2.5. Page 16
-   next_pc[0] = 1'b0;
+   next_pc [0] = 1'b0;
 
    Bool misaligned_target = (next_pc [1] == 1'b1);
 `ifdef ISA_C

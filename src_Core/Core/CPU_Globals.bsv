@@ -273,7 +273,7 @@ deriving (Bits);
 instance FShow #(Data_Stage2_to_Stage3);
    function Fmt fshow (Data_Stage2_to_Stage3 x);
       Fmt fmt =   $format ("data_to_Stage3 {pc:%h  instr:%h  priv:%0d\n", x.pc, x.instr, x.priv);
-      fmt = fmt + $format ("        rd_valid:", fshow (x.rd_valid), " rd:%0d  rd_val:%h", x.rd, x.rd_val);
+      fmt = fmt + $format ("        rd_valid:", fshow (x.rd_valid), " rd:%0d  rd_val:%h\n", x.rd, x.rd_val);
       return fmt;
    endfunction
 endinstance
