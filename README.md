@@ -209,7 +209,7 @@ In any of the following directories:
 
         builds/<ARCH>_Bluesim
 
-  - `$ make compile link`
+  - `$ make compile mkSim
 
 will compile and link a Bluesim executable.  Then,
 
