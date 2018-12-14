@@ -649,7 +649,49 @@ Opcode op_FNMSUB   = 7'b10_01_011;
 Opcode op_FNMADD   = 7'b10_01_111;
 
 // All other FP intructions
-Opcode op_FP = 7'b10_10_011;
+Opcode op_FP        = 7'b10_10_011;
+
+Bit #(7) f7_FADD_D       = 7'h1 ;
+Bit #(7) f7_FSUB_D       = 7'h5 ;
+Bit #(7) f7_FMUL_D       = 7'h9 ;
+Bit #(7) f7_FDIV_D       = 7'hD ;
+Bit #(7) f7_FSQRT_D      = 7'h2D;
+Bit #(7) f7_FCMP_D       = 7'h51;
+Bit #(7) f7_FMIN_D       = 7'h15;
+Bit #(7) f7_FMAX_D       = 7'h15;
+Bit #(7) f7_FSGNJ_D      = 7'h11;
+
+Bit #(7) f7_FADD_S       = 7'h0 ;
+Bit #(7) f7_FSUB_S       = 7'h4 ;
+Bit #(7) f7_FMUL_S       = 7'h8 ;
+Bit #(7) f7_FDIV_S       = 7'hC ;
+Bit #(7) f7_FSQRT_S      = 7'h2C;
+Bit #(7) f7_FCMP_S       = 7'h50;
+Bit #(7) f7_FMIN_S       = 7'h14;
+Bit #(7) f7_FMAX_S       = 7'h14;
+Bit #(7) f7_FSGNJ_S      = 7'h10;
+
+Bit #(7) f7_FCVT_W_S     = 7'h60;
+Bit #(7) f7_FCVT_WU_S    = 7'h60;
+Bit #(7) f7_FCVT_S_W     = 7'h68;
+Bit #(7) f7_FCVT_S_WU    = 7'h68;
+
+Bit #(7) f7_FCVT_L_S     = 7'h60;
+Bit #(7) f7_FCVT_LU_S    = 7'h60;
+Bit #(7) f7_FCVT_S_L     = 7'h68;
+Bit #(7) f7_FCVT_S_LU    = 7'h68;
+
+Bit #(7) f7_FCVT_S_D     = 7'h20;
+Bit #(7) f7_FCVT_D_S     = 7'h21;
+Bit #(7) f7_FCVT_W_D     = 7'h61;
+Bit #(7) f7_FCVT_WU_D    = 7'h61;
+Bit #(7) f7_FCVT_D_W     = 7'h69;
+Bit #(7) f7_FCVT_D_WU    = 7'h69;
+
+Bit #(7) f7_FCVT_L_D     = 7'h61;
+Bit #(7) f7_FCVT_LU_D    = 7'h61;
+Bit #(7) f7_FCVT_D_L     = 7'h69;
+Bit #(7) f7_FCVT_D_LU    = 7'h69;
 
 Bit #(5) f5_FADD     = 5'b00000;
 Bit #(5) f5_FSUB     = 5'b00001;

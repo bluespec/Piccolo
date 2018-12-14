@@ -413,8 +413,27 @@ module mkCPU_Stage2 #(Bit #(4)         verbosity,
 
 `ifdef ISA_FD
 	 // If FBox op, initiate it
-	 else if (x.op_stage2 == OP_Stage2_FD)
-	    fbox.req (funct3, x.val1, x.val2);
+         else if (x.op_stage2 == OP_Stage2_FD) begin
+            Bool use_FPU_not_PNU = True;
+
+            // Instr fields required for decode for F/D opcodes
+	    let funct7 = instr_funct7 (x.instr);
+	    let funct2 = instr_funct2 (x.instr);
+            let rs2    = instr_rs2    (x.instr);
+
+	    fbox.req (
+                 use_FPU_not_PNU
+               , funct7
+               , funct3
+               , funct2
+               , funct3          // XXX should be FCSR.FRM (a part of x)
+               , rs2
+               , x.val1
+               , x.val2
+               , x.val2          // XXX need a new field val3
+               , x.val1          // XXX revisit (GP val for FP instn)
+            );
+         end
 `endif
       endaction
    endfunction
