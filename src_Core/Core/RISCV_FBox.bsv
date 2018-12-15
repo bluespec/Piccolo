@@ -38,8 +38,8 @@ import FPU       :: *;
 // FBox interface
 
 typedef struct {
-   WordXL   word;                // The result rd
-   Bit #(5) fflags;              // FCSR.FFLAGS update value
+   WordXL   value;               // The result rd
+   Bit #(5) flags;               // FCSR.FFLAGS update value
    Bool     to_GPR_not_FPR;      // rd is in GPR or FPR
 } FBoxResult deriving (Bits, Eq, FShow);
 
@@ -69,6 +69,8 @@ interface RISCV_FBox_IFC;
    method Bool                      valid;
    (* always_ready *)
    method FBoxResult                word;
+   (* always_ready *)
+   method Bool                      exc;
 endinterface
 
 // ================================================================
@@ -87,6 +89,7 @@ module mkRISCV_FBox (RISCV_FBox_IFC);
 
    Reg   #(Bool)           dw_valid             <- mkDWire (False);
    Reg   #(FBoxResult)     dw_result            <- mkDWire (?);
+   Reg   #(Bool)           dw_exc               <- mkDWire (False);
 
    
    FPU_IFC                 fpu                  <- mkFPU;
@@ -144,12 +147,16 @@ module mkRISCV_FBox (RISCV_FBox_IFC);
    endmethod
 
    // MBox interface: response
-   method Bool  valid;
+   method Bool valid;
       return dw_valid;
    endmethod
 
-   method FBoxResult  word;
+   method FBoxResult word;
       return dw_result;
+   endmethod
+
+   method Bool exc;
+      return dw_exc;
    endmethod
 endmodule
 

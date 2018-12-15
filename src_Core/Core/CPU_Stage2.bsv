@@ -60,7 +60,7 @@ import Shifter_Box  :: *;
 import RISCV_MBox  :: *;
 `endif
 
-`ifdef ISA_FD
+`ifdef ISA_F
 import RISCV_FBox  :: *;
 `endif
 
@@ -117,7 +117,7 @@ module mkCPU_Stage2 #(Bit #(4)         verbosity,
    // ----------------
    // Floating point box
 
-`ifdef ISA_FD
+`ifdef ISA_F
    RISCV_FBox_IFC fbox <- mkRISCV_FBox;
 `endif
 
@@ -130,17 +130,24 @@ module mkCPU_Stage2 #(Bit #(4)         verbosity,
    let data_to_stage3_base = Data_Stage2_to_Stage3 {priv:      rg_stage2.priv,
 						    pc:        rg_stage2.pc,
 						    instr:     rg_stage2.instr,
+`ifdef ISA_F
+                                                    upd_fpr:   False,
+                                                    upd_flags: False,
+                                                    fpr_flags: 0,
+`endif
 						    rd_valid:  False,
 						    rd:        rg_stage2.rd,
-						    rd_val:    rg_stage2.val1};
+						    rd_val:    rg_stage2.val1
+                                                 };
 
    let  trap_info_dmem = Trap_Info {epc:      rg_stage2.pc,
 				    exc_code: dcache.exc_code,
 				    tval:     rg_stage2.addr };
 
-`ifdef ISA_FD
+`ifdef ISA_F
+   // The FBox can only generate ILLEGAL Instruction exceptions
    let  trap_info_fbox = Trap_Info {epc:      rg_stage2.pc,
-				    exc_code: fbox.exc_code,
+				    exc_code: exc_code_ILLEGAL_INSTRUCTION,
 				    tval:     0 };
 `endif
 
@@ -310,7 +317,7 @@ module mkCPU_Stage2 #(Bit #(4)         verbosity,
       end
 `endif
 
-`ifdef ISA_FD
+`ifdef ISA_F
       // This stage is doing a floating point op
       else if (rg_stage2.op_stage2 == OP_Stage2_FD) begin
 	 let ostatus = (  (! fbox.valid)
@@ -319,21 +326,29 @@ module mkCPU_Stage2 #(Bit #(4)         verbosity,
 			   ? OSTATUS_NONPIPE
 			   : OSTATUS_PIPE));
 
-	 let result = fbox.word;
+         // Extract fields from FBOX result
+	 let fbox_result         = fbox.word;
+         let value               = fbox_result.value;
+	 let fflags              = fbox_result.flags;
+         let upd_fpr             = !fbox_result.to_GPR_not_FPR;
 
-	 let data_to_stage3 = data_to_stage3_base;
+	 let data_to_stage3      = data_to_stage3_base;
 	 data_to_stage3.rd_valid = (ostatus == OSTATUS_PIPE);
-	 data_to_stage3.rd_val   = result;
+	 data_to_stage3.rd_val   = value;
+         data_to_stage3.upd_fpr  = upd_fpr;
+         data_to_stage3.upd_flags= True;
+         data_to_stage3.fpr_flags= fflags;
 
-	 let bypass = bypass_base;
-	 bypass.bypass_state = ((ostatus == OSTATUS_PIPE) ? BYPASS_RD_RDVAL : BYPASS_RD);
-	 bypass.rd_val       = result;
+	 let bypass              = bypass_base;
+	 bypass.bypass_state     = ((ostatus==OSTATUS_PIPE) ? BYPASS_RD_RDVAL
+                                                            : BYPASS_RD);
+	 bypass.rd_val           = value;
 
-	 let trace_data   = ?;
+	 let trace_data          = ?;
 `ifdef INCLUDE_TANDEM_VERIF
 	 trace_data   = rg_stage2.trace_data;
 `endif
-	 trace_data.word1 = result;
+	 trace_data.word1 = value;
 
 	 output_stage2 = Output_Stage2 {ostatus:         ostatus,
 					trap_info:       trap_info_fbox,
@@ -411,7 +426,7 @@ module mkCPU_Stage2 #(Bit #(4)         verbosity,
 	 end
 `endif
 
-`ifdef ISA_FD
+`ifdef ISA_F
 	 // If FBox op, initiate it
          else if (x.op_stage2 == OP_Stage2_FD) begin
             Bool use_FPU_not_PNU = True;

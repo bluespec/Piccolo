@@ -37,6 +37,9 @@ import ISA_Decls        :: *;
 import CPU_Globals      :: *;
 import Near_Mem_IFC     :: *;
 import GPR_RegFile      :: *;
+`ifdef ISA_F
+import FPR_RegFile      :: *;
+`endif
 import CSR_RegFile      :: *;
 import EX_ALU_functions :: *;
 

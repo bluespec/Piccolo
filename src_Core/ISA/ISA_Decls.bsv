@@ -1,3 +1,4 @@
+// vim: tw=80:tabstop=8:softtabstop=3:shiftwidth=3:expandtab:
 // Copyright (c) 2013-2018 Bluespec, Inc. All Rights Reserved
 
 // ================================================================
@@ -130,9 +131,9 @@ typedef  Vector #(Bytes_per_WordFL, Byte)      WordFL_B;
 `endif
 
 `ifdef ISA_F
-`define ISA_F_OR_D
-`elif ISA_D
-`define ISA_F_OR_D
+`ifdef ISA_D
+`define ISA_F_AND_D
+`endif
 `endif
 
 // ================================================================
@@ -633,80 +634,83 @@ Bit #(3) funct3_JALR = 3'b000;
 // ================================================================
 // Floating Point Instructions
 // Funct2 encoding
-Bit #(2) f2_S      = 2'b00;
-Bit #(2) f2_D      = 2'b01;
-Bit #(2) f2_Q      = 2'b11;
+Bit #(2) f2_S           = 2'b00;
+Bit #(2) f2_D           = 2'b01;
+Bit #(2) f2_Q           = 2'b11;
 
 // Floating point Load-Store
-// X is W (32-bit) for ISA_F, D (64-bit) for ISA_D
-Opcode op_FLX      = 7'b00_00_111;
-Opcode op_FSX      = 7'b01_00_111;
+Opcode   op_FSTORE      = 7'b_01_001_11;
+Opcode   op_FLOAD       = 7'b_00_001_11;
+Bit #(3) f3_FSW         = 3'b_010;
+Bit #(3) f3_FSD         = 3'b_011;
+Bit #(3) f3_FLW         = 3'b_010;
+Bit #(3) f3_FLD         = 3'b_011;
 
 // Fused FP Multiply Add/Sub instructions
-Opcode op_FMADD    = 7'b10_00_011;
-Opcode op_FMSUB    = 7'b10_00_111;
-Opcode op_FNMSUB   = 7'b10_01_011;
-Opcode op_FNMADD   = 7'b10_01_111;
+Opcode   op_FMADD       = 7'b10_00_011;
+Opcode   op_FMSUB       = 7'b10_00_111;
+Opcode   op_FNMSUB      = 7'b10_01_011;
+Opcode   op_FNMADD      = 7'b10_01_111;
 
 // All other FP intructions
-Opcode op_FP        = 7'b10_10_011;
+Opcode   op_FP          = 7'b10_10_011;
 
-Bit #(7) f7_FADD_D       = 7'h1 ;
-Bit #(7) f7_FSUB_D       = 7'h5 ;
-Bit #(7) f7_FMUL_D       = 7'h9 ;
-Bit #(7) f7_FDIV_D       = 7'hD ;
-Bit #(7) f7_FSQRT_D      = 7'h2D;
-Bit #(7) f7_FCMP_D       = 7'h51;
-Bit #(7) f7_FMIN_D       = 7'h15;
-Bit #(7) f7_FMAX_D       = 7'h15;
-Bit #(7) f7_FSGNJ_D      = 7'h11;
+Bit #(7) f7_FADD_D      = 7'h1 ;
+Bit #(7) f7_FSUB_D      = 7'h5 ;
+Bit #(7) f7_FMUL_D      = 7'h9 ;
+Bit #(7) f7_FDIV_D      = 7'hD ;
+Bit #(7) f7_FSQRT_D     = 7'h2D;
+Bit #(7) f7_FCMP_D      = 7'h51;
+Bit #(7) f7_FMIN_D      = 7'h15;
+Bit #(7) f7_FMAX_D      = 7'h15;
+Bit #(7) f7_FSGNJ_D     = 7'h11;
 
-Bit #(7) f7_FADD_S       = 7'h0 ;
-Bit #(7) f7_FSUB_S       = 7'h4 ;
-Bit #(7) f7_FMUL_S       = 7'h8 ;
-Bit #(7) f7_FDIV_S       = 7'hC ;
-Bit #(7) f7_FSQRT_S      = 7'h2C;
-Bit #(7) f7_FCMP_S       = 7'h50;
-Bit #(7) f7_FMIN_S       = 7'h14;
-Bit #(7) f7_FMAX_S       = 7'h14;
-Bit #(7) f7_FSGNJ_S      = 7'h10;
+Bit #(7) f7_FADD_S      = 7'h0 ;
+Bit #(7) f7_FSUB_S      = 7'h4 ;
+Bit #(7) f7_FMUL_S      = 7'h8 ;
+Bit #(7) f7_FDIV_S      = 7'hC ;
+Bit #(7) f7_FSQRT_S     = 7'h2C;
+Bit #(7) f7_FCMP_S      = 7'h50;
+Bit #(7) f7_FMIN_S      = 7'h14;
+Bit #(7) f7_FMAX_S      = 7'h14;
+Bit #(7) f7_FSGNJ_S     = 7'h10;
 
-Bit #(7) f7_FCVT_W_S     = 7'h60;
-Bit #(7) f7_FCVT_WU_S    = 7'h60;
-Bit #(7) f7_FCVT_S_W     = 7'h68;
-Bit #(7) f7_FCVT_S_WU    = 7'h68;
+Bit #(7) f7_FCVT_W_S    = 7'h60;
+Bit #(7) f7_FCVT_WU_S   = 7'h60;
+Bit #(7) f7_FCVT_S_W    = 7'h68;
+Bit #(7) f7_FCVT_S_WU   = 7'h68;
 
-Bit #(7) f7_FCVT_L_S     = 7'h60;
-Bit #(7) f7_FCVT_LU_S    = 7'h60;
-Bit #(7) f7_FCVT_S_L     = 7'h68;
-Bit #(7) f7_FCVT_S_LU    = 7'h68;
+Bit #(7) f7_FCVT_L_S    = 7'h60;
+Bit #(7) f7_FCVT_LU_S   = 7'h60;
+Bit #(7) f7_FCVT_S_L    = 7'h68;
+Bit #(7) f7_FCVT_S_LU   = 7'h68;
 
-Bit #(7) f7_FCVT_S_D     = 7'h20;
-Bit #(7) f7_FCVT_D_S     = 7'h21;
-Bit #(7) f7_FCVT_W_D     = 7'h61;
-Bit #(7) f7_FCVT_WU_D    = 7'h61;
-Bit #(7) f7_FCVT_D_W     = 7'h69;
-Bit #(7) f7_FCVT_D_WU    = 7'h69;
+Bit #(7) f7_FCVT_S_D    = 7'h20;
+Bit #(7) f7_FCVT_D_S    = 7'h21;
+Bit #(7) f7_FCVT_W_D    = 7'h61;
+Bit #(7) f7_FCVT_WU_D   = 7'h61;
+Bit #(7) f7_FCVT_D_W    = 7'h69;
+Bit #(7) f7_FCVT_D_WU   = 7'h69;
 
-Bit #(7) f7_FCVT_L_D     = 7'h61;
-Bit #(7) f7_FCVT_LU_D    = 7'h61;
-Bit #(7) f7_FCVT_D_L     = 7'h69;
-Bit #(7) f7_FCVT_D_LU    = 7'h69;
+Bit #(7) f7_FCVT_L_D    = 7'h61;
+Bit #(7) f7_FCVT_LU_D   = 7'h61;
+Bit #(7) f7_FCVT_D_L    = 7'h69;
+Bit #(7) f7_FCVT_D_LU   = 7'h69;
 
-Bit #(5) f5_FADD     = 5'b00000;
-Bit #(5) f5_FSUB     = 5'b00001;
-Bit #(5) f5_FMUL     = 5'b00010;
-Bit #(5) f5_FDIV     = 5'b00011;
-Bit #(5) f5_FSQRT    = 5'b01011;
-Bit #(5) f5_FSGNJ    = 5'b00100;
-Bit #(5) f5_FSGNJN   = 5'b00100;
-Bit #(5) f5_FSGNJX   = 5'b00100;
-Bit #(5) f5_FMIN     = 5'b00101;
-Bit #(5) f5_FMAX     = 5'b00101;
-Bit #(5) f5_FEQ      = 5'b10100;
-Bit #(5) f5_FLT      = 5'b10100;
-Bit #(5) f5_FLE      = 5'b10100;
-Bit #(5) f5_FCLASS   = 5'b11100;
+Bit #(5) f5_FADD        = 5'b00000;
+Bit #(5) f5_FSUB        = 5'b00001;
+Bit #(5) f5_FMUL        = 5'b00010;
+Bit #(5) f5_FDIV        = 5'b00011;
+Bit #(5) f5_FSQRT       = 5'b01011;
+Bit #(5) f5_FSGNJ       = 5'b00100;
+Bit #(5) f5_FSGNJN      = 5'b00100;
+Bit #(5) f5_FSGNJX      = 5'b00100;
+Bit #(5) f5_FMIN        = 5'b00101;
+Bit #(5) f5_FMAX        = 5'b00101;
+Bit #(5) f5_FEQ         = 5'b10100;
+Bit #(5) f5_FLT         = 5'b10100;
+Bit #(5) f5_FLE         = 5'b10100;
+Bit #(5) f5_FCLASS      = 5'b11100;
 
 // FP convert instructions
 // To be read as FCVT_DEST_SRC

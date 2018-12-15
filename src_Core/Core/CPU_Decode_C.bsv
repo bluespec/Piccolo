@@ -246,7 +246,7 @@ function Tuple2 #(Bool, Instr) fv_decode_C_FLWSP (MISA  misa, Bit #(2)  xl, Inst
 		       && (misa.f == 1'b1));
 
       RegName rs1   = reg_sp;
-      let     instr = mkInstr_I_type (zeroExtend (offset),  rs1,  f3_FLW,  rd,  op_LOAD_FP);
+      let     instr = mkInstr_I_type (zeroExtend (offset),  rs1,  f3_FLW,  rd,  op_FLOAD);
 
       return tuple2 (is_legal, instr);
    end
@@ -270,7 +270,7 @@ function Tuple2 #(Bool, Instr) fv_decode_C_FLDSP (MISA  misa,  Bit #(2) xl, Inst
 			   || (xl == misa_mxl_128)));
 
       RegName rs1   = reg_sp;
-      let     instr = mkInstr_I_type (zeroExtend (offset),  rs1,  f3_FLD,  rd,  op_LOAD_FP);
+      let     instr = mkInstr_I_type (zeroExtend (offset),  rs1,  f3_FLD,  rd,  op_FLOAD);
 
       return tuple2 (is_legal, instr);
    end
@@ -354,7 +354,7 @@ function Tuple2 #(Bool, Instr) fv_decode_C_FSWSP (MISA  misa,  Bit #(2)  xl, Ins
 		       && (funct3 == funct3_C_FSWSP));
 
       RegName   rs1   = reg_sp;
-      let       instr = mkInstr_S_type (zeroExtend (offset), rs2, rs1, f3_FSW, op_STORE_FP);
+      let       instr = mkInstr_S_type (zeroExtend (offset), rs2, rs1, f3_FSW, op_FSTORE);
 
       return tuple2 (is_legal, instr);
    end
@@ -376,7 +376,7 @@ function Tuple2 #(Bool, Instr) fv_decode_C_FSDSP (MISA  misa,  Bit #(2)  xl, Ins
 			   || (xl == misa_mxl_128)));
 
       RegName   rs1   = reg_sp;
-      let       instr = mkInstr_S_type (zeroExtend (offset), rs2, rs1, f3_FSD, op_STORE_FP);
+      let       instr = mkInstr_S_type (zeroExtend (offset), rs2, rs1, f3_FSD, op_FSTORE);
 
       return tuple2 (is_legal, instr);
    end
@@ -554,7 +554,7 @@ function Tuple2 #(Bool, Instr) fv_decode_C_FSW (MISA  misa,  Bit #(2)  xl,  Inst
 		       && (op == opcode_C0)
 		       && (funct3 == funct3_C_FSW));
 
-      let instr = mkInstr_S_type (zeroExtend (offset), rs2, rs1, f3_FSW, op_STORE_FP);
+      let instr = mkInstr_S_type (zeroExtend (offset), rs2, rs1, f3_FSW, op_FSTORE);
       
       return tuple2 (is_legal, instr);
    end
@@ -573,7 +573,7 @@ function Tuple2 #(Bool, Instr) fv_decode_C_FSD (MISA  misa,  Bit #(2)  xl,  Inst
 		       && (op == opcode_C0)
 		       && (funct3 == funct3_C_FSD));
 
-      let instr = mkInstr_S_type (zeroExtend (offset), rs2, rs1, f3_FSD, op_STORE_FP);
+      let instr = mkInstr_S_type (zeroExtend (offset), rs2, rs1, f3_FSD, op_FSTORE);
       
       return tuple2 (is_legal, instr);
    end

@@ -44,6 +44,9 @@ import Cur_Cycle :: *;
 
 import ISA_Decls   :: *;
 import GPR_RegFile :: *;
+`ifdef ISA_F
+import FPR_RegFile :: *;
+`endif
 import CSR_RegFile :: *;
 import CPU_Globals :: *;
 
@@ -77,6 +80,9 @@ endinterface
 
 module mkCPU_Stage3 #(Bit #(4)         verbosity,
 		      GPR_RegFile_IFC  gpr_regfile,
+`ifdef ISA_F
+		      FPR_RegFile_IFC  fpr_regfile,
+`endif
 		      CSR_RegFile_IFC  csr_regfile)
                     (CPU_Stage3_IFC);
 
@@ -114,10 +120,21 @@ module mkCPU_Stage3 #(Bit #(4)         verbosity,
       action
 	 // Writeback Rd if valid
 	 if (rg_stage3.rd_valid) begin
-	    gpr_regfile.write_rd (rg_stage3.rd, rg_stage3.rd_val);
+`ifdef ISA_F
+            if (rg_stage3.upd_fpr)
+               fpr_regfile.write_rd (rg_stage3.rd, rg_stage3.rd_val);
+            else
+`endif
+               gpr_regfile.write_rd (rg_stage3.rd, rg_stage3.rd_val);
 	    if (verbosity > 1)
-	       $display ("    S3.fa_deq: write Rd 0x%0h, rd_val 0x%0h",
-			 rg_stage3.rd, rg_stage3.rd_val);
+`ifdef ISA_F
+               if (rg_stage3.upd_fpr)
+                  $display ("    S3.fa_deq: write FRd 0x%0h, rd_val 0x%0h",
+                            rg_stage3.rd, rg_stage3.rd_val);
+               else
+`endif
+                  $display ("    S3.fa_deq: write GRd 0x%0h, rd_val 0x%0h",
+                            rg_stage3.rd, rg_stage3.rd_val);
 	 end
       endaction
    endfunction

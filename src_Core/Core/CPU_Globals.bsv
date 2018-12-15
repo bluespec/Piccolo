@@ -186,7 +186,7 @@ typedef enum {  OP_Stage2_ALU         // Pass-through (non mem, M, FD, AMO)
 	      , OP_Stage2_AMO
 `endif
 
-`ifdef ISA_FD
+`ifdef ISA_F
 	      , OP_Stage2_FD
 `endif
    } Op_Stage2
@@ -265,6 +265,11 @@ typedef struct {
    Priv_Mode priv;
 
    Bool      rd_valid;
+`ifdef ISA_F
+   Bool      upd_fpr;
+   Bool      upd_flags;
+   Bit #(5)  fpr_flags;
+`endif
    RegName   rd;
    Word      rd_val;
    } Data_Stage2_to_Stage3
@@ -273,7 +278,17 @@ deriving (Bits);
 instance FShow #(Data_Stage2_to_Stage3);
    function Fmt fshow (Data_Stage2_to_Stage3 x);
       Fmt fmt =   $format ("data_to_Stage3 {pc:%h  instr:%h  priv:%0d\n", x.pc, x.instr, x.priv);
-      fmt = fmt + $format ("        rd_valid:", fshow (x.rd_valid), " rd:%0d  rd_val:%h\n", x.rd, x.rd_val);
+      fmt = fmt + $format ("        rd_valid:", fshow (x.rd_valid));
+
+`ifdef ISA_F
+      if (x.upd_flags)
+         fmt = fmt + $format ("  fflags: %05b", fshow (x.fpr_flags));
+
+      if (x.upd_fpr)
+         fmt = fmt + $format ("  frd:%0d  rd_val:%h\n", x.rd, x.rd_val);
+      else
+`endif
+         fmt = fmt + $format ("  grd:%0d  rd_val:%h\n", x.rd, x.rd_val);
       return fmt;
    endfunction
 endinstance
