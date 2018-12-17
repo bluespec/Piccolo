@@ -737,6 +737,21 @@ Bit #(5) f5_FCVT_S_D = 5'b01000;
 Bit #(5) f5_FCVT_D_S = 5'b01000;
 `endif
 
+// Check if a rounding mode value in the FCSR.FRM is valid
+function Bool fv_fcsr_frm_valid (Bit #(3) frm);
+   return (   (frm != 3'b101) 
+           && (frm != 3'b110)
+           && (frm != 3'b111)
+          );
+endfunction 
+
+// Check if a rounding mode value in the instr is valid
+function Bool fv_inst_frm_valid (Bit #(3) frm);
+   return (   (frm != 3'b101) 
+           && (frm != 3'b110)
+          );
+endfunction
+
 // ================================================================
 // System Instructions
 Opcode op_SYSTEM = 7'b11_100_11;
