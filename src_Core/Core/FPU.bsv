@@ -21,14 +21,14 @@ interface FPU_IFC;
    // FPU request
    (* always_ready *)
    method Action                    req (
-        Bit #(7)  f7
+        Opcode    opcode
+      , Bit #(7)  f7
       , Bit #(3)  f3
       , Bit #(2)  f2
       , Bit #(3)  rm
-      , WordXL    fv1
-      , WordXL    fv2
-      , WordXL    fv3
-      , WordXL    gv1
+      , Bit #(64) v1
+      , Bit #(64) v2
+      , Bit #(64) v3
    );
 
    // FPU response
@@ -36,14 +36,15 @@ interface FPU_IFC;
    method Bool                      result_valid;
 
    (* always_ready *)
-   method Tuple2 #(WordXL, Bit#(5)) result_value;
+   method Tuple2 #(
+      Bit #(64), Bit#(5))           result_value;
 endinterface
 
 (* synthesize *)
 module mkFPU (FPU_IFC);
 
    Reg   # (Bit #(5))      rg_fflags         <- mkRegU;
-   Reg   # (WordXL)        rg_result         <- mkRegU;
+   Reg   # (Bit #(64))     rg_result         <- mkRegU;
    Reg   # (Bool)          rg_result_valid   <- mkReg (False);
 
    // ----------------
@@ -57,14 +58,14 @@ module mkFPU (FPU_IFC);
    endmethod
 
    method Action req (
-        Bit #(7)  f7
+        Opcode    opcode
+      , Bit #(7)  f7
       , Bit #(3)  f3
       , Bit #(2)  f2
       , Bit #(3)  rm
-      , WordXL    fv1
-      , WordXL    fv2
-      , WordXL    fv3
-      , WordXL    gv1
+      , Bit #(64) v1
+      , Bit #(64) v2
+      , Bit #(64) v3
    );
       noAction;
    endmethod
@@ -73,7 +74,7 @@ module mkFPU (FPU_IFC);
       return (rg_result_valid);
    endmethod
 
-   method Tuple2 #(WordXL, Bit #(5)) result_value;
+   method Tuple2 #(Bit #(64), Bit #(5)) result_value;
       return tuple2 (rg_result, rg_fflags);
    endmethod
 endmodule

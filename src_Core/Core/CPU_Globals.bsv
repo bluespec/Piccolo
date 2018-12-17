@@ -195,17 +195,33 @@ deriving (Eq, Bits, FShow);
 typedef struct {
    Priv_Mode  priv;
    Addr       pc;
-   Instr      instr;    // For debugging. Just funct3 is enough for functionality.
+   Instr      instr;    // For debugging. Just funct3, funct7 are enough for
+                        // functionality.
    Op_Stage2  op_stage2;
    RegName    rd;
    Addr       addr;     // Branch, jump: newPC
                         // Mem ops and AMOs: mem addr
+`ifdef ISA_F
+   // When FP is enabled, the val from Stage1 to Stage2 should be sized to
+   // max (sizeOf (WordXL), sizeOf (WordFL))
+   // Using lower-level Bit types here as the data in vals always be raw 64-bit
+   // data. The higher level semantics of the data would depend on the type of
+   // instruction.
+   Bit# (64)  val1;     // OP_Stage2_ALU: rd_val
+                        // OP_Stage2_M and OP_Stage2_FD: arg1
 
+   Bit# (64)  val2;     // OP_Stage2_ST: store-val;
+                        // OP_Stage2_M and OP_Stage2_FD: arg2
+
+   Bit# (64)  val3;     // OP_Stage2_FD: arg3
+`else
    Word       val1;     // OP_Stage2_ALU: rd_val
                         // OP_Stage2_M and OP_Stage2_FD: arg1
 
    Word       val2;     // OP_Stage2_ST: store-val;
                         // OP_Stage2_M and OP_Stage2_FD: arg2
+
+`endif
 
 `ifdef INCLUDE_TANDEM_VERIF
    Trace_Data  trace_data;
@@ -265,13 +281,21 @@ typedef struct {
    Priv_Mode priv;
 
    Bool      rd_valid;
+   RegName   rd;
+
 `ifdef ISA_F
    Bool      upd_fpr;
    Bool      upd_flags;
    Bit #(5)  fpr_flags;
-`endif
-   RegName   rd;
+   // When FP is enabled, the rd_val from Stage2 to Stage3 should be sized to
+   // max (sizeOf (WordXL), sizeOf (WordFL))
+   // Using lower-level Bit types here as the data in rd_val always be raw
+   // 64-bit data. The higher level semantics of the data would depend on if
+   // the rd_val is meant to be written into GPR or FPR
+   Bit #(64) rd_val;
+`else
    Word      rd_val;
+`endif
    } Data_Stage2_to_Stage3
 deriving (Bits);
 

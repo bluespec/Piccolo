@@ -186,7 +186,6 @@ function Tuple2 #(Bool, Instr) fv_decode_C_LWSP (MISA  misa, Bit #(2)  xl, Instr
    end
 endfunction
 
-`ifdef RV64
 // LDSP: expands into LD
 function Tuple2 #(Bool, Instr) fv_decode_C_LDSP (MISA  misa, Bit #(2)  xl, Instr_C  instr_C);
    begin
@@ -207,7 +206,6 @@ function Tuple2 #(Bool, Instr) fv_decode_C_LDSP (MISA  misa, Bit #(2)  xl, Instr
       return tuple2 (is_legal, instr);
    end
 endfunction
-`endif
 
 `ifdef RV128
 // LQSP: expands into LQ
@@ -298,7 +296,6 @@ function Tuple2 #(Bool, Instr) fv_decode_C_SWSP (MISA  misa,  Bit #(2)  xl, Inst
    end
 endfunction
 
-`ifdef RV64
 // SDSP: expands to SD
 function Tuple2 #(Bool, Instr) fv_decode_C_SDSP (MISA  misa,  Bit #(2)  xl, Instr_C  instr_C);
    begin
@@ -318,7 +315,6 @@ function Tuple2 #(Bool, Instr) fv_decode_C_SDSP (MISA  misa,  Bit #(2)  xl, Inst
       return tuple2 (is_legal, instr);
    end
 endfunction
-`endif
 
 `ifdef RV128
 // SQSP: expands to SQ

@@ -19,6 +19,7 @@ BSC_FLAGS ?= -D RV32 \
 	     -D ISA_PRIV_S  -D SV32 \
 	     -D ISA_C \
 	     -D ISA_F \
+	     -D ISA_D \
 	     -D ISA_M \
 	     -D ISA_A
 

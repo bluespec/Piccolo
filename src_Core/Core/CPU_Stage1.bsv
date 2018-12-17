@@ -154,8 +154,16 @@ module mkCPU_Stage1 #(Bit #(4)         verbosity,
 					       op_stage2:  alu_outputs.op_stage2,
 					       rd:         alu_outputs.rd,
 					       addr:       alu_outputs.addr,
+`ifdef ISA_F
+                                               // With FP, the vals is always Bit #(64)
+					       val1:       extend (alu_outputs.val1),
+					       val2:       extend (alu_outputs.val2),
+					       val3:       ?
+`else
 					       val1:       alu_outputs.val1,
 					       val2:       alu_outputs.val2
+`endif
+
 `ifdef INCLUDE_TANDEM_VERIF
 					       , trace_data: alu_outputs.trace_data
 `endif

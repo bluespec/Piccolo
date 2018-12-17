@@ -38,14 +38,15 @@ import FPU       :: *;
 // FBox interface
 
 typedef struct {
-   WordXL   value;               // The result rd
-   Bit #(5) flags;               // FCSR.FFLAGS update value
-   Bool     to_GPR_not_FPR;      // rd is in GPR or FPR
+   Bit #(64)   value;            // The result rd
+   Bit #(5)    flags;            // FCSR.FFLAGS update value
+   Bool        to_GPR_not_FPR;   // rd is in GPR or FPR
 } FBoxResult deriving (Bits, Eq, FShow);
 
 typedef enum {
    FBOX_READY,                   // Idle. Ready for request
    FBOX_BUSY,                    // FBox is busy processing a request
+   FBOX_RESULT,                  // FBox result is ready
    FBOX_EXCEPTION_RSP            // Illegal instruction exception
 } FBoxState deriving (Bits, Eq, FShow);
 
@@ -61,15 +62,15 @@ interface RISCV_FBox_IFC;
         Bool      use_FPU_not_PNU
       , Bool      f_enabled
       , Bool      d_enabled
+      , Opcode    opcode
       , Bit #(7)  f7
       , Bit #(3)  f3
       , Bit #(2)  f2
       , Bit #(3)  fcsr_frm
       , Bit #(5)  rs2
-      , WordXL    fv1
-      , WordXL    fv2
-      , WordXL    fv3
-      , WordXL    gv1
+      , Bit #(64) v1
+      , Bit #(64) v2
+      , Bit #(64) v3
    );
 
    // MBox interface: response
@@ -91,9 +92,7 @@ module mkRISCV_FBox (RISCV_FBox_IFC);
    Reg   #(Maybe #(Bool))  rg_frm_FPU_not_PNU   <- mkRegU;
    Reg   #(Maybe #(Bool))  rg_to_GPR_not_FPR    <- mkRegU;
 
-   Reg   #(Bit #(3))       rg_f3                <- mkRegU;
-   Reg   #(WordXL)         rg_v1                <- mkRegU;
-   Reg   #(WordXL)         rg_v2                <- mkRegU;
+   Reg   #(FBoxResult)     rg_out               <- mkRegU;
 
    Reg   #(FBoxState)      rg_state             <- mkReg (FBOX_READY);
    Reg   #(Bool)           dw_valid             <- mkDWire (False);
@@ -113,6 +112,35 @@ module mkRISCV_FBox (RISCV_FBox_IFC);
    rule rl_drive_exception_rsp (rg_state == FBOX_EXCEPTION_RSP);
       dw_valid    <= True;
       dw_exc      <= True;
+   endrule
+
+   // These rules drives the results from the FPU or PNU
+   rule rl_drive_fpu_result (
+         (rg_state == FBOX_BUSY)
+      && (rg_frm_FPU_not_PNU.Valid == True)
+      && (fpu.result_valid));
+      match {.res, .flags} = fpu.result_value;
+      let fbox_res = FBoxResult {
+           value           : res
+         , flags           : flags
+         , to_GPR_not_FPR  : rg_to_GPR_not_FPR.Valid};
+
+      dw_valid    <= True;
+      dw_result   <= fbox_res;
+   endrule
+
+   rule rl_drive_pnu_result (
+         (rg_state == FBOX_BUSY)
+      && (rg_frm_FPU_not_PNU.Valid == False)
+      && (pnu.result_valid));
+      match {.res, .flags} = pnu.result_value;
+      let fbox_res = FBoxResult {
+           value           : res
+         , flags           : flags
+         , to_GPR_not_FPR  : rg_to_GPR_not_FPR.Valid};
+
+      dw_valid    <= True;
+      dw_result   <= fbox_res;
    endrule
 
    // Decode signals pertaining to legality checks
@@ -140,34 +168,34 @@ module mkRISCV_FBox (RISCV_FBox_IFC);
 
    // FBox interface: request
    method Action req (
-        Bool use_FPU_not_PNU
-      , Bool f_enabled
-      , Bool d_enabled
-      , Bit #(7) f7
-      , Bit #(3) f3
-      , Bit #(2) f2
-      , Bit #(3) fcsr_frm
-      , Bit #(5) rs2
-      , WordXL fv1
-      , WordXL fv2
-      , WordXL fv3
-      , WordXL gv1
+        Bool      use_FPU_not_PNU
+      , Bool      f_enabled
+      , Bool      d_enabled
+      , Opcode    opcode
+      , Bit #(7)  f7
+      , Bit #(3)  f3
+      , Bit #(2)  f2
+      , Bit #(3)  fcsr_frm
+      , Bit #(5)  rs2
+      , Bit #(64) v1
+      , Bit #(64) v2
+      , Bit #(64) v3
    );
 
       // Is the rounding mode legal
-      match {.rm, rm_is_legal) = fv_rounding_mode_check  (f3, fcsr_frm);
+      match {.rm, .rm_is_legal} = fv_rounding_mode_check  (f3, fcsr_frm);
 
       // Is the instruction legal
-      let instr_is_legal = fv_is_instr_legal (f2, f_enabled, d_enabled);
+      let inst_is_legal = fv_is_instr_legal (f2, f_enabled, d_enabled);
 
       FBoxState nstate = FBOX_READY;
 
       // Legal instruction
-      if (intr_is_legal && rm_is_legal) begin
+      if (inst_is_legal && rm_is_legal) begin
          if (use_FPU_not_PNU)
-            fpu.req (f7, f3, f2, rm, fv1, fv2, fv3, gv1);
+            fpu.req (opcode, f7, f3, f2, rm, v1, v2, v3);
          else
-            pnu.req (f7, f3, f2, rm, fv1, fv2, fv3, gv1);
+            pnu.req (opcode, f7, f3, f2, rm, v1, v2, v3);
 
          // Bookkeeping
          // Should the result be written into the GPR or FPR
@@ -183,7 +211,7 @@ module mkRISCV_FBox (RISCV_FBox_IFC);
       else 
          nstate = FBOX_EXCEPTION_RSP;
 
-      state <= nstate;
+      rg_state <= nstate;
    endmethod
 
    // MBox interface: response
@@ -206,9 +234,9 @@ endmodule
 // FCSR and the instruction and checks legality
 function Tuple2# (Bit #(3), Bool) fv_rounding_mode_check (
    Bit #(3) inst_frm, Bit #(3) fcsr_frm);
-   let rm = (inst_frm == 0x7) ? fcsr_frm : instr_frm
-   let rm_is_legal  = (instr_rm == 0x7) ? fv_fcsr_frm_valid (fcsr_frm)
-                                        : fv_inst_frm_valid (inst_frm);
+   let rm = (inst_frm == 3'h7) ? fcsr_frm : inst_frm;
+   let rm_is_legal  = (inst_frm == 3'h7) ? fv_fcsr_frm_valid (fcsr_frm)
+                                         : fv_inst_frm_valid (inst_frm);
    return (tuple2 (rm, rm_is_legal));
 endfunction
 

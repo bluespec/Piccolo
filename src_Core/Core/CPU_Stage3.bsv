@@ -110,7 +110,12 @@ module mkCPU_Stage3 #(Bit #(4)         verbosity,
 							    ? BYPASS_RD_RDVAL
 							    : BYPASS_RD_NONE),
 					     rd:           rg_stage3.rd,
+`ifdef ISA_F
+                                             // With FP, the val is always Bit #(64)
+					     rd_val:       truncate (rg_stage3.rd_val) }};
+`else
 					     rd_val:       rg_stage3.rd_val }};
+`endif
    endfunction
 
    // ----------------
@@ -122,10 +127,21 @@ module mkCPU_Stage3 #(Bit #(4)         verbosity,
 	 if (rg_stage3.rd_valid) begin
 `ifdef ISA_F
             if (rg_stage3.upd_fpr)
+`ifdef ISA_D
                fpr_regfile.write_rd (rg_stage3.rd, rg_stage3.rd_val);
-            else
+`else
+               fpr_regfile.write_rd (rg_stage3.rd, truncate (rg_stage3.rd_val));
 `endif
+            else
+`ifdef RV64
                gpr_regfile.write_rd (rg_stage3.rd, rg_stage3.rd_val);
+`endif
+`ifdef RV32
+               gpr_regfile.write_rd (rg_stage3.rd, truncate (rg_stage3.rd_val));
+`endif
+`else
+            gpr_regfile.write_rd (rg_stage3.rd, rg_stage3.rd_val);
+`endif
 	    if (verbosity > 1)
 `ifdef ISA_F
                if (rg_stage3.upd_fpr)

@@ -645,9 +645,16 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
       let rs1      = instr_rs1    (instr);
       let funct3   = instr_funct3 (instr);
       let rd       = instr_rd     (instr);
+      
+`ifdef ISA_F
+      // With FP, the val is always Bit #(64)
+      WordXL stg2_val1= truncate (stage1.out.data_to_stage2.val1);
+`else
+      WordXL stg2_val1= stage1.out.data_to_stage2.val1;
+`endif
 
       let rs1_val  = (  (funct3 == f3_CSRRW)
-		      ? stage1.out.data_to_stage2.val1    // CSRRW
+		      ? stg2_val1                         // CSRRW
 		      : extend (rs1));                    // CSRRWI
 
       Bool read_not_write = False;    // CSRRW always writes the CSR
@@ -723,9 +730,16 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
       let rs1      = instr_rs1    (instr);
       let funct3   = instr_funct3 (instr);
       let rd       = instr_rd     (instr);
+`ifdef ISA_F
+      // With FP, the val is always Bit #(64)
+      WordXL stg2_val1= truncate (stage1.out.data_to_stage2.val1);
+`else
+      WordXL stg2_val1= stage1.out.data_to_stage2.val1;
+`endif
+
 
       let rs1_val  = (  ((funct3 == f3_CSRRS) || (funct3 == f3_CSRRC))
-		      ? stage1.out.data_to_stage2.val1    // CSRRS,  CSRRC
+		      ? stg2_val1                         // CSRRS,  CSRRC
 		      : extend (rs1));                    // CSRRSI, CSRRCI
 
       Bool read_not_write = (rs1_val == 0);    // CSRR_S_or_C only reads, does not write CSR, if rs1_val == 0

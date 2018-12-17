@@ -121,7 +121,7 @@ Bool hasFpu64 = False;
 `endif
 
 typedef  Bit #(FLEN) FP_Value;
-typedef  Bit #(FLEN)  WordFL;    // Raw (unsigned) floating point data
+typedef  Bit #(FLEN)  WordFL;    // Floating point data
 
 typedef  TDiv #(FLEN, Bits_per_Byte)           Bytes_per_WordFL;
 typedef  TLog #(Bytes_per_WordFL)              Bits_per_Byte_in_WordFL;

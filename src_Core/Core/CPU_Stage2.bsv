@@ -125,7 +125,12 @@ module mkCPU_Stage2 #(Bit #(4)         verbosity,
 
    let bypass_base = Bypass {bypass_state: BYPASS_RD_NONE,
 			     rd:           rg_stage2.rd,
+`ifdef ISA_F
+                             // With FP, the val is always Bit #(64)
+			     rd_val:       truncate (rg_stage2.val1) };
+`else
 			     rd_val:       rg_stage2.val1 };
+`endif
 
    let data_to_stage3_base = Data_Stage2_to_Stage3 {priv:      rg_stage2.priv,
 						    pc:        rg_stage2.pc,
@@ -213,7 +218,12 @@ module mkCPU_Stage2 #(Bit #(4)         verbosity,
 
 	    let data_to_stage3 = data_to_stage3_base;
 	    data_to_stage3.rd_valid = (ostatus == OSTATUS_PIPE);
+`ifdef ISA_F
+            // With FP, the rd_val is always Bit #(64)
+	    data_to_stage3.rd_val   = dcache.word64;
+`else
 	    data_to_stage3.rd_val   = result;
+`endif
 
 	    let bypass = bypass_base;
 	    if (rg_stage2.rd != 0) begin    // TODO: is this test necessary?
@@ -268,7 +278,12 @@ module mkCPU_Stage2 #(Bit #(4)         verbosity,
 
 	 let data_to_stage3 = data_to_stage3_base;
 	 data_to_stage3.rd_valid = (ostatus == OSTATUS_PIPE);
+`ifdef ISA_F
+         // With FP, the rd_val is always Bit #(64)
+	 data_to_stage3.rd_val   = extend (result);
+`else
 	 data_to_stage3.rd_val   = result;
+`endif
 
 	 let bypass = bypass_base;
 	 bypass.bypass_state = ((ostatus == OSTATUS_PIPE) ? BYPASS_RD_RDVAL : BYPASS_RD);
@@ -297,7 +312,12 @@ module mkCPU_Stage2 #(Bit #(4)         verbosity,
 
 	 let data_to_stage3 = data_to_stage3_base;
 	 data_to_stage3.rd_valid = (ostatus == OSTATUS_PIPE);
+`ifdef ISA_F
+         // With FP, the rd_val is always Bit #(64)
+	 data_to_stage3.rd_val   = extend (result);
+`else
 	 data_to_stage3.rd_val   = result;
+`endif
 
 	 let bypass = bypass_base;
 	 bypass.bypass_state = ((ostatus == OSTATUS_PIPE) ? BYPASS_RD_RDVAL : BYPASS_RD);
@@ -339,16 +359,23 @@ module mkCPU_Stage2 #(Bit #(4)         verbosity,
          data_to_stage3.upd_flags= True;
          data_to_stage3.fpr_flags= fflags;
 
+         // XXX Need to add/change logic here to handle two bypass cases:
+         // 1. FPR value returned by FBox
+         // 2. GPR value returned by FBox if upd_fpr is false
+
 	 let bypass              = bypass_base;
 	 bypass.bypass_state     = ((ostatus==OSTATUS_PIPE) ? BYPASS_RD_RDVAL
                                                             : BYPASS_RD);
-	 bypass.rd_val           = value;
+	 bypass.rd_val           = truncate (value);
 
+         // -----
 	 let trace_data          = ?;
 `ifdef INCLUDE_TANDEM_VERIF
 	 trace_data   = rg_stage2.trace_data;
 `endif
-	 trace_data.word1 = value;
+         // XXX Revisit. word1 should be sized similar to val (always 64-bit) if
+         // FPU is enabled
+	 trace_data.word1 = truncate (value);
 
 	 output_stage2 = Output_Stage2 {ostatus:         ostatus,
 					trap_info:       trap_info_fbox,
@@ -405,7 +432,12 @@ module mkCPU_Stage2 #(Bit #(4)         verbosity,
 			amo_funct7,
 `endif
 			x.addr,
+`ifdef ISA_F
+                        // With FP, the val is always Bit #(64)
+			x.val2,
+`else
 			zeroExtend (x.val2),
+`endif
 			mem_priv,
 			sstatus_SUM,
 			mstatus_MXR,
@@ -415,14 +447,39 @@ module mkCPU_Stage2 #(Bit #(4)         verbosity,
 `ifdef SHIFT_SERIAL
 	 // If Shifter box op, initiate it
 	 else if (x.op_stage2 == OP_Stage2_SH)
-	    shifter_box.req (unpack (funct3 [2]), x.val1, x.val2);
+	    shifter_box.req (
+                 unpack (funct3 [2])
+`ifdef ISA_F
+               // With FP, the vals are always Bit #(64)
+`ifdef RV64
+               , x.val1
+               , x.val2);
+`endif
+`ifdef RV32
+               , truncate (x.val1)
+               , truncate (x.val2));
+`endif
+`endif
 `endif
 
 `ifdef ISA_M
 	 // If MBox op, initiate it
 	 else if (x.op_stage2 == OP_Stage2_M) begin
 	    Bool is_OP_not_OP_32 = (x.instr [3] == 1'b0);
-	    mbox.req (is_OP_not_OP_32, funct3, x.val1, x.val2);
+            mbox.req (
+                 is_OP_not_OP_32
+               , funct3
+`ifdef ISA_F
+               // With FP, the vals are always Bit #(64)
+`ifdef RV64
+               , x.val1
+               , x.val2);
+`endif
+`ifdef RV32
+               , truncate (x.val1)
+               , truncate (x.val2));
+`endif
+`endif
 	 end
 `endif
 
@@ -435,6 +492,7 @@ module mkCPU_Stage2 #(Bit #(4)         verbosity,
             Bool d_enabled = True;
 
             // Instr fields required for decode for F/D opcodes
+            let opcode = instr_opcode (x.instr);
 	    let funct7 = instr_funct7 (x.instr);
 	    let funct2 = instr_funct2 (x.instr);
             let rs2    = instr_rs2    (x.instr);
@@ -443,6 +501,7 @@ module mkCPU_Stage2 #(Bit #(4)         verbosity,
                  use_FPU_not_PNU
                , f_enabled
                , d_enabled
+               , opcode
                , funct7
                , funct3          // rm
                , funct2
@@ -450,8 +509,7 @@ module mkCPU_Stage2 #(Bit #(4)         verbosity,
                , rs2
                , x.val1
                , x.val2
-               , x.val2          // XXX need a new field val3
-               , x.val1          // XXX revisit (GP val for FP instn)
+               , x.val3 
             );
          end
 `endif
