@@ -58,28 +58,28 @@ interface RISCV_FBox_IFC;
 
    // FBox interface: request
    (* always_ready *)
-   method Action                    req (
-        Bool      use_FPU_not_PNU
-      , Bool      f_enabled
-      , Bool      d_enabled
-      , Opcode    opcode
-      , Bit #(7)  f7
-      , Bit #(3)  f3
-      , Bit #(2)  f2
-      , Bit #(3)  fcsr_frm
-      , Bit #(5)  rs2
-      , Bit #(64) v1
-      , Bit #(64) v2
-      , Bit #(64) v3
+   method Action req (
+        Bool                        use_FPU_not_PNU
+      , Bool                        f_enabled
+      , Bool                        d_enabled
+      , Opcode                      opcode
+      , Bit #(7)                    f7
+      , Bit #(3)                    f3
+      , Bit #(2)                    f2
+      , Bit #(3)                    fcsr_frm
+      , Bit #(5)                    rs2
+      , Bit #(64)                   v1
+      , Bit #(64)                   v2
+      , Bit #(64)                   v3
    );
 
    // MBox interface: response
    (* always_ready *)
-   method Bool                      valid;
+   method Bool valid;
    (* always_ready *)
-   method FBoxResult                word;
+   method FBoxResult word;
    (* always_ready *)
-   method Bool                      exc;
+   method Bool exc;
 endinterface
 
 // ================================================================
@@ -193,9 +193,9 @@ module mkRISCV_FBox (RISCV_FBox_IFC);
       // Legal instruction
       if (inst_is_legal && rm_is_legal) begin
          if (use_FPU_not_PNU)
-            fpu.req (opcode, f7, f3, f2, rm, v1, v2, v3);
+            fpu.req (opcode, f7, rs2, rm, v1, v2, v3);
          else
-            pnu.req (opcode, f7, f3, f2, rm, v1, v2, v3);
+            pnu.req (opcode, f7, rs2, rm, v1, v2, v3);
 
          // Bookkeeping
          // Should the result be written into the GPR or FPR

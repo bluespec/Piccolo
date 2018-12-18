@@ -265,27 +265,27 @@ endfunction
 // on integrating the FPU as certain instruction now do not require the GPR
 // anymore
 //                IsFP, GPRRd
-function Tuple2# (Bool, Bool) fv_decode_gpr_read (Decoded_Instr di);
-`ifdef ISA_F
-   // FP_LD and FP_ST are treated as non-FP operation as far as GPR reads
-   // are concerned
-   if (di.opcode != op_FP) begin
-      return (tuple2 (False, True));   // Regular op with GPR read
-   end
-
-   // This is an FP operation. The following f5 values would work for F and
-   // D subsets
-   else begin
-      if (   (di.funct5 == f5_FCVT_F_X)
-          || (di.funct5 == f5_FMV_W_X))
-         return (tuple2 (True, True)); // FP op with GPR read
-      else
-         return (tuple2 (True, False));// FP op with no GPR read
-   end
-`else
-   return (tuple2 (False, True));      // Regular op with GPR read
-`endif
-endfunction
+// function Tuple2# (Bool, Bool) fv_decode_gpr_read (Decoded_Instr di);
+// `ifdef ISA_F
+//    // FP_LD and FP_ST are treated as non-FP operation as far as GPR reads
+//    // are concerned
+//    if (di.opcode != op_FP) begin
+//       return (tuple2 (False, True));   // Regular op with GPR read
+//    end
+// 
+//    // This is an FP operation. The following f5 values would work for F and
+//    // D subsets
+//    else begin
+//       if (   (di.funct5 == f5_FCVT_F_X)
+//           || (di.funct5 == f5_FMV_W_X))
+//          return (tuple2 (True, True)); // FP op with GPR read
+//       else
+//          return (tuple2 (True, False));// FP op with no GPR read
+//    end
+// `else
+//    return (tuple2 (False, True));      // Regular op with GPR read
+// `endif
+// endfunction
 
 // ================================================================
 // Instruction constructors
@@ -631,6 +631,7 @@ Opcode op_JAL  = 7'b11_011_11;
 Opcode op_JALR = 7'b11_001_11;
 Bit #(3) funct3_JALR = 3'b000;
 
+`ifdef ISA_F
 // ================================================================
 // Floating Point Instructions
 // Funct2 encoding
@@ -697,45 +698,12 @@ Bit #(7) f7_FCVT_LU_D   = 7'h61;
 Bit #(7) f7_FCVT_D_L    = 7'h69;
 Bit #(7) f7_FCVT_D_LU   = 7'h69;
 
-Bit #(5) f5_FADD        = 5'b00000;
-Bit #(5) f5_FSUB        = 5'b00001;
-Bit #(5) f5_FMUL        = 5'b00010;
-Bit #(5) f5_FDIV        = 5'b00011;
-Bit #(5) f5_FSQRT       = 5'b01011;
-Bit #(5) f5_FSGNJ       = 5'b00100;
-Bit #(5) f5_FSGNJN      = 5'b00100;
-Bit #(5) f5_FSGNJX      = 5'b00100;
-Bit #(5) f5_FMIN        = 5'b00101;
-Bit #(5) f5_FMAX        = 5'b00101;
-Bit #(5) f5_FEQ         = 5'b10100;
-Bit #(5) f5_FLT         = 5'b10100;
-Bit #(5) f5_FLE         = 5'b10100;
-Bit #(5) f5_FCLASS      = 5'b11100;
-
-// FP convert instructions
-// To be read as FCVT_DEST_SRC
-// X could be W (32-bit), or L (64-bit) and represents the width of the GPR
-// F could be S or D depending on the funct2 field
-Bit #(5) f5_FCVT_X_F = 5'b11000;
-Bit #(5) f5_FCVT_F_X = 5'b11010;
-
-// For the FMV instructions there is an inconsistency in naming between F and D
-// subsets. Here the W/D represents the width of the data being moved (32-b) and
-// not its interpretations as SP/DP.
-// Confusingly, for the D subset, the spec uses "D" to indicate 64-bit instead
-// of L.
-Bit #(5) f5_FMV_X_W  = 5'b11100;
-Bit #(5) f5_FMV_W_X  = 5'b11110;
-
-`ifdef ISA_D
-Bit #(5) f5_FMV_X_D  = 5'b11100;
-Bit #(5) f5_FMV_D_X  = 5'b11110;
-
-// Only for ISA_D -- S <-> D conversion. The func2 constains the destination,
-// and rs2 contains the source type
-Bit #(5) f5_FCVT_S_D = 5'b01000;
-Bit #(5) f5_FCVT_D_S = 5'b01000;
-`endif
+Bit #(7) f7_FMV_X_D     = 7'h71;
+Bit #(7) f7_FMV_D_X     = 7'h79;
+Bit #(7) f7_FCLASS_D    = 7'h71;
+Bit #(7) f7_FMV_X_W     = 7'h70;
+Bit #(7) f7_FMV_W_X     = 7'h78;
+Bit #(7) f7_FCLASS_S    = 7'h70;
 
 // Check if a rounding mode value in the FCSR.FRM is valid
 function Bool fv_fcsr_frm_valid (Bit #(3) frm);
@@ -751,6 +719,8 @@ function Bool fv_inst_frm_valid (Bit #(3) frm);
            && (frm != 3'b110)
           );
 endfunction
+
+`endif
 
 // ================================================================
 // System Instructions
