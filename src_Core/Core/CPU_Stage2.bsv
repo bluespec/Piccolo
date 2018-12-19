@@ -218,8 +218,7 @@ module mkCPU_Stage2 #(Bit #(4)         verbosity,
 
 	    let data_to_stage3 = data_to_stage3_base;
 	    data_to_stage3.rd_valid = (ostatus == OSTATUS_PIPE);
-`ifdef ISA_F
-            // With FP, the rd_val is always Bit #(64)
+`ifdef ISA_D
 	    data_to_stage3.rd_val   = dcache.word64;
 `else
 	    data_to_stage3.rd_val   = result;
@@ -278,8 +277,7 @@ module mkCPU_Stage2 #(Bit #(4)         verbosity,
 
 	 let data_to_stage3 = data_to_stage3_base;
 	 data_to_stage3.rd_valid = (ostatus == OSTATUS_PIPE);
-`ifdef ISA_F
-         // With FP, the rd_val is always Bit #(64)
+`ifdef ISA_D
 	 data_to_stage3.rd_val   = extend (result);
 `else
 	 data_to_stage3.rd_val   = result;
@@ -312,8 +310,7 @@ module mkCPU_Stage2 #(Bit #(4)         verbosity,
 
 	 let data_to_stage3 = data_to_stage3_base;
 	 data_to_stage3.rd_valid = (ostatus == OSTATUS_PIPE);
-`ifdef ISA_F
-         // With FP, the rd_val is always Bit #(64)
+`ifdef ISA_D
 	 data_to_stage3.rd_val   = extend (result);
 `else
 	 data_to_stage3.rd_val   = result;
@@ -340,17 +337,11 @@ module mkCPU_Stage2 #(Bit #(4)         verbosity,
 `ifdef ISA_F
       // This stage is doing a floating point op
       else if (rg_stage2.op_stage2 == OP_Stage2_FD) begin
-	 let ostatus = (  (! fbox.valid)
-			? OSTATUS_BUSY
-			: (  fbox.exc
-			   ? OSTATUS_NONPIPE
-			   : OSTATUS_PIPE));
+	 let ostatus = ((! fbox.valid) ? OSTATUS_BUSY : OSTATUS_PIPE);
 
          // Extract fields from FBOX result
-	 let fbox_result         = fbox.word;
-         let value               = fbox_result.value;
-	 let fflags              = fbox_result.flags;
-         let upd_fpr             = !fbox_result.to_GPR_not_FPR;
+	 match {.value, .fflags} = fbox.word;
+         let upd_fpr             = rg_stage2.rd_in_fpr;
 
 	 let data_to_stage3      = data_to_stage3_base;
 	 data_to_stage3.rd_valid = (ostatus == OSTATUS_PIPE);
@@ -432,8 +423,7 @@ module mkCPU_Stage2 #(Bit #(4)         verbosity,
 			amo_funct7,
 `endif
 			x.addr,
-`ifdef ISA_F
-                        // With FP, the val is always Bit #(64)
+`ifdef ISA_D
 			x.val2,
 `else
 			zeroExtend (x.val2),
@@ -449,16 +439,17 @@ module mkCPU_Stage2 #(Bit #(4)         verbosity,
 	 else if (x.op_stage2 == OP_Stage2_SH)
 	    shifter_box.req (
                  unpack (funct3 [2])
-`ifdef ISA_F
-               // With FP, the vals are always Bit #(64)
-`ifdef RV64
-               , x.val1
-               , x.val2);
-`endif
+`ifdef ISA_D
 `ifdef RV32
                , truncate (x.val1)
                , truncate (x.val2));
+`else
+               , x.val1
+               , x.val2);
 `endif
+`else
+               , x.val1
+               , x.val2);
 `endif
 `endif
 
@@ -469,16 +460,17 @@ module mkCPU_Stage2 #(Bit #(4)         verbosity,
             mbox.req (
                  is_OP_not_OP_32
                , funct3
-`ifdef ISA_F
-               // With FP, the vals are always Bit #(64)
+`ifdef ISA_D
 `ifdef RV64
                , x.val1
                , x.val2);
-`endif
-`ifdef RV32
+`else
                , truncate (x.val1)
                , truncate (x.val2));
 `endif
+`else
+               , x.val1
+               , x.val2);
 `endif
 	 end
 `endif
@@ -486,30 +478,34 @@ module mkCPU_Stage2 #(Bit #(4)         verbosity,
 `ifdef ISA_F
 	 // If FBox op, initiate it
          else if (x.op_stage2 == OP_Stage2_FD) begin
-            // These three flags change rarely and originate in CSRs
+            // This flags changes rarely and should originate in CSRs
             Bool use_FPU_not_PNU = True;
-            Bool f_enabled = True;
-            Bool d_enabled = True;
 
             // Instr fields required for decode for F/D opcodes
             let opcode = instr_opcode (x.instr);
 	    let funct7 = instr_funct7 (x.instr);
-	    let funct2 = instr_funct2 (x.instr);
             let rs2    = instr_rs2    (x.instr);
 
 	    fbox.req (
                  use_FPU_not_PNU
-               , f_enabled
-               , d_enabled
                , opcode
                , funct7
-               , funct3          // rm
-               , funct2
-               , funct3          // XXX should be FCSR.FRM (a part of x)
+               , x.rounding_mode // rm
                , rs2
+`ifdef ISA_D
                , x.val1
                , x.val2
                , x.val3 
+`else
+`ifdef RV32
+               , extend (x.val1)
+               , extend (x.val2)
+`else
+               , x.val1
+               , x.val2
+`endif
+               , extend (x.val3)
+`endif
             );
          end
 `endif

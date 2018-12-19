@@ -201,26 +201,28 @@ typedef struct {
    RegName    rd;
    Addr       addr;     // Branch, jump: newPC
                         // Mem ops and AMOs: mem addr
-`ifdef ISA_F
-   // When FP is enabled, the val from Stage1 to Stage2 should be sized to
+`ifdef ISA_D
+   // When D is enabled, the val from Stage1 to Stage2 should be sized to
    // max (sizeOf (WordXL), sizeOf (WordFL))
-   // Using lower-level Bit types here as the data in vals always be raw 64-bit
-   // data. The higher level semantics of the data would depend on the type of
-   // instruction.
-   Bit# (64)  val1;     // OP_Stage2_ALU: rd_val
+   // Using lower-level Bit types here as the data in vals always be raw bit
+   // data
+   WordFL     val1;     // OP_Stage2_ALU: rd_val
                         // OP_Stage2_M and OP_Stage2_FD: arg1
 
-   Bit# (64)  val2;     // OP_Stage2_ST: store-val;
+   WordFL     val2;     // OP_Stage2_ST: store-val;
                         // OP_Stage2_M and OP_Stage2_FD: arg2
-
-   Bit# (64)  val3;     // OP_Stage2_FD: arg3
 `else
-   Word       val1;     // OP_Stage2_ALU: rd_val
+   WordXL     val1;     // OP_Stage2_ALU: rd_val
                         // OP_Stage2_M and OP_Stage2_FD: arg1
 
-   Word       val2;     // OP_Stage2_ST: store-val;
+   WordXL     val2;     // OP_Stage2_ST: store-val;
                         // OP_Stage2_M and OP_Stage2_FD: arg2
+`endif
 
+`ifdef ISA_F
+   WordFL     val3;     // OP_Stage2_FD: arg3
+   Bool       rd_in_fpr;// The rd should update into FPR
+   Bit #(3)   rounding_mode;    // rounding mode from fcsr_frm or instr.rm
 `endif
 
 `ifdef INCLUDE_TANDEM_VERIF
@@ -287,14 +289,15 @@ typedef struct {
    Bool      upd_fpr;
    Bool      upd_flags;
    Bit #(5)  fpr_flags;
+`endif
+`ifdef ISA_D
    // When FP is enabled, the rd_val from Stage2 to Stage3 should be sized to
    // max (sizeOf (WordXL), sizeOf (WordFL))
    // Using lower-level Bit types here as the data in rd_val always be raw
-   // 64-bit data. The higher level semantics of the data would depend on if
-   // the rd_val is meant to be written into GPR or FPR
-   Bit #(64) rd_val;
+   // bit data
+   WordFL    rd_val;
 `else
-   Word      rd_val;
+   WordXL    rd_val;
 `endif
    } Data_Stage2_to_Stage3
 deriving (Bits);

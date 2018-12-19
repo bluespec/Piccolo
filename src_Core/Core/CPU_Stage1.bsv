@@ -132,6 +132,30 @@ module mkCPU_Stage1 #(Bit #(4)         verbosity,
    Bool rs2_busy = (busy2a || busy2b);
    Word rs2_val_bypassed = ((rs2 == 0) ? 0 : rs2b);
 
+`ifdef ISA_F
+   // FP Register rs1 read and bypass
+   let frs1_val = fpr_regfile.read_rs1 (rs1);
+   match { .fbusy1a, .frs1a } = fn_gpr_bypass (bypass_from_stage3, rs1, frs1_val);
+   match { .fbusy1b, .frs1b } = fn_gpr_bypass (bypass_from_stage2, rs1, frs1a);
+   Bool frs1_busy = (fbusy1a || fbusy1b);
+   Word frs1_val_bypassed = frs1b;
+
+   // FP Register rs2 read and bypass
+   let frs2_val = gpr_regfile.read_rs2 (rs2);
+   match { .fbusy2a, .frs2a } = fn_gpr_bypass (bypass_from_stage3, rs2, frs2_val);
+   match { .fbusy2b, .frs2b } = fn_gpr_bypass (bypass_from_stage2, rs2, frs2a);
+   Bool frs2_busy = (busy2a || busy2b);
+   Word frs2_val_bypassed = frs2b;
+
+   // FP Register rs3 read and bypass
+   let rs3 = decoded_instr.rs3;
+   let frs3_val = gpr_regfile.read_rs3 (rs3);
+   match { .fbusy3a, .frs3a } = fn_gpr_bypass (bypass_from_stage3, rs3, frs3_val);
+   match { .fbusy3b, .frs3b } = fn_gpr_bypass (bypass_from_stage2, rs3, frs3a);
+   Bool frs3_busy = (busy3a || busy3b);
+   Word frs3_val_bypassed = frs3b;
+`endif
+
    // ALU function
    let alu_inputs = ALU_Inputs {cur_priv:       cur_priv,
 				pc:             pc,
@@ -141,8 +165,15 @@ module mkCPU_Stage1 #(Bit #(4)         verbosity,
 				instr_C:        instr_C,
 `endif
 				decoded_instr:  decoded_instr,
+
 				rs1_val:        rs1_val_bypassed,
 				rs2_val:        rs2_val_bypassed,
+`ifdef ISA_F
+				frs1_val:       frs1_val_bypassed,
+				frs2_val:       frs2_val_bypassed,
+				frs3_val:       frs3_val_bypassed,
+                                fcsr_frm:       csr_regfile.read_fcsr_frm,
+`endif
 				mstatus:        csr_regfile.read_mstatus,
 				misa:           csr_regfile.read_misa};
 
@@ -154,14 +185,12 @@ module mkCPU_Stage1 #(Bit #(4)         verbosity,
 					       op_stage2:  alu_outputs.op_stage2,
 					       rd:         alu_outputs.rd,
 					       addr:       alu_outputs.addr,
-`ifdef ISA_F
-                                               // With FP, the vals is always Bit #(64)
-					       val1:       extend (alu_outputs.val1),
-					       val2:       extend (alu_outputs.val2),
-					       val3:       ?
-`else
 					       val1:       alu_outputs.val1,
-					       val2:       alu_outputs.val2
+					       val2:       alu_outputs.val2,
+`ifdef ISA_F
+					       val3:       alu_outputs.val3,
+                                               rd_in_fpr:  alu_outputs.rd_in_fpr,
+                                               rounding_mode: alu_outputs.rm,
 `endif
 
 `ifdef INCLUDE_TANDEM_VERIF

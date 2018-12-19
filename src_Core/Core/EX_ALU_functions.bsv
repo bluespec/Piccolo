@@ -1,3 +1,4 @@
+// vim: tw=80:tabstop=8:softtabstop=3:shiftwidth=3:expandtab:
 // Copyright (c) 2016-2018 Bluespec, Inc. All Rights Reserved
 
 package EX_ALU_functions;
@@ -46,6 +47,12 @@ typedef struct {
    WordXL         rs1_val;
    WordXL         rs2_val;
    WordXL         mstatus;
+`ifdef ISA_F
+   Bit #(3)       fcsr_frm;
+   WordFL         frs1_val;
+   WordFL         frs2_val;
+   WordFL         frs3_val;
+`endif
    MISA           misa;
    } ALU_Inputs
 deriving (Bits, FShow);
@@ -78,7 +85,11 @@ typedef struct {
    RegName    rd;
    Addr       addr;     // Branch, jump: newPC
 		        // Mem ops and AMOs: mem addr
-
+`ifdef ISA_D
+   WordFL     val1;     // OP_Stage2_FD: arg1
+   WordFL     val2;     // OP_Stage2_FD: arg2
+`endif
+`else
    WordXL     val1;     // OP_Stage2_ALU: result for Rd (ALU ops: result, JAL/JALR: return PC)
                         // CSRRx: rs1_val
                         // OP_Stage2_M, OP_Stage2_FD: arg1
@@ -87,20 +98,31 @@ typedef struct {
    WordXL     val2;     // Branch: branch target (for Tandem Verification)
 		        // OP_Stage2_ST: store-val
                         // OP_Stage2_M, OP_Stage2_FD: arg2
+`endif
+`ifdef ISA_F
+   WordFL     val3;     // OP_Stage2_FD: arg3
+   Bool       rd_in_fpr;// result to be written to fpr
+   Bit #(3)   rm;       // rounding mode
+`endif
 
    Trace_Data trace_data;
    } ALU_Outputs
 deriving (Bits, FShow);
 
-ALU_Outputs alu_outputs_base
-= ALU_Outputs {control:   CONTROL_STRAIGHT,
-	       exc_code:  exc_code_ILLEGAL_INSTRUCTION,
-	       op_stage2: ?,
-	       rd:        ?,
-	       addr:      ?,
-	       val1:      ?,
-	       val2:      ?,
-	       trace_data: ?};
+ALU_Outputs alu_outputs_base = ALU_Outputs {
+     control   : CONTROL_STRAIGHT
+   , exc_code  : exc_code_ILLEGAL_INSTRUCTION
+   , op_stage2 : ?
+   , rd        : ?
+   , addr      : ?
+   , val1      : ?
+   , val2      : ?
+`ifdef ISA_F
+   , val3      : ?
+   , rd_in_fpr : False
+   , rm        : ?
+`endif
+   , trace_data: ?};
 
 // ================================================================
 // The fall-through PC is PC+4 for normal 32b instructions,
@@ -587,6 +609,7 @@ endfunction
 
 function ALU_Outputs fv_LD (ALU_Inputs inputs);
    // Signed versions of rs1_val and rs2_val
+   let opcode = inputs.decoded_instr.opcode;
    IntXL s_rs1_val = unpack (inputs.rs1_val);
    IntXL s_rs2_val = unpack (inputs.rs2_val);
 
@@ -601,6 +624,9 @@ function ALU_Outputs fv_LD (ALU_Inputs inputs);
 		    || (funct3 == f3_LWU)
 		    || (funct3 == f3_LD)
 `endif
+`ifdef ISA_D
+		    || (funct3 == f3_FLD)
+`endif
 		    );
 
    let alu_outputs = alu_outputs_base;
@@ -608,6 +634,9 @@ function ALU_Outputs fv_LD (ALU_Inputs inputs);
    alu_outputs.op_stage2 = OP_Stage2_LD;
    alu_outputs.rd        = inputs.decoded_instr.rd;
    alu_outputs.addr      = eaddr;
+`ifdef ISA_F
+   alu_outputs.rd_in_fpr = (opcode == op_FLOAD);
+`endif
 
    // Normal trace output (if no trap)
    alu_outputs.trace_data = mkTrace_I_LOAD (fall_through_pc (inputs),
@@ -628,11 +657,15 @@ function ALU_Outputs fv_ST (ALU_Inputs inputs);
    IntXL  imm_s     = extend (unpack (inputs.decoded_instr.imm12_S));
    WordXL eaddr     = pack (s_rs1_val + imm_s);
 
+   let opcode = inputs.decoded_instr.opcode;
    let funct3 = inputs.decoded_instr.funct3;
    Bool legal_ST = (   (funct3 == f3_SB)
 		    || (funct3 == f3_SH)
 		    || (funct3 == f3_SW)
 `ifdef RV64
+		    || (funct3 == f3_SD)
+`endif
+`ifdef ISA_D
 		    || (funct3 == f3_SD)
 `endif
 		    );
@@ -641,13 +674,35 @@ function ALU_Outputs fv_ST (ALU_Inputs inputs);
    alu_outputs.control   = ((! legal_ST) ? CONTROL_TRAP : CONTROL_STRAIGHT);
    alu_outputs.op_stage2 = OP_Stage2_ST;
    alu_outputs.addr      = eaddr;
+
+   // The rs2_val would depend on the combination F/D-RV32/64 when FD is enabled
+`ifdef ISA_F
+`ifdef ISA_D
+`ifdef RV64
+   alu_outputs.val2      = (opcode == op_FSTORE)   ? inputs.frs2_val
+                                                   : inputs.rs2_val;
+`else
+   alu_outputs.val2      = (opcode == op_FSTORE)   ? inputs.frs2_val
+                                                   : extend (inputs.rs2_val);
+`endif
+`else
+`ifdef RV32
+   alu_outputs.val2      = (opcode == op_FSTORE)   ? inputs.frs2_val
+                                                   : inputs.rs2_val;
+`else
+   alu_outputs.val2      = (opcode == op_FSTORE)   ? extend (inputs.frs2_val)
+                                                   : inputs.rs2_val;
+`endif
+`endif
+`else
    alu_outputs.val2      = inputs.rs2_val;
+`endif
 
    // Normal trace output (if no trap)
    alu_outputs.trace_data = mkTrace_STORE (fall_through_pc (inputs),
 					   fv_trace_isize (inputs),
 					   fv_trace_instr (inputs),
-					   inputs.rs2_val,
+					   alu_outputs.val2,
 					   eaddr);
    return alu_outputs;
 endfunction
@@ -790,6 +845,77 @@ function ALU_Outputs fv_SYSTEM (ALU_Inputs inputs);
 
    return alu_outputs;
 endfunction: fv_SYSTEM
+
+`ifdef ISA_F
+// ----------------------------------------------------------------
+// FP Ops
+// Just pass through to the FP stage
+function ALU_Outputs fv_FP (ALU_Inputs inputs);
+   let opcode = inputs.decoded_instr.opcode;
+   let funct3 = inputs.decoded_instr.funct3;
+   let funct7 = inputs.decoded_instr.funct7;
+   let rs2    = inputs.decoded_instr.rs2;
+
+   // Check instruction legality
+   // Is the rounding mode legal
+   match {.rm, .rm_is_legal} = fv_rmode_check  (funct3, inputs.fcsr_frm);
+
+   // Is the instruction legal
+   let inst_is_legal = fv_is_fp_instr_legal (funct7, rm, rs2, opcode);
+
+   let alu_outputs = alu_outputs_base;
+   alu_outputs.control   = ((inst_is_legal && rm_is_legal)  ? CONTROL_STRAIGHT
+                                                            : CONTROL_TRAP);
+   alu_outputs.op_stage2 = OP_Stage2_FD;
+   alu_outputs.rd        = inputs.decoded_instr.rd;
+   alu_outputs.rm        = rm;
+
+   // Operand values
+   // The first operand may be from the FPR or GPR
+   let val1_from_gpr     = fv_fp_val1_from_gpr (opcode, funct7, rs2);
+
+`ifdef ISA_D
+`ifdef RV64
+   alu_outputs.val1      = val1_from_gpr  ? inputs.rs1_val
+                                          : inputs.frs1_val;
+`else
+   alu_outputs.val1      = val1_from_gpr  ? extend (inputs.rs1_val)
+                                          : inputs.frs1_val;
+`endif
+`else
+`ifdef RV32
+   alu_outputs.val1      = val1_from_gpr  ? inputs.rs1_val
+                                          : inputs.frs1_val;
+`else
+   alu_outputs.val1      = val1_from_gpr  ? inputs.rs1_val
+                                          : extend (inputs.frs1_val);
+`endif
+`endif
+
+   // Second and third operands (when used) are always from the FPR
+`ifdef ISA_D
+   alu_outputs.val2      = inputs.frs2_val;
+`else
+`ifdef RV32
+   alu_outputs.val2      = inputs.frs2_val;
+`else
+   alu_outputs.val2      = extend (inputs.frs2_val);
+`endif
+`endif
+
+   alu_outputs.val3      = inputs.frs3_val;
+
+   alu_outputs.rd_in_fpr = !fv_is_rd_in_GPR (funct7, rs2);
+
+   // Normal trace output (if no trap)
+   alu_outputs.trace_data = mkTrace_I_RD (fall_through_pc (inputs),
+  					fv_trace_isize (inputs),
+  					fv_trace_instr (inputs),
+  					inputs.decoded_instr.rd,
+  					?);
+
+endfunction
+`endif
 
 // ----------------------------------------------------------------
 // AMO
@@ -936,12 +1062,20 @@ function ALU_Outputs fv_ALU (ALU_Inputs inputs);
       alu_outputs = fv_AMO (inputs);
 `endif
 
-`ifdef ISA_FD
+`ifdef ISA_F
+   else if (   (inputs.decoded_instr.opcode == op_LOAD_FP)) begin
+   end
+   else if (   (inputs.decoded_instr.opcode == op_STORE_FP)) begin
+   end
+   else if (   (inputs.decoded_instr.opcode == op_FP)
+           (|| (inputs.decoded_instr.opcode == op_FMADD)
+           (|| (inputs.decoded_instr.opcode == op_FMSUB)
+           (|| (inputs.decoded_instr.opcode == op_FNMSUB)
+           (|| (inputs.decoded_instr.opcode == op_FNMADD)
+      alu_outputs = fv_FP (inputs);
+   end
    // All these just set up for the next stage (Mem box, or FBox)
    // TODO: op_LOAD_FP, op_STORE_FP
-   // TODO: op_FP: all the floating-point ops
-   // TODO: op_FM_ADD_SUB
-   // TODO: op_FNM_ADD_SUB
 `endif
 
    else begin

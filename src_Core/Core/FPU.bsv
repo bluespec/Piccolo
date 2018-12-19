@@ -29,7 +29,7 @@ interface FPU_IFC;
    method Action req (
         Opcode    opcode
       , Bit #(7)  f7
-      , Bit #(5)  rs2
+      , RegName   rs2
       , Bit #(3)  rm
       , Bit #(64) v1
       , Bit #(64) v2
@@ -54,7 +54,7 @@ module mkFPU (FPU_IFC);
    Reg   #(Maybe #(Tuple7 #(
       Opcode
       , Bit #(7)
-      , Bit #(5)
+      , RegName 
       , Bit #(3)
       , Bit #(64)
       , Bit #(64)
@@ -160,7 +160,7 @@ module mkFPU (FPU_IFC);
    method Action req (
         Opcode    opcode
       , Bit #(7)  f7
-      , Bit #(5)  rs2
+      , RegName   rs2
       , Bit #(3)  rm
       , Bit #(64) v1
       , Bit #(64) v2
