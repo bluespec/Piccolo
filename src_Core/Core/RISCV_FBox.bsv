@@ -86,7 +86,9 @@ module mkRISCV_FBox (RISCV_FBox_IFC);
    Reg   #(Maybe #(Bool))  rg_frm_FPU_not_PNU   <- mkRegU;
 
    Reg   #(Bool)           dw_valid             <- mkDWire (False);
-   Reg   #(Tuple2 #(Bit#(64), Bit$(5)) dw_result<- mkDWire (?);
+   Reg   #(Tuple2 #(
+        Bit #(64)
+      , Bit #(5)))         dw_result            <- mkDWire (?);
 
    
    FPU_IFC                 fpu                  <- mkFPU;

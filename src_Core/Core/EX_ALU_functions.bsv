@@ -88,7 +88,6 @@ typedef struct {
 `ifdef ISA_D
    WordFL     val1;     // OP_Stage2_FD: arg1
    WordFL     val2;     // OP_Stage2_FD: arg2
-`endif
 `else
    WordXL     val1;     // OP_Stage2_ALU: result for Rd (ALU ops: result, JAL/JALR: return PC)
                         // CSRRx: rs1_val
@@ -914,6 +913,7 @@ function ALU_Outputs fv_FP (ALU_Inputs inputs);
   					inputs.decoded_instr.rd,
   					?);
 
+   return alu_outputs;
 endfunction
 `endif
 
@@ -1063,19 +1063,18 @@ function ALU_Outputs fv_ALU (ALU_Inputs inputs);
 `endif
 
 `ifdef ISA_F
-   else if (   (inputs.decoded_instr.opcode == op_LOAD_FP)) begin
-   end
-   else if (   (inputs.decoded_instr.opcode == op_STORE_FP)) begin
-   end
+   else if (   (inputs.decoded_instr.opcode == op_LOAD_FP))
+      alu_outputs = fv_LD (inputs);
+
+   else if (   (inputs.decoded_instr.opcode == op_STORE_FP))
+      alu_outputs = fv_ST (inputs);
+
    else if (   (inputs.decoded_instr.opcode == op_FP)
-           (|| (inputs.decoded_instr.opcode == op_FMADD)
-           (|| (inputs.decoded_instr.opcode == op_FMSUB)
-           (|| (inputs.decoded_instr.opcode == op_FNMSUB)
-           (|| (inputs.decoded_instr.opcode == op_FNMADD)
+            || (inputs.decoded_instr.opcode == op_FMADD)
+            || (inputs.decoded_instr.opcode == op_FMSUB)
+            || (inputs.decoded_instr.opcode == op_FNMSUB)
+            || (inputs.decoded_instr.opcode == op_FNMADD))
       alu_outputs = fv_FP (inputs);
-   end
-   // All these just set up for the next stage (Mem box, or FBox)
-   // TODO: op_LOAD_FP, op_STORE_FP
 `endif
 
    else begin

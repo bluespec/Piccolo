@@ -136,16 +136,16 @@ module mkFPU (FPU_IFC);
    let is_FMV_W_X     = (opc == op_FP) && (f7 == f7_FMV_W_X);
    let is_FCLASS_S    = (opc == op_FP) && (f7 == f7_FCLASS_S);
 
-   rule rl_start_ADD_op_S (rg_request match tagged Valid);
-      if (is_FADD_S) 
-         FPAdd:   fpu_madd.request.put(  tuple4(Valid(opd1), opd2,         one(False), rmd) );
-         FPSub:   fpu_madd.request.put(  tuple4(Valid(opd1), negate(opd2), one(False), rmd) );
-         FPMul:   fpu_madd.request.put(  tuple4(Invalid,     opd1,         opd2,       rmd) );
-         FPMAdd:  fpu_madd.request.put(  tuple4(Valid(opd3),         opd1, opd2, rmd) );
-         FPMSub:  fpu_madd.request.put(  tuple4(Valid(negate(opd3)), opd1, opd2, rmd) );
-         FPNMAdd: fpu_madd.request.put(  tuple4(Valid(opd3),         opd1, opd2, rmd) );
-         FPNMSub: fpu_madd.request.put(  tuple4(Valid(negate(opd3)), opd1, opd2, rmd) );
-   endrule
+//  rule rl_start_ADD_op_S (rg_request match tagged Valid);
+//     if (is_FADD_S) 
+//        FPAdd:   fpu_madd.request.put(  tuple4(Valid(opd1), opd2,         one(False), rmd) );
+//        FPSub:   fpu_madd.request.put(  tuple4(Valid(opd1), negate(opd2), one(False), rmd) );
+//        FPMul:   fpu_madd.request.put(  tuple4(Invalid,     opd1,         opd2,       rmd) );
+//        FPMAdd:  fpu_madd.request.put(  tuple4(Valid(opd3),         opd1, opd2, rmd) );
+//        FPMSub:  fpu_madd.request.put(  tuple4(Valid(negate(opd3)), opd1, opd2, rmd) );
+//        FPNMAdd: fpu_madd.request.put(  tuple4(Valid(opd3),         opd1, opd2, rmd) );
+//        FPNMSub: fpu_madd.request.put(  tuple4(Valid(negate(opd3)), opd1, opd2, rmd) );
+//  endrule
 
    // ----------------
    // INTERFACE

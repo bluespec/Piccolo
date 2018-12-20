@@ -59,6 +59,15 @@ interface CSR_RegFile_IFC;
    (* always_ready *)
    method ActionValue #(WordXL) mav_csr_write (CSR_Addr csr_addr, WordXL word);
 
+`ifdef ISA_F
+   // Read FRM
+   (* always_ready *)
+   method Bit #(3) read_frm;
+
+   (* always_ready *)
+   method Action update_flags (Bit #(5) flags);
+`endif
+
    // Read MISA
    (* always_ready *)
    method MISA read_misa;
@@ -202,9 +211,12 @@ function MISA misa_reset_value;
    ms.m = 1'b1;
 `endif
 
-`ifdef ISA_FD
+`ifdef ISA_F
    // Single- and Double-precision Floating Point
    ms.f = 1'b1;
+`endif
+
+`ifdef ISA_D
    ms.d = 1'b1;
 `endif
 
@@ -245,7 +257,7 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
 
    // CSRs
    // User-mode CSRs
-`ifdef ISA_FD
+`ifdef ISA_F
    Reg #(Bit #(5)) rg_fflags <- mkRegU;    // floating point flags
    Reg #(Bit #(3)) rg_frm    <- mkRegU;    // floating point rounding mode
 `endif
@@ -327,7 +339,7 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
 
    rule rl_reset_start (rg_state == RF_RESET_START);
       // User-level CSRs
-`ifdef ISA_FD
+`ifdef ISA_F
       rg_fflags <= 0;
       rg_frm    <= 0;
 `endif
@@ -422,7 +434,7 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
 		     || ((csr_addr_mhpmevent3 <= csr_addr) && (csr_addr <= csr_addr_mhpmevent31))
 
 		     // User mode csrs
-`ifdef ISA_FD
+`ifdef ISA_F
 		     || (csr_addr == csr_addr_fflags)
 		     || (csr_addr == csr_addr_frm)
 		     || (csr_addr == csr_addr_fcsr)
@@ -553,7 +565,7 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
       else begin
 	 case (csr_addr)
 	    // User mode csrs
-`ifdef ISA_FD
+`ifdef ISA_F
 	    csr_addr_fflags:   m_csr_value = tagged Valid ({ 0, rg_fflags });
 	    csr_addr_frm:      m_csr_value = tagged Valid ({ 0, rg_frm });
 	    csr_addr_fcsr:     m_csr_value = tagged Valid ({ 0, rg_frm, rg_fflags });
@@ -682,7 +694,7 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
 	 else
 	    case (csr_addr)
 	       // User mode csrs
-`ifdef ISA_FD
+`ifdef ISA_F
 	       csr_addr_fflags:     begin
 				       result     = zeroExtend (wordxl [4:0]);
 				       rg_fflags <= wordxl [4:0];
@@ -986,6 +998,17 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
    method MISA read_misa;
       return misa;
    endmethod
+
+`ifdef ISA_F
+   method Bit# (3) read_frm;
+      return rg_frm;
+   endmethod
+
+   // XXX Add logic to update fcsr_flags
+   method Action update_flags (Bit#(5) flags);
+      noAction;
+   endmethod
+`endif
 
    // Read MSTATUS
    method WordXL read_mstatus;

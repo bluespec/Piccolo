@@ -782,7 +782,7 @@ function Bool fv_is_fp_instr_legal (
 `else
       return (f2 == f2_S);                   // Only SP is legal
 `endif
-   else if (fopc == op_FP)
+   else
       if (    (f7 == f7_FADD_S)  
           ||  (f7 == f7_FSUB_S)  
           ||  (f7 == f7_FMUL_S)  
@@ -844,8 +844,7 @@ function Bool fv_is_fp_instr_legal (
           ||  (f7 == f7_FCLASS_D)
 `endif
          ) return True;
-   else
-      return False;
+      else return False;
 endfunction
 
 // Returns True if the first operand (val1) should be taken from the GPR
