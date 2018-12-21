@@ -1,6 +1,6 @@
 ###  -*-Makefile-*-
 
-# Copyright (c) 2018 Bluespec, Inc. All Rights Reserved
+# Copyright (c) 2018-2019 Bluespec, Inc. All Rights Reserved
 
 # This file is not a standalone Makefile, but 'include'd by 'Makefile' in the sub-directories
 

@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2018 Bluespec, Inc. All Rights Reserved
+// Copyright (c) 2016-2019 Bluespec, Inc. All Rights Reserved
 
 package CPU_Fetch_C;
 
@@ -7,7 +7,7 @@ package CPU_Fetch_C;
 
 // The input parameter interface is for 32-bit-aligned 32-bit instruction-fetches.
 
-// This module completely encapsulates the logic needed extend it to
+// This module completely encapsulates the logic needed to extend it to
 // 16-bit "compressed" instructions ('C' extension)
 // which then also includes 16-bit-aligned 32-bit instructions.
 

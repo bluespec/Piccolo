@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2018 Bluespec, Inc. All Rights Reserved
+// Copyright (c) 2016-2019 Bluespec, Inc. All Rights Reserved
 
 package CPU;
 
@@ -35,11 +35,6 @@ import ConfigReg    :: *;
 import GetPut_Aux :: *;
 import Semi_FIFOF :: *;
 
-`ifdef ISA_C
-// 'C' extension (16b compressed instructions)
-import CPU_Fetch_C      :: *;
-`endif
-
 // ================================================================
 // Project imports
 
@@ -56,6 +51,10 @@ import FPR_RegFile :: *;
 import CSR_RegFile :: *;
 import CPU_Globals :: *;
 import CPU_IFC     :: *;
+
+`ifdef ISA_C
+import CPU_Fetch_C :: *;    // 'C' extension (16b compressed instructions)
+`endif
 
 import CPU_Stage1 :: *;    // Fetch and Execute
 import CPU_Stage2 :: *;    // Memory and long-latency ops
@@ -127,7 +126,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
    // Near mem (caches or TCM, for example)
    Near_Mem_IFC  near_mem <- mkNear_Mem;
 
-   // Take imem_in as is, or use wrapper for 'C' extension
+   // Take imem as is from near_mem, or use wrapper for 'C' extension
 `ifdef ISA_C
    IMem_IFC imem <- mkCPU_Fetch_C (near_mem.imem);
 `else
@@ -506,6 +505,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
    // instr, since the fetch may need the just-written CSR value.
 
 `ifdef ISA_C
+   // TODO: analyze this carefully; added to resolve a blockage
    (* descending_urgency = "imem_rl_fetch_next_32b, rl_pipe" *)
 `endif
 
@@ -736,7 +736,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 	 // Debug
 	 fa_emit_instr_trace (minstret, stage1.out.data_to_stage2.pc, instr, rg_cur_priv);
 	 if (cur_verbosity > 1) begin
-	    $display ("    rl_stage1_CSRR_W: Trap on CSR permissions: Rs1 %0d Rs1_val 0x%0h csr 0x%0h Rd %0d",
+	    $display ("    rl_stage1_CSRR_S_or_C: Trap on CSR permissions: Rs1 %0d Rs1_val 0x%0h csr 0x%0h Rd %0d",
 		      rs1, rs1_val, csr_addr, rd);
 	 end
       end
@@ -782,7 +782,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 	 // Debug
 	 fa_emit_instr_trace (minstret, stage1.out.data_to_stage2.pc, instr, rg_cur_priv);
 	 if (cur_verbosity > 1) begin
-	    $display ("    S1: write CSRRW/CSRRWI Rs1 %0d Rs1_val 0x%0h csr 0x%0h csr_val 0x%0h Rd %0d",
+	    $display ("    S1: write CSRR_S_or_C: Rs1 %0d Rs1_val 0x%0h csr 0x%0h csr_val 0x%0h Rd %0d",
 		      rs1, rs1_val, csr_addr, csr_val, rd);
 	 end
       end
@@ -918,7 +918,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
    rule rl_finish_FENCE (rg_state == CPU_FENCE);
       if (cur_verbosity > 1) $display ("%0d:  CPU.rl_finish_FENCE", mcycle);
 
-      // Await mem system FENCE.I completion
+      // Await mem system FENCE completion
       let dummy <- near_mem.server_fence.response.get;
 
       // Resume pipe
