@@ -150,6 +150,9 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
    Reg #(CPU_State)  rg_state    <- mkReg (CPU_RESET1);
    Reg #(Priv_Mode)  rg_cur_priv <- mkRegU;
 
+   // Save next_pc across split-phase FENCE.I and other split-phase ops
+   Reg #(WordXL) rg_next_pc <- mkRegU;
+
    // ----------------
    // Pipeline stages
 
@@ -851,8 +854,10 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 			   && (stage1.out.control == CONTROL_FENCE_I));
       if (cur_verbosity > 1) $display ("%0d:  CPU.rl_stage1_FENCE_I", mcycle);
 
-      rg_state <= CPU_FENCE_I;
+      // Save stage1.out.next_pc since it will be destroyed by FENCE.I op
+      rg_next_pc <= stage1.out.next_pc;
       near_mem.server_fence_i.request.put (?);
+      rg_state   <= CPU_FENCE_I;
 
       // Accounting
       csr_regfile.csr_minstret_incr;
@@ -869,6 +874,9 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 	 $display ("%0d: CPU.rl_stage1_FENCE_I", mcycle);
    endrule
 
+   // ----------------
+   // Finish FENCE.I
+
    rule rl_finish_FENCE_I (rg_state == CPU_FENCE_I);
       if (cur_verbosity > 1) $display ("%0d:  CPU.rl_finish_FENCE_I", mcycle);
 
@@ -877,7 +885,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 
       // Resume pipe
       rg_state <= CPU_RUNNING;
-      fa_start_ifetch (stage1.out.next_pc, rg_cur_priv);
+      fa_start_ifetch (rg_next_pc, rg_cur_priv);
       stage1.set_full (True);
 
       if (cur_verbosity > 1)
@@ -895,8 +903,9 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 			 && (stage1.out.control == CONTROL_FENCE));
       if (cur_verbosity > 1) $display ("%0d:  CPU.rl_stage1_FENCE", mcycle);
 
-      rg_state <= CPU_FENCE;
+      rg_next_pc <= stage1.out.next_pc;
       near_mem.server_fence.request.put (?);
+      rg_state <= CPU_FENCE;
 
       // Accounting
       csr_regfile.csr_minstret_incr;
@@ -913,6 +922,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 	 $display ("%0d: CPU.rl_stage1_FENCE", mcycle);
    endrule
 
+   // ----------------
    // Finish FENCE
 
    rule rl_finish_FENCE (rg_state == CPU_FENCE);
@@ -923,7 +933,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 
       // Resume pipe
       rg_state <= CPU_RUNNING;
-      fa_start_ifetch (stage1.out.next_pc, rg_cur_priv);
+      fa_start_ifetch (rg_next_pc, rg_cur_priv);
       stage1.set_full (True);
 
       if (cur_verbosity > 1)
@@ -941,9 +951,9 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 			      && (stage1.out.control == CONTROL_SFENCE_VMA));
       if (cur_verbosity > 1) $display ("%0d:  CPU.rl_stage1_SFENCE_VMA", mcycle);
 
-      rg_state <= CPU_SFENCE_VMA;
-      // Tell Near_Mem to do its SFENCE_VMA
+      rg_next_pc <= stage1.out.next_pc;
       near_mem.sfence_vma;
+      rg_state <= CPU_SFENCE_VMA;
 
       // Accounting
       csr_regfile.csr_minstret_incr;
@@ -960,6 +970,9 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 	 $display ("%0d: CPU.rl_stage1_SFENCE_VMA", mcycle);
    endrule: rl_stage1_SFENCE_VMA
 
+   // ----------------
+   // Finish SFENCE.VMA
+
    rule rl_finish_SFENCE_VMA (rg_state == CPU_SFENCE_VMA);
       if (cur_verbosity > 1) $display ("%0d:  CPU.rl_finish_SFENCE_VMA", mcycle);
 
@@ -967,7 +980,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 
       // Resume pipe
       rg_state <= CPU_RUNNING;
-      fa_start_ifetch (stage1.out.next_pc, rg_cur_priv);
+      fa_start_ifetch (rg_next_pc, rg_cur_priv);
       stage1.set_full (True);
 
       if (cur_verbosity > 1)
@@ -985,7 +998,8 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 		       && (stage1.out.control == CONTROL_WFI));
       if (cur_verbosity > 1) $display ("%0d:  CPU.rl_stage1_WFI", mcycle);
 
-      rg_state <= CPU_WFI_PAUSED;
+      rg_next_pc <= stage1.out.next_pc;
+      rg_state   <= CPU_WFI_PAUSED;
 
       // Accounting
       csr_regfile.csr_minstret_incr;
@@ -999,7 +1013,9 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
       // Debug
       fa_emit_instr_trace (minstret, stage1.out.data_to_stage2.pc, stage1.out.data_to_stage2.instr, rg_cur_priv);
       if (cur_verbosity > 1)
-	 $display ("    CPU.rl_stage1_WFI");
+	 $display ("    CPU.rl_stage1_WFI: minstret:%0d  PC:0x%0h  instr:0x%0h  priv:%0d",
+		   minstret, stage1.out.data_to_stage2.pc, stage1.out.data_to_stage2.instr, rg_cur_priv);
+
    endrule: rl_stage1_WFI
 
    // ----------------
@@ -1009,12 +1025,11 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 
       // Debug
       if (cur_verbosity >= 1)
-	 $display ("    WFI resume: minstret:%0d  PC:0x%0h  instr:0x%0h  priv:%0d",
-		   minstret, stage1.out.data_to_stage2.pc, stage1.out.data_to_stage2.instr, rg_cur_priv);
+	 $display ("    WFI resume");
 
       // Resume pipe (it will handle the interrupt, if one is pending)
       rg_state <= CPU_RUNNING;
-      fa_start_ifetch (stage1.out.next_pc, rg_cur_priv);
+      fa_start_ifetch (rg_next_pc, rg_cur_priv);
       stage1.set_full (True);
    endrule: rl_WFI_resume
 
