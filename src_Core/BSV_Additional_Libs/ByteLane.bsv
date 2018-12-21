@@ -46,6 +46,16 @@ function Bit #(TMul #(n,8)) fn_strobe_to_mask (Bit #(n) strobe);
 endfunction
 
 // ================================================================
+// Update an n-byte word taking into account an n-bit strobe
+
+function Bit# (TMul #(n,8)) fn_update_strobed_bytes (Bit# (TMul #(n,8)) old_data,
+						     Bit# (TMul #(n,8)) new_data,
+						     Bit #(n)           strobe);
+   Bit# (TMul #(n,8)) mask = fn_strobe_to_mask (strobe);
+   return ((old_data & (~ mask))  |  (new_data & mask));
+endfunction
+
+// ================================================================
 // Lane-adjust a data word according to the byte-address and data width
 // Args: addr:     only bottom few bits are relevant
 //       width:    # of relevant bytes: 1, 2, 4, 8
