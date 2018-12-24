@@ -629,8 +629,25 @@ Bit #(3) funct3_JALR = 3'b000;
 // ================================================================
 // Floating Point Instructions
 // Enumeration of floating point opcodes for decode within the FPU
-typedef enum {OP, MADD, MSUB, NMSUB, NMADD} FPOpcode
-deriving (Bits, Eq, FShow);
+typedef enum {
+     FPAdd
+   , FPSub
+   , FPMul
+   , FPDiv
+   , FPSqrt
+   , FPMAdd
+   , FPMSub
+   , FPNMAdd
+   , FPNMSub } FpuOp deriving (Bits, Eq, FShow);
+
+// Enumeration of rounding modes
+typedef enum {
+     Rnd_Nearest_Even
+   , Rnd_Zero
+   , Rnd_Minus_Inf
+   , Rnd_Plus_Inf
+   , Rnd_Nearest_Max_Mag
+} RoundMode deriving (Bits, Eq, FShow);
 
 // Funct2 encoding
 Bit #(2) f2_S           = 2'b00;
@@ -766,7 +783,6 @@ function Tuple2# (Bit #(3), Bool) fv_rmode_check (
                                          : fv_inst_frm_valid (inst_frm);
    return (tuple2 (rm, rm_is_legal));
 endfunction
-
 
 // A D instruction requires misa.f to be set as well as misa.d
 function Bool fv_is_fp_instr_legal (

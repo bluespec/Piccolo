@@ -165,11 +165,13 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 
    CPU_Stage1_IFC  stage1 <- mkCPU_Stage1 (cur_verbosity,
 					   gpr_regfile,
-`ifdef ISA_F
-					   fpr_regfile,
-`endif
 					   csr_regfile,
 					   imem,
+`ifdef ISA_F
+					   fpr_regfile,
+					   stage2.out.fbypass,
+					   stage3.out.fbypass,
+`endif
 					   stage2.out.bypass,
 					   stage3.out.bypass,
 					   rg_cur_priv);

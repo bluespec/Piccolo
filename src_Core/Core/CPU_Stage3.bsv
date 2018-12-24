@@ -95,6 +95,30 @@ module mkCPU_Stage3 #(Bit #(4)         verbosity,
    // ----------------------------------------------------------------
    // BEHAVIOR
 
+   let bypass_base = Bypass {bypass_state: BYPASS_RD_NONE
+			   , rd:           rg_stage3.rd
+`ifdef ISA_D
+			   , rd_val:       truncate (rg_stage3.rd_val) 
+`else
+			   , rd_val:       rg_stage3.rd_val
+`endif
+                           };
+
+`ifdef ISA_F
+   let fbypass_base = FBypass {bypass_state: BYPASS_RD_NONE
+			   , rd:           rg_stage3.rd
+`ifdef ISA_D
+			   , rd_val:       rg_stage3.rd_val 
+`else
+`ifdef RV64
+			   , rd_val:       extend (rg_stage3.rd_val)
+`else
+			   , rd_val:       rg_stage3.rd_val
+`endif
+`endif
+                           };
+`endif
+
    rule rl_reset;
       f_reset_reqs.deq;
       rg_full <= False;
@@ -105,17 +129,29 @@ module mkCPU_Stage3 #(Bit #(4)         verbosity,
    // Combinational output function
 
    function Output_Stage3 fv_out;
-      return Output_Stage3 {ostatus: (rg_full ? OSTATUS_PIPE : OSTATUS_EMPTY),
-			    bypass:  Bypass {bypass_state: ((rg_full && rg_stage3.rd_valid)
-							    ? BYPASS_RD_RDVAL
-							    : BYPASS_RD_NONE),
-					     rd:           rg_stage3.rd,
+      let bypass = bypass_base;
 `ifdef ISA_F
-                                             // With FP, the val is always Bit #(64)
-					     rd_val:       truncate (rg_stage3.rd_val) }};
+      let fbypass = fbypass_base;
+      if (rg_stage3.rd_in_fpr) begin
+         bypass.bypass_state = BYPASS_RD_NONE;
+         fbypass.bypass_state = (rg_full && rg_stage3.rd_valid) ? BYPASS_RD_RDVAL
+                                                                : BYPASS_RD_NONE;
+      end
+      else begin
+         fbypass.bypass_state = BYPASS_RD_NONE;
+         bypass.bypass_state = (rg_full && rg_stage3.rd_valid) ? BYPASS_RD_RDVAL
+                                                               : BYPASS_RD_NONE;
+      end
 `else
-					     rd_val:       rg_stage3.rd_val }};
+      bypass.bypass_state = (rg_full && rg_stage3.rd_valid) ? BYPASS_RD_RDVAL
+                                                            : BYPASS_RD_NONE;
 `endif
+      return Output_Stage3 {ostatus: (rg_full ? OSTATUS_PIPE : OSTATUS_EMPTY)
+                            , bypass : bypass
+`ifdef ISA_F
+                            , fbypass: fbypass
+`endif
+			   };
    endfunction
 
    // ----------------
@@ -126,7 +162,7 @@ module mkCPU_Stage3 #(Bit #(4)         verbosity,
 	 // Writeback Rd if valid
 	 if (rg_stage3.rd_valid) begin
 `ifdef ISA_F
-            if (rg_stage3.upd_fpr)
+            if (rg_stage3.rd_in_fpr)
 `ifdef ISA_D
                fpr_regfile.write_rd (rg_stage3.rd, rg_stage3.rd_val);
 `else
@@ -144,7 +180,7 @@ module mkCPU_Stage3 #(Bit #(4)         verbosity,
 `endif
 	    if (verbosity > 1)
 `ifdef ISA_F
-               if (rg_stage3.upd_fpr)
+               if (rg_stage3.rd_in_fpr)
                   $display ("    S3.fa_deq: write FRd 0x%0h, rd_val 0x%0h",
                             rg_stage3.rd, rg_stage3.rd_val);
                else

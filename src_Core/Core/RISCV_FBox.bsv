@@ -16,10 +16,14 @@ mkRISCV_FBox;
 // ================================================================
 // BSV Library imports
 
-import FIFO      :: *;
-import Assert    :: *;
-import ConfigReg :: *;
-import FShow     :: *;
+import FIFOF         :: *;
+import Assert        :: *;
+import ConfigReg     :: *;
+import FShow         :: *;
+import FloatingPoint :: *;
+import GetPut        :: *;
+import ClientServer  :: *;
+import DefaultValue  :: *;
 
 // ----------------
 // BSV additional libs
@@ -42,17 +46,13 @@ typedef struct {
 } FBoxResult deriving (Bits, Eq, FShow);
 
 typedef enum {
-   FBOX_READY,                   // Idle. Ready for request
-   FBOX_BUSY,                    // FBox is busy processing a request
-   FBOX_RESULT,                  // FBox result is ready
-   FBOX_EXCEPTION_RSP            // Illegal instruction exception
+   FBOX_REQ,                     // FBox is accepting a request
+   FBOX_BUSY,                    // FBox waiting for a response
+   FBOX_RSP                      // FBox driving response
 } FBoxState deriving (Bits, Eq, FShow);
 
 interface RISCV_FBox_IFC;
    method Action set_verbosity (Bit #(4) verbosity);
-
-   method Action                    req_reset;
-   method ActionValue #(Bit #(0))   rsp_reset;
 
    // FBox interface: request
    (* always_ready *)
@@ -72,8 +72,6 @@ interface RISCV_FBox_IFC;
    method Bool valid;
    (* always_ready *)
    method Tuple2 #(Bit #(64), Bit #(5)) word;
-   (* always_ready *)
-   method Bool exc;
 endinterface
 
 // ================================================================
@@ -83,55 +81,769 @@ module mkRISCV_FBox (RISCV_FBox_IFC);
 
    Reg   #(Bit #(4))       cfg_verbosity        <- mkConfigReg (0);
 
-   Reg   #(Maybe #(Bool))  rg_frm_FPU_not_PNU   <- mkRegU;
+   FIFOF #(Bool)           frmFpuF              <- mkFIFOF;
+
+   Reg   #(FBoxState)      stateR               <- mkReg (FBOX_REQ);
+
+   Reg   #(Maybe #(Tuple8 #(
+        Bool
+      , Opcode
+      , Bit #(7)
+      , RegName 
+      , Bit #(3)
+      , Bit #(64)
+      , Bit #(64)
+      , Bit #(64))))       requestR             <- mkReg (tagged Invalid);
 
    Reg   #(Bool)           dw_valid             <- mkDWire (False);
    Reg   #(Tuple2 #(
         Bit #(64)
       , Bit #(5)))         dw_result            <- mkDWire (?);
 
+   Reg   #(Maybe #(Tuple2 #(
+        Bit #(64)
+      , Bit #(5))))        resultR              <- mkReg (tagged Invalid);
    
    FPU_IFC                 fpu                  <- mkFPU;
    FPU_IFC                 pnu                  <- mkFPU;
 
 
    // =============================================================
-   // ----------------------------------------------------------------
-   // This rule drives an exception response until the FBox is put
-   // into FBOX_BUSY state by the next request.
+   // Some helper function
+   // Convert the rounding mode into the format understood by the FPU/PNU
+   function RoundMode fv_getRoundMode (Bit #(3) rm);
+      case (rm)
+         3'h0: return (Rnd_Nearest_Even);
+         3'h1: return (Rnd_Zero);
+         3'h2: return (Rnd_Minus_Inf);
+         3'h3: return (Rnd_Plus_Inf);
+         3'h4: return (Rnd_Nearest_Even); // XXX Different in v2.2 of spec
+         default: return (Rnd_Nearest_Even);
+      endcase
+   endfunction
 
-   // These rules drives the results from the FPU or PNU
-   rule rl_drive_fpu_result (
-         (rg_frm_FPU_not_PNU.Valid == True)
-      && (fpu.result_valid));
+   // Converts the exception coming from the FPU/PNU to the format for the FCSR
+   function Bit #(5) exception_to_fcsr( FloatingPoint::Exception x );
+      let nv  = x.invalid_op ? 1'b1 : 1'b0 ;
+      let dz  = x.divide_0   ? 1'b1 : 1'b0 ;
+      let of  = x.overflow   ? 1'b1 : 1'b0 ;
+      let uf  = x.underflow  ? 1'b1 : 1'b0 ;
+      let nx  = x.inexact    ? 1'b1 : 1'b0 ;
+      return pack ({nv, dz, of, uf, nx});
+   endfunction
+
+   // Take a single precision value and nanboxes it to be able to write it to a
+   // 64-bit FPR register file. This is necessary if single precision operands
+   // used with a register file capable of holding double precision values
+   function Bit #(64) fv_nanbox (Bit #(64) x);
+      Bit #(64) fill_bits = (64'h1 << 32) - 1;  // [31: 0] all ones
+      Bit #(64) fill_mask = (fill_bits << 32);  // [63:32] all ones
+      return (x | fill_mask);
+   endfunction
+
+   // Drive response to the pipeline
+   function Action fa_driveResponse (Bit #(64) res, Bit #(5) flags);
+      action
       dw_valid    <= True;
-      dw_result   <= fpu.result_value;
+      dw_result   <= tuple2 (res, flags);
+      endaction
+   endfunction
+
+   // =============================================================
+   // Decode sub-opcodes (a direct lift from the spec)
+   match {.frmFPU, .opc, .f7, .rs2, .rm, .v1, .v2, .v3} = requestR.Valid;
+   Bit #(2) f2 = f7[1:0];
+`ifdef ISA_D
+   let isFMADD_D     = (opc == op_FMADD)  && (f2 == 1);
+   let isFMSUB_D     = (opc == op_FMSUB)  && (f2 == 1);
+   let isFNMADD_D    = (opc == op_FNMADD) && (f2 == 1);
+   let isFNMSUB_D    = (opc == op_FNMSUB) && (f2 == 1);
+   let isFADD_D      = (opc == op_FP) && (f7 == f7_FADD_D); 
+   let isFSUB_D      = (opc == op_FP) && (f7 == f7_FSUB_D);
+   let isFMUL_D      = (opc == op_FP) && (f7 == f7_FMUL_D);
+   let isFDIV_D      = (opc == op_FP) && (f7 == f7_FDIV_D);
+   let isFSQRT_D     = (opc == op_FP) && (f7 == f7_FSQRT_D);
+   let isFSGNJ_D     = (opc == op_FP) && (f7 == f7_FSGNJ_D) && (rm == 0);
+   let isFSGNJN_D    = (opc == op_FP) && (f7 == f7_FSGNJ_D) && (rm == 1);
+   let isFSGNJX_D    = (opc == op_FP) && (f7 == f7_FSGNJ_D) && (rm == 2);
+   let isFCVT_W_D    = (opc == op_FP) && (f7 == f7_FCVT_W_D)  && (rs2 == 0);
+   let isFCVT_WU_D   = (opc == op_FP) && (f7 == f7_FCVT_WU_D) && (rs2 == 1);
+`ifdef RV64
+   let isFCVT_L_D    = (opc == op_FP) && (f7 == f7_FCVT_L_D)  && (rs2 == 2);
+   let isFCVT_LU_D   = (opc == op_FP) && (f7 == f7_FCVT_LU_D) && (rs2 == 3);
+`endif
+   let isFCVT_D_W    = (opc == op_FP) && (f7 == f7_FCVT_D_W)  && (rs2 == 0);
+   let isFCVT_D_WU   = (opc == op_FP) && (f7 == f7_FCVT_D_WU) && (rs2 == 1);
+`ifdef RV64
+   let isFCVT_D_L    = (opc == op_FP) && (f7 == f7_FCVT_D_L)  && (rs2 == 2);
+   let isFCVT_D_LU   = (opc == op_FP) && (f7 == f7_FCVT_D_LU) && (rs2 == 3);
+`endif
+   let isFCVT_D_S    = (opc == op_FP) && (f7 == f7_FCVT_D_S)  && (rs2 == 0);
+   let isFCVT_S_D    = (opc == op_FP) && (f7 == f7_FCVT_S_D)  && (rs2 == 1);
+   let isFMIN_D      = (opc == op_FP) && (f7 == f7_FMIN_D) && (rm == 0);
+   let isFMAX_D      = (opc == op_FP) && (f7 == f7_FMAX_D) && (rm == 1);
+   let isFLE_D       = (opc == op_FP) && (f7 == f7_FCMP_D) && (rm == 0);
+   let isFLT_D       = (opc == op_FP) && (f7 == f7_FCMP_D) && (rm == 1);
+   let isFEQ_D       = (opc == op_FP) && (f7 == f7_FCMP_D) && (rm == 2);
+   let isFMV_X_D     = (opc == op_FP) && (f7 == f7_FMV_X_D);
+   let isFMV_D_X     = (opc == op_FP) && (f7 == f7_FMV_D_X);
+   let isFCLASS_D    = (opc == op_FP) && (f7 == f7_FCLASS_D);
+`endif
+
+   let isFMADD_S     = (opc == op_FMADD)  && (f2 == 0);
+   let isFMSUB_S     = (opc == op_FMSUB)  && (f2 == 0);
+   let isFNMADD_S    = (opc == op_FNMADD) && (f2 == 0);
+   let isFNMSUB_S    = (opc == op_FNMSUB) && (f2 == 0);
+   let isFADD_S      = (opc == op_FP) && (f7 == f7_FADD_S); 
+   let isFSUB_S      = (opc == op_FP) && (f7 == f7_FSUB_S);
+   let isFMUL_S      = (opc == op_FP) && (f7 == f7_FMUL_S);
+   let isFDIV_S      = (opc == op_FP) && (f7 == f7_FDIV_S);
+   let isFSQRT_S     = (opc == op_FP) && (f7 == f7_FSQRT_S);
+   let isFSGNJ_S     = (opc == op_FP) && (f7 == f7_FSGNJ_S) && (rm == 0);
+   let isFSGNJN_S    = (opc == op_FP) && (f7 == f7_FSGNJ_S) && (rm == 1);
+   let isFSGNJX_S    = (opc == op_FP) && (f7 == f7_FSGNJ_S) && (rm == 2);
+   let isFCVT_W_S    = (opc == op_FP) && (f7 == f7_FCVT_W_S)  && (rs2 == 0);
+   let isFCVT_WU_S   = (opc == op_FP) && (f7 == f7_FCVT_WU_S) && (rs2 == 1);
+`ifdef RV64
+   let isFCVT_L_S    = (opc == op_FP) && (f7 == f7_FCVT_L_S)  && (rs2 == 2);
+   let isFCVT_LU_S   = (opc == op_FP) && (f7 == f7_FCVT_LU_S) && (rs2 == 3);
+`endif
+   let isFCVT_S_W    = (opc == op_FP) && (f7 == f7_FCVT_S_W)  && (rs2 == 0);
+   let isFCVT_S_WU   = (opc == op_FP) && (f7 == f7_FCVT_S_WU) && (rs2 == 1);
+`ifdef RV64
+   let isFCVT_S_L    = (opc == op_FP) && (f7 == f7_FCVT_S_L)  && (rs2 == 2);
+   let isFCVT_S_LU   = (opc == op_FP) && (f7 == f7_FCVT_S_LU) && (rs2 == 3);
+`endif
+   let isFMIN_S      = (opc == op_FP) && (f7 == f7_FMIN_S) && (rm == 0);
+   let isFMAX_S      = (opc == op_FP) && (f7 == f7_FMAX_S) && (rm == 1);
+   let isFLE_S       = (opc == op_FP) && (f7 == f7_FCMP_S) && (rm == 0);
+   let isFLT_S       = (opc == op_FP) && (f7 == f7_FCMP_S) && (rm == 1);
+   let isFEQ_S       = (opc == op_FP) && (f7 == f7_FCMP_S) && (rm == 2);
+   let isFMV_X_W     = (opc == op_FP) && (f7 == f7_FMV_X_W);
+   let isFMV_W_X     = (opc == op_FP) && (f7 == f7_FMV_W_X);
+   let isFCLASS_S    = (opc == op_FP) && (f7 == f7_FCLASS_S);
+
+   // =============================================================
+   // Prepare the operands. The operands come in as raw 64 bits. They need to be
+   // type cast as FSingle of FDouble
+   FSingle sV1, sV2, sV3;
+   FDouble dV1, dV2, dV3;
+
+   sV1 = unpack (v1[31:0]);
+   sV2 = unpack (v2[31:0]);
+   sV3 = unpack (v3[31:0]);
+   dV1 = unpack (v1);
+   dV2 = unpack (v2);
+   dV3 = unpack (v3);
+
+   let rmd = fv_getRoundMode (rm);
+
+   // =============================================================
+   // These rules execute the operations, either dispatch to the FPU/PNU or
+   // locally here in the F-Box
+   Bool validReq = isValid (requestR) && (stateR == FBOX_REQ) ;
+
+   // Single precision operations
+   let cmpres_s = compareFP ( sV1, sV2 );
+   rule doFADD_S ( validReq && isFADD_S );
+      if (frmFPU) 
+         fpu.request.put (tuple5 (tagged S sV1, tagged S sV2, ?, rmd, FPAdd));
+      else
+         pnu.request.put (tuple5 (tagged S sV1, tagged S sV2, ?, rmd, FPAdd));
+
+      stateR <= FBOX_BUSY;
+      frmFpuF.enq (frmFPU);
    endrule
 
-   rule rl_drive_pnu_result (
-         (rg_frm_FPU_not_PNU.Valid == False)
-      && (pnu.result_valid));
-      dw_valid    <= True;
-      dw_result   <= pnu.result_value;
+   rule doFSUB_S ( validReq && isFSUB_S );
+      if (frmFPU) 
+         fpu.request.put (tuple5 (tagged S sV1, tagged S sV2, ?, rmd, FPSub));
+      else
+         pnu.request.put (tuple5 (tagged S sV1, tagged S sV2, ?, rmd, FPSub));
+      stateR <= FBOX_BUSY;
+      frmFpuF.enq (frmFPU);
+   endrule
+
+   rule doFMUL_S ( validReq && isFMUL_S );
+      if (frmFPU) 
+         fpu.request.put (tuple5 (tagged S sV1, tagged S sV2, ?, rmd, FPMul));
+      else
+         pnu.request.put (tuple5 (tagged S sV1, tagged S sV2, ?, rmd, FPMul));
+
+      stateR <= FBOX_BUSY;
+      frmFpuF.enq (frmFPU);
+   endrule
+
+   rule doFMADD_S ( validReq && isFMADD_S );
+      if (frmFPU) 
+         fpu.request.put( tuple5( tagged S sV1, tagged S sV2, tagged S sV3, rmd, FPMAdd ) );
+      else
+         pnu.request.put( tuple5( tagged S sV1, tagged S sV2, tagged S sV3, rmd, FPMAdd ) );
+      stateR <= FBOX_BUSY;
+      frmFpuF.enq (frmFPU);
+   endrule
+
+   rule doFMSUB_S ( validReq && isFMSUB_S );
+      if (frmFPU) 
+         fpu.request.put( tuple5( tagged S sV1, tagged S sV2, tagged S sV3, rmd, FPMSub ) );
+      else
+         pnu.request.put( tuple5( tagged S sV1, tagged S sV2, tagged S sV3, rmd, FPNMAdd ) );
+      stateR <= FBOX_BUSY;
+      frmFpuF.enq (frmFPU);
+   endrule
+
+   rule doFNMADD_S ( validReq && isFNMADD_S );
+      if (frmFPU) 
+         fpu.request.put( tuple5( tagged S sV1, tagged S sV2, tagged S sV3, rmd, FPNMAdd ) );
+      else
+         pnu.request.put( tuple5( tagged S sV1, tagged S sV2, tagged S sV3, rmd, FPNMAdd ) );
+      stateR <= FBOX_BUSY;
+      frmFpuF.enq (frmFPU);
+   endrule
+
+   rule doFNMSUB_S ( validReq && isFNMSUB_S );
+      if (frmFPU) 
+         fpu.request.put( tuple5( tagged S sV1, tagged S sV2, tagged S sV3, rmd, FPNMSub ) );
+      else
+         pnu.request.put( tuple5( tagged S sV1, tagged S sV2, tagged S sV3, rmd, FPNMSub ) );
+      stateR <= FBOX_BUSY;
+      frmFpuF.enq (frmFPU);
+   endrule
+
+   rule doFSGNJ_S ( validReq && isFSGNJ_S );
+      let r1 = FSingle {  sign: sV2.sign
+                        , exp:  sV1.exp
+                        , sfd:  sV1.sfd};
+      Bit #(64) res = fv_nanbox (extend (pack (r1)));
+
+      fa_driveResponse (res, 0);
+      resultR     <= tagged Valid (tuple2 (res, 0));
+      stateR      <= FBOX_RSP;
+   endrule
+
+   rule doFSGNJN_S ( validReq && isFSGNJN_S );
+      FSingle r1 = FSingle {sign: !sV2.sign,
+                            exp:   sV1.exp,
+                            sfd:   sV1.sfd};
+
+      Bit #(64) res = fv_nanbox (extend (pack (r1)));
+      fa_driveResponse (res, 0);
+      resultR     <= tagged Valid (tuple2 (res, 0));
+      stateR      <= FBOX_RSP;
+   endrule
+
+   rule doFSGNJX_S ( validReq && isFSGNJX_S );
+      FSingle r1 = FSingle {sign:  (sV1.sign != sV2.sign),
+                            exp:   sV1.exp,
+                            sfd:   sV1.sfd};
+      Bit #(64) res = fv_nanbox (extend (pack (r1)));
+      fa_driveResponse (res, 0);
+      resultR     <= tagged Valid (tuple2 (res, 0));
+      stateR      <= FBOX_RSP;
+   endrule
+
+`ifdef RV64
+   rule doFCVT_S_L ( validReq && isFCVT_S_L );
+      Int#(64) v = unpack ( v1 );
+      match {.f, .e} = Tuple2#(FSingle, FloatingPoint::Exception)'(vFixedToFloat( v, 6'd0, rmd));
+      Bit #(64) res = fv_nanbox (extend (pack ( f )));
+      let fcsr = exception_to_fcsr(e);
+      fa_driveResponse (res, fcsr);
+      resultR     <= tagged Valid (tuple2 (res, fcsr));
+      stateR      <= FBOX_RSP;
+   endrule
+
+   rule doFCVT_S_LU ( validReq && isFCVT_S_LU );
+      UInt#(64) v = unpack ( v1 );
+      match {.f, .e} = Tuple2#(FSingle, FloatingPoint::Exception)'(vFixedToFloat( v, 6'd0, rmd));
+      Bit #(64) res = fv_nanbox (extend (pack ( f )));
+      let fcsr = exception_to_fcsr(e);
+      fa_driveResponse (res, fcsr);
+      resultR     <= tagged Valid (tuple2 (res, fcsr));
+      stateR      <= FBOX_RSP;
+   endrule
+`endif
+
+   rule doFCVT_S_W ( validReq && isFCVT_S_W );
+      Int#(32) v = unpack (truncate ( v1 ));
+      match {.f, .e} = Tuple2#(FSingle, FloatingPoint::Exception)'(vFixedToFloat( v, 6'd0, rmd));
+      Bit #(64) res = fv_nanbox (extend (pack ( f )));
+      let fcsr = exception_to_fcsr(e);
+      fa_driveResponse (res, fcsr);
+      resultR     <= tagged Valid (tuple2 (res, fcsr));
+      stateR      <= FBOX_RSP;
+   endrule
+
+   rule doFCVT_S_WU ( validReq && isFCVT_S_WU );
+      UInt#(32) v = unpack (truncate ( v1 ));
+      match {.f, .e} = Tuple2#(FSingle, FloatingPoint::Exception)'(vFixedToFloat( v, 6'd0, rmd));
+      Bit #(64) res = fv_nanbox (extend (pack ( f )));
+      let fcsr = exception_to_fcsr(e);
+      fa_driveResponse (res, fcsr);
+      resultR     <= tagged Valid (tuple2 (res, fcsr));
+      stateR      <= FBOX_RSP;
+   endrule
+
+`ifdef RV64
+   rule doFCVT_L_S ( validReq && isFCVT_L_S );
+      FSingle f = sV1;
+      match {.v, .e} = Tuple2#(Int#(64),FloatingPoint::Exception)'(vFloatToFixed( 6'd0, f, rmd));
+      Bit #(64) res = ( pack (v) );
+      let fcsr = exception_to_fcsr(e);
+      fa_driveResponse (res, fcsr);
+      resultR     <= tagged Valid (tuple2 (res, fcsr));
+      stateR      <= FBOX_RSP;
+   endrule
+
+   rule doFCVT_LU_S ( validReq && isFCVT_LU_S );
+      FSingle f = sV1;
+      match {.v, .e} = Tuple2#(UInt#(64),FloatingPoint::Exception)'(vFloatToFixed( 6'd0, f,rmd ));
+      Bit #(64) res = ( pack (v) );
+      let fcsr = exception_to_fcsr(e);
+      fa_driveResponse (res, fcsr);
+      resultR     <= tagged Valid (tuple2 (res, fcsr));
+      stateR      <= FBOX_RSP;
+   endrule
+`endif
+
+   rule doFCVT_W_S ( validReq && isFCVT_W_S );
+      FSingle f = sV1;
+      match {.v, .e} = Tuple2#(Int#(32),FloatingPoint::Exception)'(vFloatToFixed( 6'd0, f, rmd ));
+      Bit #(64) res = signExtend (pack (v));
+      let fcsr = exception_to_fcsr(e);
+      fa_driveResponse (res, fcsr);
+      resultR     <= tagged Valid (tuple2 (res, fcsr));
+      stateR      <= FBOX_RSP;
+   endrule
+
+   rule doFCVT_WU_S ( validReq && isFCVT_WU_S );
+      FSingle f = sV1;
+      match {.v, .e} = Tuple2#(UInt#(32),FloatingPoint::Exception)'(vFloatToFixed( 6'd0, f, rmd ));
+      Bit #(64) res = zeroExtend(pack (v));
+      let fcsr = exception_to_fcsr(e);
+      fa_driveResponse (res, fcsr);
+      resultR     <= tagged Valid (tuple2 (res, fcsr));
+      stateR      <= FBOX_RSP;
+   endrule
+
+   rule doFMIN_S ( validReq && isFMIN_S );
+      Bit #(64) res = (cmpres_s == LT) ? fv_nanbox (extend (pack (sV1)))
+                                       : fv_nanbox (extend (pack (sV2)));
+      fa_driveResponse (res, 0);
+      resultR     <= tagged Valid (tuple2 (res, 0));
+      stateR      <= FBOX_RSP;
+   endrule
+
+   rule doFMAX_S ( validReq && isFMAX_S );
+      Bit #(64) res = (cmpres_s == LT) ? fv_nanbox (extend (pack (sV2)))
+                                       : fv_nanbox (extend (pack (sV1)));
+      fa_driveResponse (res, 0);
+      resultR     <= tagged Valid (tuple2 (res, 0));
+      stateR      <= FBOX_RSP;
+   endrule
+
+   rule doFMV_W_X ( validReq && isFMV_W_X );
+      Bit #(64) res = fv_nanbox (pack ( v1 ));
+      fa_driveResponse (res, 0);
+      resultR     <= tagged Valid (tuple2 (res, 0));
+      stateR      <= FBOX_RSP;
+   endrule
+
+   rule doFMV_X_W ( validReq && isFMV_X_W );
+      Bit #(64) res = extend (pack ( sV1 ));
+
+      fa_driveResponse (res, 0);
+      resultR     <= tagged Valid (tuple2 (res, 0));
+      stateR      <= FBOX_RSP;
+   endrule
+
+   rule doFEQ_S ( validReq && isFEQ_S );
+      Bit #(64) res = (cmpres_s==EQ ? 1 : 0);
+      FloatingPoint::Exception e = defaultValue;
+      if (isSNaN(sV1) || isSNaN(sV2)) e.invalid_op = True;
+      let fcsr = exception_to_fcsr(e);
+      fa_driveResponse (res, fcsr);
+      resultR     <= tagged Valid (tuple2 (res, fcsr));
+      stateR      <= FBOX_RSP;
+   endrule
+
+   rule doFLT_S ( validReq && isFLT_S );
+      Bit #(64) res = (cmpres_s==LT ? 1 : 0);
+      FloatingPoint::Exception e = defaultValue;
+      if (isNaN(sV1) || isNaN(sV2)) e.invalid_op = True;
+      let fcsr = exception_to_fcsr(e);
+      fa_driveResponse (res, fcsr);
+      resultR     <= tagged Valid (tuple2 (res, fcsr));
+      stateR      <= FBOX_RSP;
+   endrule
+
+   rule doFLE_S ( validReq && isFLE_S );
+      Bit #(64) res = (((cmpres_s==LT) || (cmpres_s==EQ)) ? 1 : 0);
+      FloatingPoint::Exception e = defaultValue;
+      if (isNaN(sV1) || isNaN(sV2)) e.invalid_op = True;
+      let fcsr = exception_to_fcsr(e);
+      fa_driveResponse (res, fcsr);
+      resultR     <= tagged Valid (tuple2 (res, fcsr));
+      stateR      <= FBOX_RSP;
+   endrule
+
+   rule doFCLASS_S ( validReq && isFCLASS_S );
+      Bit #(64) res = ?;
+      if (isNaN(sV1)) begin
+	 res = isQNaN(sV1) ? 9 : 8;
+      end
+      else if (isInfinity(sV1)) begin
+	 res = sV1.sign ? 0 : 7;
+      end
+      else if (isZero(sV1)) begin
+	 res = sV1.sign ? 3 : 4;
+      end
+      else if (isSubNormal(sV1)) begin
+	 res = sV1.sign ? 2 : 5;
+      end
+      else begin
+	 res = sV1.sign ? 1 : 6;
+      end
+
+      fa_driveResponse (res, 0);
+      resultR     <= tagged Valid (tuple2 (res, 0));
+      stateR      <= FBOX_RSP;
+   endrule
+
+
+`ifdef ISA_D
+   // Double precision operations
+   let cmpres_d = compareFP ( dV1, dV2 );
+   rule doFADD_D ( validReq && isFADD_D );
+      if (frmFPU) 
+         fpu.request.put (tuple5 (tagged D dV1, tagged D dV2, ?, rmd, FPAdd));
+      else
+         pnu.request.put (tuple5 (tagged D dV1, tagged D dV2, ?, rmd, FPAdd));
+
+      stateR <= FBOX_BUSY;
+      frmFpuF.enq (frmFPU);
+   endrule
+
+   rule doFSUB_D ( validReq && isFSUB_D );
+      if (frmFPU) 
+         fpu.request.put (tuple5 (tagged D dV1, tagged D dV2, ?, rmd, FPSub));
+      else
+         pnu.request.put (tuple5 (tagged D dV1, tagged D dV2, ?, rmd, FPSub));
+      stateR <= FBOX_BUSY;
+      frmFpuF.enq (frmFPU);
+   endrule
+
+   rule doFMUL_D ( validReq && isFMUL_D );
+      if (frmFPU) 
+         fpu.request.put (tuple5 (tagged D dV1, tagged D dV2, ?, rmd, FPMul));
+      else
+         pnu.request.put (tuple5 (tagged D dV1, tagged D dV2, ?, rmd, FPMul));
+
+      stateR <= FBOX_BUSY;
+      frmFpuF.enq (frmFPU);
+   endrule
+
+   rule doFMADD_D ( validReq && isFMADD_D );
+      if (frmFPU) 
+         fpu.request.put( tuple5( tagged D dV1, tagged D dV2, tagged D dV3, rmd, FPMAdd ) );
+      else
+         pnu.request.put( tuple5( tagged D dV1, tagged D dV2, tagged D dV3, rmd, FPMAdd ) );
+      stateR <= FBOX_BUSY;
+      frmFpuF.enq (frmFPU);
+   endrule
+
+   rule doFMSUB_D ( validReq && isFMSUB_D );
+      if (frmFPU) 
+         fpu.request.put( tuple5( tagged D dV1, tagged D dV2, tagged D dV3, rmd, FPMSub ) );
+      else
+         pnu.request.put( tuple5( tagged D dV1, tagged D dV2, tagged D dV3, rmd, FPNMAdd ) );
+      stateR <= FBOX_BUSY;
+      frmFpuF.enq (frmFPU);
+   endrule
+
+   rule doFNMADD_D ( validReq && isFNMADD_D );
+      if (frmFPU) 
+         fpu.request.put( tuple5( tagged D dV1, tagged D dV2, tagged D dV3, rmd, FPNMAdd ) );
+      else
+         pnu.request.put( tuple5( tagged D dV1, tagged D dV2, tagged D dV3, rmd, FPNMAdd ) );
+      stateR <= FBOX_BUSY;
+      frmFpuF.enq (frmFPU);
+   endrule
+
+   rule doFNMSUB_D ( validReq && isFNMSUB_D );
+      if (frmFPU) 
+         fpu.request.put( tuple5( tagged D dV1, tagged D dV2, tagged D dV3, rmd, FPNMSub ) );
+      else
+         pnu.request.put( tuple5( tagged D dV1, tagged D dV2, tagged D dV3, rmd, FPNMSub ) );
+      stateR <= FBOX_BUSY;
+      frmFpuF.enq (frmFPU);
+   endrule
+
+   rule doFSGNJ_D ( validReq && isFSGNJ_D );
+      let r1 = FDouble {  sign: dV2.sign
+                        , exp:  dV1.exp
+                        , sfd:  dV1.sfd};
+      Bit #(64) res = extend (pack (r1));
+
+      fa_driveResponse (res, 0);
+      resultR     <= tagged Valid (tuple2 (res, 0));
+      stateR      <= FBOX_RSP;
+   endrule
+
+   rule doFSGNJN_D ( validReq && isFSGNJN_D );
+      let r1 = FDouble {  sign: !dV2.sign
+                        , exp:   dV1.exp
+                        , sfd:   dV1.sfd};
+
+      Bit #(64) res = extend (pack (r1));
+      fa_driveResponse (res, 0);
+      resultR     <= tagged Valid (tuple2 (res, 0));
+      stateR      <= FBOX_RSP;
+   endrule
+
+   rule doFSGNJX_D ( validReq && isFSGNJX_D );
+      let r1 = FDouble {  sign:  (dV1.sign != dV2.sign)
+                        , exp:   dV1.exp
+                        , sfd:   dV1.sfd};
+      Bit #(64) res = extend (pack (r1));
+      fa_driveResponse (res, 0);
+      resultR     <= tagged Valid (tuple2 (res, 0));
+      stateR      <= FBOX_RSP;
+   endrule
+
+   rule doFCVT_D_W ( validReq && isFCVT_D_W );
+      Int#(32) v = unpack (truncate ( v1 ));
+      match {.f, .e} = Tuple2#(FDouble, FloatingPoint::Exception)'(vFixedToFloat( v, 6'd0, rmd ));
+      Bit #(64) res = pack ( f );
+      let fcsr = exception_to_fcsr(e);
+      fa_driveResponse (res, fcsr);
+      resultR     <= tagged Valid (tuple2 (res, fcsr));
+      stateR      <= FBOX_RSP;
+   endrule
+
+   rule doFCVT_D_WU ( validReq && isFCVT_D_WU );
+      UInt#(32) v = unpack (truncate ( v1 ));
+      match {.f, .e} = Tuple2#(FDouble, FloatingPoint::Exception)'(vFixedToFloat( v, 6'd0, rmd ));
+      Bit #(64) res = pack ( f );
+      let fcsr = exception_to_fcsr(e);
+      fa_driveResponse (res, fcsr);
+      resultR     <= tagged Valid (tuple2 (res, fcsr));
+      stateR      <= FBOX_RSP;
+   endrule
+
+   rule doFCVT_W_D ( validReq && isFCVT_W_D );
+      FDouble f = dV1;
+      match {.v, .e} = Tuple2#(Int#(32),FloatingPoint::Exception)'(vFloatToFixed( 6'd0, f, rmd ));
+      Bit #(64) res = signExtend(pack (v));
+      let fcsr = exception_to_fcsr(e);
+      fa_driveResponse (res, fcsr);
+      resultR     <= tagged Valid (tuple2 (res, fcsr));
+      stateR      <= FBOX_RSP;
+   endrule
+
+   rule doFCVT_WU_D ( validReq && isFCVT_WU_D );
+      FDouble f = dV1;
+      match {.v, .e} = Tuple2#(UInt#(32),FloatingPoint::Exception)'(vFloatToFixed( 6'd0, f, rmd ));
+      Bit #(64) res = zeroExtend(pack(v));
+      let fcsr = exception_to_fcsr(e);
+      fa_driveResponse (res, fcsr);
+      resultR     <= tagged Valid (tuple2 (res, fcsr));
+      stateR      <= FBOX_RSP;
+   endrule
+
+`ifdef RV64
+   rule doFCVT_D_L ( validReq && isFCVT_D_L );
+      Int#(64) v = unpack ( v1 );
+      match {.f, .e} = Tuple2#(FDouble, FloatingPoint::Exception)'(vFixedToFloat( v, 6'd0, rmd ));
+      Bit #(64) res = pack ( f );
+      let fcsr = exception_to_fcsr(e);
+      fa_driveResponse (res, fcsr);
+      resultR     <= tagged Valid (tuple2 (res, fcsr));
+      stateR      <= FBOX_RSP;
+   endrule
+
+   rule doFCVT_D_LU ( validReq && isFCVT_D_LU );
+      UInt#(64) v = unpack ( v1 );
+      match {.f, .e} = Tuple2#(FDouble, FloatingPoint::Exception)'(vFixedToFloat( v, 6'd0, rmd ));
+      Bit #(64) res = pack ( f );
+      let fcsr = exception_to_fcsr(e);
+      fa_driveResponse (res, fcsr);
+      resultR     <= tagged Valid (tuple2 (res, fcsr));
+      stateR      <= FBOX_RSP;
+   endrule
+
+   rule doFCVT_L_D ( validReq && isFCVT_L_D );
+      FDouble f = dV1;
+      match {.v, .e} = Tuple2#(Int#(64),FloatingPoint::Exception)'(vFloatToFixed( 6'd0, f, rmd ));
+      Bit #(64) res = pack (v);
+      let fcsr = exception_to_fcsr(e);
+      fa_driveResponse (res, fcsr);
+      resultR     <= tagged Valid (tuple2 (res, fcsr));
+      stateR      <= FBOX_RSP;
+   endrule
+
+   rule doFCVT_LU_D ( validReq && isFCVT_LU_D );
+      FDouble f = dV1;
+      match {.v, .e} = Tuple2#(UInt#(64),FloatingPoint::Exception)'(vFloatToFixed( 6'd0, f, rmd ));
+      Bit #(64) res = pack (v);
+      let fcsr    = exception_to_fcsr(e);
+      fa_driveResponse (res, fcsr);
+      resultR     <= tagged Valid (tuple2 (res, fcsr));
+      stateR      <= FBOX_RSP;
+   endrule
+`endif
+
+   rule doFCVT_S_D ( validReq && isFCVT_S_D );
+      Tuple2#(FSingle,FloatingPoint::Exception) f = convert( dV1 , rmd , False );
+      Bit #(64) res = fv_nanbox (extend (pack ( tpl_1(f) )));
+      let fcsr = exception_to_fcsr( tpl_2(f) );
+      fa_driveResponse (res, fcsr);
+      resultR     <= tagged Valid (tuple2 (res, fcsr));
+      stateR      <= FBOX_RSP;
+   endrule
+
+   rule doFCVT_D_S ( validReq && isFCVT_D_S );
+      Tuple2#(FDouble,FloatingPoint::Exception) f = convert( sV1 , rmd , False );
+      Bit #(64) res = pack ( tpl_1(f) );
+      let fcsr = exception_to_fcsr( tpl_2(f) );
+      fa_driveResponse (res, fcsr);
+      resultR     <= tagged Valid (tuple2 (res, fcsr));
+      stateR      <= FBOX_RSP;
+   endrule
+
+   rule doFMIN_D ( validReq && isFMIN_D );
+      Bit #(64) res = (cmpres_s == LT) ? pack (dV1) : pack (dV2);
+      fa_driveResponse (res, 0);
+      resultR     <= tagged Valid (tuple2 (res, 0));
+      stateR      <= FBOX_RSP;
+   endrule
+
+   rule doFMAX_D ( validReq && isFMAX_D );
+      Bit #(64) res = (cmpres_s == LT) ? pack (dV2) : pack (dV1);
+      fa_driveResponse (res, 0);
+      resultR     <= tagged Valid (tuple2 (res, 0));
+      stateR      <= FBOX_RSP;
+   endrule
+
+   rule doFEQ_D ( validReq && isFEQ_D );
+      Bit #(64) res = (cmpres_d==EQ ? 1 : 0);
+      FloatingPoint::Exception e = defaultValue;
+      if (isSNaN(dV1) || isSNaN(dV2)) e.invalid_op = True;
+      let fcsr = exception_to_fcsr(e);
+      fa_driveResponse (res, fcsr);
+      resultR     <= tagged Valid (tuple2 (res, fcsr));
+      stateR      <= FBOX_RSP;
+   endrule
+
+   rule doFLT_D ( validReq && isFLT_D );
+      Bit #(64) res = (cmpres_d==LT ? 1 :0);
+      FloatingPoint::Exception e = defaultValue;
+      if (isNaN(dV1) || isNaN(dV2)) e.invalid_op = True;
+      let fcsr = exception_to_fcsr(e);
+      fa_driveResponse (res, fcsr);
+      resultR     <= tagged Valid (tuple2 (res, fcsr));
+      stateR      <= FBOX_RSP;
+   endrule
+
+   rule doFLE_D ( validReq && isFLE_D );
+      Bit #(64) res = (((cmpres_d==LT) || (cmpres_d==EQ)) ? 1 : 0);
+      FloatingPoint::Exception e = defaultValue;
+      if (isNaN(dV1) || isNaN(dV2)) e.invalid_op = True;
+      let fcsr = exception_to_fcsr(e);
+      fa_driveResponse (res, fcsr);
+      resultR     <= tagged Valid (tuple2 (res, fcsr));
+      stateR      <= FBOX_RSP;
+   endrule
+
+   rule doFMV_D_X ( validReq && isFMV_D_X );
+      Bit #(64) res = pack ( v1 );
+      fa_driveResponse (res, 0);
+      resultR     <= tagged Valid (tuple2 (res, 0));
+      stateR      <= FBOX_RSP;
+   endrule
+
+   rule doFMV_X_D ( validReq && isFMV_X_D );
+      Bit #(64) res = pack ( dV1 );
+      fa_driveResponse (res, 0);
+      resultR     <= tagged Valid (tuple2 (res, 0));
+      stateR      <= FBOX_RSP;
+   endrule
+
+   rule doFCLASS_D ( validReq && isFCLASS_D );
+      Bit #(64) res = ?;
+      if (isNaN(dV1)) begin
+	 res = isQNaN(dV1) ? 9 : 8;
+      end
+      else if (isInfinity(dV1)) begin
+	 res = dV1.sign ? 0 : 7;
+      end
+      else if (isZero(dV1)) begin
+	 res = dV1.sign ? 3 : 4;
+      end
+      else if (isSubNormal(dV1)) begin
+	 res = dV1.sign ? 2 : 5;
+      end
+      else begin
+	 res = dV1.sign ? 1 : 6;
+      end
+
+      fa_driveResponse (res, 0);
+      resultR     <= tagged Valid (tuple2 (res, 0));
+      stateR      <= FBOX_RSP;
+   endrule
+`endif
+
+   // =============================================================
+
+   // This rule collects the response from FPU for compute opcodes
+   rule rl_get_fpu_result ((stateR == FBOX_BUSY) && frmFpuF.first);
+      frmFpuF.deq;
+      Fpu_Rsp r      <- fpu.response.get();
+      match {.v, .e}  = r;
+      Bit #(64) res = ?;
+
+      if (v matches tagged S .out)
+         res = fv_nanbox (extend (pack (out)));
+      else if (v matches tagged D .out)
+         res = extend (pack (out));
+      else
+         res = 0;  // note: just ain't possible
+
+      let fcsr    = exception_to_fcsr( e );
+      fa_driveResponse (res, fcsr);
+      resultR     <= tagged Valid (tuple2 (res, fcsr));
+      stateR      <= FBOX_RSP;
+   endrule
+
+   rule rl_get_pnu_result ((stateR == FBOX_BUSY) && !frmFpuF.first);
+      frmFpuF.deq;
+      Fpu_Rsp r      <- pnu.response.get();
+      match {.v, .e}  = r;
+      Bit #(64) res = ?;
+
+      if (v matches tagged S .out)
+         res = fv_nanbox (extend (pack (out)));
+      else if (v matches tagged D .out)
+         res = extend (pack (out));
+      else
+         res = 0;  // note: just ain't possible
+
+      let fcsr    = exception_to_fcsr( e );
+      fa_driveResponse (res, fcsr);
+      resultR     <= tagged Valid (tuple2 (res, fcsr));
+      stateR      <= FBOX_RSP;
+   endrule
+
+   // This rule drives the results from the FBox to the pipeline
+   rule rl_drive_fpu_result (stateR == FBOX_RSP);
+      dw_valid    <= isValid (resultR);
+      dw_result   <= resultR.Valid;
    endrule
 
    // =============================================================
    // INTERFACE
    method Action set_verbosity (Bit #(4) verbosity);
       cfg_verbosity <= verbosity;
-   endmethod
-
-   method Action req_reset;
-      rg_frm_FPU_not_PNU <= tagged Invalid;
-
-      fpu.req_reset;
-      pnu.req_reset;
-   endmethod
-
-   method ActionValue #(Bit #(0)) rsp_reset;
-      let frst <- fpu.rsp_reset;
-      let prst <- pnu.rsp_reset;
-      return (?);
    endmethod
 
    // FBox interface: request
@@ -146,14 +858,11 @@ module mkRISCV_FBox (RISCV_FBox_IFC);
       , Bit #(64) v3
    );
       // Legal instruction
-      if (use_FPU_not_PNU)
-         fpu.req (opcode, f7, rs2, rm, v1, v2, v3);
-      else
-         pnu.req (opcode, f7, rs2, rm, v1, v2, v3);
+      requestR <= tagged Valid (tuple8 (use_FPU_not_PNU, opcode, f7, rs2, rm, v1, v2, v3));
 
-      // Bookkeeping
-      // Is the result coming from the FPU or PNU
-      rg_frm_FPU_not_PNU <= tagged Valid use_FPU_not_PNU;
+      // Start processing the instruction
+      resultR  <= tagged Invalid;
+      stateR   <= FBOX_REQ;
    endmethod
 
    // MBox interface: response
@@ -165,9 +874,6 @@ module mkRISCV_FBox (RISCV_FBox_IFC);
       return dw_result;
    endmethod
 
-   method Bool exc;
-      return dw_exc;
-   endmethod
 endmodule
 
 // ================================================================

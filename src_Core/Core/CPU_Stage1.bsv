@@ -75,11 +75,13 @@ endinterface
 
 module mkCPU_Stage1 #(Bit #(4)         verbosity,
 		      GPR_RegFile_IFC  gpr_regfile,
-`ifdef ISA_F
-		      FPR_RegFile_IFC  fpr_regfile,
-`endif
 		      CSR_RegFile_IFC  csr_regfile,
 		      IMem_IFC         imem,
+`ifdef ISA_F
+		      FPR_RegFile_IFC  fpr_regfile,
+		      FBypass          fbypass_from_stage2,
+		      FBypass          fbypass_from_stage3,
+`endif
 		      Bypass           bypass_from_stage2,
 		      Bypass           bypass_from_stage3,
 		      Priv_Mode        cur_priv)
@@ -135,25 +137,25 @@ module mkCPU_Stage1 #(Bit #(4)         verbosity,
 `ifdef ISA_F
    // FP Register rs1 read and bypass
    let frs1_val = fpr_regfile.read_rs1 (rs1);
-   match { .fbusy1a, .frs1a } = fn_gpr_bypass (bypass_from_stage3, rs1, frs1_val);
-   match { .fbusy1b, .frs1b } = fn_gpr_bypass (bypass_from_stage2, rs1, frs1a);
+   match { .fbusy1a, .frs1a } = fn_fpr_bypass (fbypass_from_stage3, rs1, frs1_val);
+   match { .fbusy1b, .frs1b } = fn_fpr_bypass (fbypass_from_stage2, rs1, frs1a);
    Bool frs1_busy = (fbusy1a || fbusy1b);
-   Word frs1_val_bypassed = frs1b;
+   WordFL frs1_val_bypassed = frs1b;
 
    // FP Register rs2 read and bypass
-   let frs2_val = gpr_regfile.read_rs2 (rs2);
-   match { .fbusy2a, .frs2a } = fn_gpr_bypass (bypass_from_stage3, rs2, frs2_val);
-   match { .fbusy2b, .frs2b } = fn_gpr_bypass (bypass_from_stage2, rs2, frs2a);
-   Bool frs2_busy = (busy2a || busy2b);
-   Word frs2_val_bypassed = frs2b;
+   let frs2_val = fpr_regfile.read_rs2 (rs2);
+   match { .fbusy2a, .frs2a } = fn_fpr_bypass (fbypass_from_stage3, rs2, frs2_val);
+   match { .fbusy2b, .frs2b } = fn_fpr_bypass (fbypass_from_stage2, rs2, frs2a);
+   Bool frs2_busy = (fbusy2a || fbusy2b);
+   WordFL frs2_val_bypassed = frs2b;
 
    // FP Register rs3 read and bypass
    let rs3 = decoded_instr.rs3;
-   let frs3_val = gpr_regfile.read_rs3 (rs3);
-   match { .fbusy3a, .frs3a } = fn_gpr_bypass (bypass_from_stage3, rs3, frs3_val);
-   match { .fbusy3b, .frs3b } = fn_gpr_bypass (bypass_from_stage2, rs3, frs3a);
-   Bool frs3_busy = (busy3a || busy3b);
-   Word frs3_val_bypassed = frs3b;
+   let frs3_val = fpr_regfile.read_rs3 (rs3);
+   match { .fbusy3a, .frs3a } = fn_fpr_bypass (fbypass_from_stage3, rs3, frs3_val);
+   match { .fbusy3b, .frs3b } = fn_fpr_bypass (fbypass_from_stage2, rs3, frs3a);
+   Bool frs3_busy = (fbusy3a || fbusy3b);
+   WordFL frs3_val_bypassed = frs3b;
 `endif
 
    // ALU function

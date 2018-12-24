@@ -123,20 +123,35 @@ module mkCPU_Stage2 #(Bit #(4)         verbosity,
 
    // ----------------
 
-   let bypass_base = Bypass {bypass_state: BYPASS_RD_NONE,
-			     rd:           rg_stage2.rd,
-`ifdef ISA_F
-                             // With FP, the val is always Bit #(64)
-			     rd_val:       truncate (rg_stage2.val1) };
+   let bypass_base = Bypass {bypass_state: BYPASS_RD_NONE
+			   , rd:           rg_stage2.rd
+`ifdef ISA_D
+			   , rd_val:       truncate (rg_stage2.val1) 
 `else
-			     rd_val:       rg_stage2.val1 };
+			   , rd_val:       rg_stage2.val1 
+`endif
+                           };
+
+`ifdef ISA_F
+   let fbypass_base = FBypass {bypass_state: BYPASS_RD_NONE
+			   , rd:           rg_stage2.rd
+`ifdef ISA_D
+			   , rd_val:       rg_stage2.val1 
+`else
+`ifdef RV64
+			   , rd_val:       extend (rg_stage2.val1) 
+`else
+			   , rd_val:       rg_stage2.val1 
+`endif
+`endif
+                           };
 `endif
 
    let data_to_stage3_base = Data_Stage2_to_Stage3 {priv:      rg_stage2.priv,
 						    pc:        rg_stage2.pc,
 						    instr:     rg_stage2.instr,
 `ifdef ISA_F
-                                                    upd_fpr:   False,
+                                                    rd_in_fpr: False,
                                                     upd_flags: False,
                                                     fpr_flags: 0,
 `endif
@@ -177,6 +192,9 @@ module mkCPU_Stage2 #(Bit #(4)         verbosity,
 					trap_info:       ?,
 					data_to_stage3:  ?,
 					bypass:          no_bypass,
+`ifdef ISA_F
+					fbypass:         no_fbypass,
+`endif
 					trace_data:      ?
 					};
       end
@@ -198,6 +216,9 @@ module mkCPU_Stage2 #(Bit #(4)         verbosity,
 					trap_info:       ?,
 					data_to_stage3:  data_to_stage3,
 					bypass:          bypass,
+`ifdef ISA_F
+					fbypass:         no_fbypass,
+`endif
 					trace_data:      trace_data};
       end
 
@@ -224,11 +245,35 @@ module mkCPU_Stage2 #(Bit #(4)         verbosity,
 	    data_to_stage3.rd_val   = result;
 `endif
 
+            // Update the bypass channel
 	    let bypass = bypass_base;
+
+`ifdef ISA_F
+            // When FP is enabled the LD result may be meant for a FPR or a GPR.
+            // Check before updating the appropriate bypass channel
+            let upd_fpr             = rg_stage2.rd_in_fpr;
+	    let fbypass             = fbypass_base;
+            data_to_stage3.rd_in_fpr= upd_fpr;
+
+            if (upd_fpr) begin
+	       fbypass.bypass_state = ((ostatus == OSTATUS_PIPE) ? BYPASS_RD_RDVAL : BYPASS_RD);
+`ifdef ISA_D
+	       fbypass.rd_val       = dcache.word64;
+`else
+	       fbypass.rd_val       = result;
+`endif
+            end
+
+            else if (rg_stage2.rd != 0) begin    // TODO: is this test necessary?
+	       bypass.bypass_state = ((ostatus == OSTATUS_PIPE) ? BYPASS_RD_RDVAL : BYPASS_RD);
+	       bypass.rd_val       = result;
+	    end
+`else
 	    if (rg_stage2.rd != 0) begin    // TODO: is this test necessary?
 	       bypass.bypass_state = ((ostatus == OSTATUS_PIPE) ? BYPASS_RD_RDVAL : BYPASS_RD);
 	       bypass.rd_val       = result;
 	    end
+`endif
 
 	    let trace_data   = ?;
 `ifdef INCLUDE_TANDEM_VERIF
@@ -240,6 +285,9 @@ module mkCPU_Stage2 #(Bit #(4)         verbosity,
 					   trap_info:       trap_info_dmem,
 					   data_to_stage3:  data_to_stage3,
 					   bypass:          bypass,
+`ifdef ISA_F
+					   fbypass:         fbypass,
+`endif
 					   trace_data:      trace_data};
 	 end
 
@@ -265,6 +313,9 @@ module mkCPU_Stage2 #(Bit #(4)         verbosity,
 					trap_info:      trap_info_dmem,
 					data_to_stage3: data_to_stage3,
 					bypass:         no_bypass,
+`ifdef ISA_F
+					fbypass:        no_fbypass,
+`endif
 					trace_data:     trace_data};
       end
 
@@ -297,6 +348,9 @@ module mkCPU_Stage2 #(Bit #(4)         verbosity,
 					trap_info:       ?,
 					data_to_stage3:  data_to_stage3,
 					bypass:          bypass,
+`ifdef ISA_F
+					fbypass:         no_fbypass,
+`endif
 					trace_data:      trace_data};
       end
 `endif
@@ -330,6 +384,9 @@ module mkCPU_Stage2 #(Bit #(4)         verbosity,
 					trap_info:       ?,
 					data_to_stage3:  data_to_stage3,
 					bypass:          bypass,
+`ifdef ISA_F
+					fbypass:         no_fbypass,
+`endif
 					trace_data:      trace_data};
       end
 `endif
@@ -346,18 +403,34 @@ module mkCPU_Stage2 #(Bit #(4)         verbosity,
 	 let data_to_stage3      = data_to_stage3_base;
 	 data_to_stage3.rd_valid = (ostatus == OSTATUS_PIPE);
 	 data_to_stage3.rd_val   = value;
-         data_to_stage3.upd_fpr  = upd_fpr;
+         data_to_stage3.rd_in_fpr= rg_stage2.rd_in_fpr;
          data_to_stage3.upd_flags= True;
          data_to_stage3.fpr_flags= fflags;
 
-         // XXX Need to add/change logic here to handle two bypass cases:
-         // 1. FPR value returned by FBox
-         // 2. GPR value returned by FBox if upd_fpr is false
+         // XXX Need to add/change logic here to handle bypass of fflags
+         // result is meant for a FPR
+         let bypass              = bypass_base;
+         let fbypass             = fbypass_base;
+         if (upd_fpr) begin
+            fbypass.bypass_state    = ((ostatus==OSTATUS_PIPE) ? BYPASS_RD_RDVAL
+                                                               : BYPASS_RD);
+`ifdef ISA_D
+            fbypass.rd_val          = value;
+`else
+            fbypass.rd_val          = truncate (value);
+`endif
+         end
 
-	 let bypass              = bypass_base;
-	 bypass.bypass_state     = ((ostatus==OSTATUS_PIPE) ? BYPASS_RD_RDVAL
-                                                            : BYPASS_RD);
-	 bypass.rd_val           = truncate (value);
+         // result is meant for a GPR
+         else begin
+            bypass.bypass_state     = ((ostatus==OSTATUS_PIPE) ? BYPASS_RD_RDVAL
+                                                               : BYPASS_RD);
+`ifdef RV64
+            bypass.rd_val           = (value);
+`else
+            bypass.rd_val           = truncate (value);
+`endif
+         end
 
          // -----
 	 let trace_data          = ?;
@@ -372,6 +445,9 @@ module mkCPU_Stage2 #(Bit #(4)         verbosity,
 					trap_info:       trap_info_fbox,
 					data_to_stage3:  data_to_stage3,
 					bypass:          bypass,
+`ifdef ISA_F
+					fbypass:         fbypass,
+`endif
 					trace_data:      trace_data};
       end
 `endif
