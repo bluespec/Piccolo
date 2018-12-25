@@ -407,7 +407,6 @@ module mkCPU_Stage2 #(Bit #(4)         verbosity,
          data_to_stage3.upd_flags= True;
          data_to_stage3.fpr_flags= fflags;
 
-         // XXX Need to add/change logic here to handle bypass of fflags
          // result is meant for a FPR
          let bypass              = bypass_base;
          let fbypass             = fbypass_base;

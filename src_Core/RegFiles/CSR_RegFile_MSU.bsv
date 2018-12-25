@@ -64,8 +64,9 @@ interface CSR_RegFile_IFC;
    (* always_ready *)
    method Bit #(3) read_frm;
 
+   // Update FCSR.FFLAGS
    (* always_ready *)
-   method Action update_flags (Bit #(5) flags);
+   method Action update_fcsr_fflags (Bit #(5) flags);
 `endif
 
    // Read MISA
@@ -1000,13 +1001,14 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
    endmethod
 
 `ifdef ISA_F
+   // Read FCSR.FRM
    method Bit# (3) read_frm;
       return rg_frm;
    endmethod
 
-   // XXX Add logic to update fcsr_flags
-   method Action update_flags (Bit#(5) flags);
-      noAction;
+   // Update FCSR.FFLAGS
+   method Action update_fcsr_fflags (Bit#(5) flags);
+      rg_fflags <= rg_fflags | flags;
    endmethod
 `endif
 

@@ -187,6 +187,11 @@ module mkCPU_Stage3 #(Bit #(4)         verbosity,
 `endif
                   $display ("    S3.fa_deq: write GRd 0x%0h, rd_val 0x%0h",
                             rg_stage3.rd, rg_stage3.rd_val);
+`ifdef ISA_F
+            // Update FCSR.fflags
+            if (rg_stage3.upd_flags)
+               csr_regfile.update_fcsr_fflags (rg_stage3.fpr_flags);
+`endif
 	 end
       endaction
    endfunction
