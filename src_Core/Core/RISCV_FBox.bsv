@@ -310,6 +310,24 @@ module mkRISCV_FBox (RISCV_FBox_IFC);
       frmFpuF.enq (frmFPU);
    endrule
 
+   rule doFDIV_S ( validReq && isFDIV_S );
+      if (frmFPU) 
+         fpu.request.put( tuple5( tagged S sV1, tagged S sV2, ?, rmd, FPDiv) );
+      else
+         pnu.request.put( tuple5( tagged S sV1, tagged S sV2, ?, rmd, FPDiv) );
+      stateR <= FBOX_BUSY;
+      frmFpuF.enq (frmFPU);
+   endrule
+
+   rule doFSQRT_S ( validReq && isFSQRT_S );
+      if (frmFPU) 
+         fpu.request.put( tuple5( tagged S sV1, ?, ?, rmd, FPSqrt) );
+      else
+         pnu.request.put( tuple5( tagged S sV1, ?, ?, rmd, FPSqrt) );
+      stateR <= FBOX_BUSY;
+      frmFpuF.enq (frmFPU);
+   endrule
+
    rule doFSGNJ_S ( validReq && isFSGNJ_S );
       let r1 = FSingle {  sign: sV2.sign
                         , exp:  sV1.exp
@@ -427,16 +445,56 @@ module mkRISCV_FBox (RISCV_FBox_IFC);
    endrule
 
    rule doFMIN_S ( validReq && isFMIN_S );
-      Bit #(64) res = (cmpres_s == LT) ? fv_nanbox (extend (pack (sV1)))
-                                       : fv_nanbox (extend (pack (sV2)));
+      Bit #(64) res = ?;
+      // One or both of the values are NaNs
+      if (cmpres_s == UO) begin
+         if ( isSNaN (sV1) && isSNaN (sV2) )
+            res = fv_nanbox (extend (pack (nanQuiet (sV1))));
+         else if ( isSNaN (sV1) )
+            res = fv_nanbox (extend (pack ( sV2 )));
+         else if ( isSNaN (sV2) )
+            res = fv_nanbox (extend (pack ( sV1 )));
+         else if ( isQNaN (sV1) && isQNaN (sV2) )
+            res = fv_nanbox (extend (pack (nanQuiet (sV1))));
+         else if ( isQNaN (sV1) )
+            res = fv_nanbox (extend (pack ( sV2 )));
+         else if ( isQNaN (sV2) )
+            res = fv_nanbox (extend (pack ( sV1 )));
+      end
+
+      // Both values are numbers
+      else
+         res = (cmpres_s == LT) ? fv_nanbox (extend (pack (sV1)))
+                                : fv_nanbox (extend (pack (sV2)));
+
       fa_driveResponse (res, 0);
       resultR     <= tagged Valid (tuple2 (res, 0));
       stateR      <= FBOX_RSP;
    endrule
 
    rule doFMAX_S ( validReq && isFMAX_S );
-      Bit #(64) res = (cmpres_s == LT) ? fv_nanbox (extend (pack (sV2)))
-                                       : fv_nanbox (extend (pack (sV1)));
+      Bit #(64) res = ?;
+      // One or both of the values are NaNs
+      if (cmpres_s == UO) begin
+         if ( isSNaN (sV1) && isSNaN (sV2) )
+            res = fv_nanbox (extend (pack (nanQuiet (sV1))));
+         else if ( isSNaN (sV1) )
+            res = fv_nanbox (extend (pack ( sV2 )));
+         else if ( isSNaN (sV2) )
+            res = fv_nanbox (extend (pack ( sV1 )));
+         else if ( isQNaN (sV1) && isQNaN (sV2) )
+            res = fv_nanbox (extend (pack (nanQuiet (sV1))));
+         else if ( isQNaN (sV1) )
+            res = fv_nanbox (extend (pack ( sV2 )));
+         else if ( isQNaN (sV2) )
+            res = fv_nanbox (extend (pack ( sV1 )));
+      end
+
+      // Both values are numbers
+      else
+         res = (cmpres_s == LT) ? fv_nanbox (extend (pack (sV2)))
+                                : fv_nanbox (extend (pack (sV1)));
+
       fa_driveResponse (res, 0);
       resultR     <= tagged Valid (tuple2 (res, 0));
       stateR      <= FBOX_RSP;
@@ -579,6 +637,24 @@ module mkRISCV_FBox (RISCV_FBox_IFC);
       frmFpuF.enq (frmFPU);
    endrule
 
+   rule doFDIV_D ( validReq && isFDIV_D );
+      if (frmFPU) 
+         fpu.request.put( tuple5( tagged D dV1, tagged D dV2, ?, rmd, FPDiv) );
+      else
+         pnu.request.put( tuple5( tagged D dV1, tagged D dV2, ?, rmd, FPDiv) );
+      stateR <= FBOX_BUSY;
+      frmFpuF.enq (frmFPU);
+   endrule
+
+   rule doFSQRT_D ( validReq && isFSQRT_D );
+      if (frmFPU) 
+         fpu.request.put( tuple5( tagged D dV1, ?, ?, rmd, FPSqrt) );
+      else
+         pnu.request.put( tuple5( tagged D dV1, ?, ?, rmd, FPSqrt) );
+      stateR <= FBOX_BUSY;
+      frmFpuF.enq (frmFPU);
+   endrule
+
    rule doFSGNJ_D ( validReq && isFSGNJ_D );
       let r1 = FDouble {  sign: dV2.sign
                         , exp:  dV1.exp
@@ -712,14 +788,54 @@ module mkRISCV_FBox (RISCV_FBox_IFC);
    endrule
 
    rule doFMIN_D ( validReq && isFMIN_D );
-      Bit #(64) res = (cmpres_s == LT) ? pack (dV1) : pack (dV2);
+      // One or both of the values are NaNs
+      Bit #(64) res = ?;
+      if (cmpres_d == UO) begin
+         if ( isSNaN (dV1) && isSNaN (dV2) )
+            res = pack (nanQuiet (dV1));
+         else if ( isSNaN (dV1) )
+            res = pack ( dV2 );
+         else if ( isSNaN (dV2) )
+            res = pack ( dV1 );
+         else if ( isQNaN (dV1) && isQNaN (dV2) )
+            res = pack (nanQuiet (dV1));
+         else if ( isQNaN (dV1) )
+            res = pack ( dV2 );
+         else if ( isQNaN (dV2) )
+            res = pack ( dV1 );
+      end
+
+      // Both values are numbers
+      else
+         res = (cmpres_d == LT) ? pack (dV1) : pack (dV2);
+
       fa_driveResponse (res, 0);
       resultR     <= tagged Valid (tuple2 (res, 0));
       stateR      <= FBOX_RSP;
    endrule
 
    rule doFMAX_D ( validReq && isFMAX_D );
-      Bit #(64) res = (cmpres_s == LT) ? pack (dV2) : pack (dV1);
+      // One or both of the values are NaNs
+      Bit #(64) res = ?;
+      if (cmpres_d == UO) begin
+         if ( isSNaN (dV1) && isSNaN (dV2) )
+            res = pack (nanQuiet (dV1));
+         else if ( isSNaN (dV1) )
+            res = pack ( dV2 );
+         else if ( isSNaN (dV2) )
+            res = pack ( dV1 );
+         else if ( isQNaN (dV1) && isQNaN (dV2) )
+            res = pack (nanQuiet (dV1));
+         else if ( isQNaN (dV1) )
+            res = pack ( dV2 );
+         else if ( isQNaN (dV2) )
+            res = pack ( dV1 );
+      end
+
+      // Both values are numbers
+      else
+         res = (cmpres_s == LT) ? pack (dV2) : pack (dV1);
+
       fa_driveResponse (res, 0);
       resultR     <= tagged Valid (tuple2 (res, 0));
       stateR      <= FBOX_RSP;

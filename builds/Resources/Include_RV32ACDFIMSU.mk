@@ -25,6 +25,6 @@ BSC_FLAGS ?= -D RV32 \
 
 # Default ISA test
 
-TEST ?= rv32uf-p-add
+TEST ?= rv32uf-p-fadd
 
 # ================================================================
