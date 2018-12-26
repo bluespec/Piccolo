@@ -365,13 +365,18 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 
       $display ("    Stage3: ", fshow (stage3.out));
       $display ("        Bypass to Stage1: ", fshow (stage3.out.bypass));
+`ifdef ISA_F
+      $display ("        FBypass to Stage1: ", fshow (stage3.out.fbypass));
+`endif
       $display ("    Stage2: pc 0x%08h instr 0x%08h priv %0d",
 		stage2.out.data_to_stage3.pc,
 		stage2.out.data_to_stage3.instr,
 		stage2.out.data_to_stage3.priv);
       $display ("        ", fshow (stage2.out));
       $display ("        Bypass to Stage1: ", fshow (stage2.out.bypass));
-
+`ifdef ISA_F
+      $display ("        FBypass to Stage1: ", fshow (stage2.out.fbypass));
+`endif
       $display ("    Stage1: pc 0x%08h instr 0x%08h priv %0d",
 		stage1.out.data_to_stage2.pc,
 		stage1.out.data_to_stage2.instr,

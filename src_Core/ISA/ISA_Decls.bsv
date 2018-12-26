@@ -724,6 +724,7 @@ Bit #(7) f7_FCLASS_S    = 7'h70;
 // should be written into the GPR
 function Bool fv_is_rd_in_GPR (Bit #(7) funct7, RegName rs2);
 
+`ifdef ISA_D
     let is_FCVT_W_D  =    (funct7 == f7_FCVT_W_D)
                        && (rs2 == 0);
     let is_FCVT_WU_D =    (funct7 == f7_FCVT_WU_D)
@@ -733,7 +734,11 @@ function Bool fv_is_rd_in_GPR (Bit #(7) funct7, RegName rs2);
                        && (rs2 == 2);
     let is_FCVT_LU_D =    (funct7 == f7_FCVT_LU_D)
                        && (rs2 == 3);
+
 `endif
+   let is_FMV_X_D    =    (funct7 == f7_FMV_X_D);
+`endif
+
     let is_FCVT_W_S  =    (funct7 == f7_FCVT_W_S)
                        && (rs2 == 0);
     let is_FCVT_WU_S =    (funct7 == f7_FCVT_WU_S)
@@ -745,17 +750,27 @@ function Bool fv_is_rd_in_GPR (Bit #(7) funct7, RegName rs2);
                        && (rs2 == 3);
 `endif
 
-    return (   is_FCVT_W_D
-            || is_FCVT_WU_D
+   let is_FMV_X_W    =    (funct7 == f7_FMV_X_W);
+
+    return (
+          False
+`ifdef ISA_D
+       || is_FCVT_W_D
+       || is_FCVT_WU_D
 `ifdef RV64
-            || is_FCVT_L_D
-            || is_FCVT_LU_D
-            || is_FCVT_L_S
-            || is_FCVT_LU_S
+       || is_FCVT_L_D
+       || is_FCVT_LU_D
 `endif
-            || is_FCVT_W_S
-            || is_FCVT_WU_S
-           );
+       || is_FMV_X_D
+`endif
+`ifdef RV64
+       || is_FCVT_L_S
+       || is_FCVT_LU_S
+`endif
+       || is_FCVT_W_S
+       || is_FCVT_WU_S
+       || is_FMV_X_W
+    );
 endfunction
 
 // Check if a rounding mode value in the FCSR.FRM is valid

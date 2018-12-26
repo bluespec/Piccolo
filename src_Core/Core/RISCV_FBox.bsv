@@ -450,7 +450,7 @@ module mkRISCV_FBox (RISCV_FBox_IFC);
    endrule
 
    rule doFMV_X_W ( validReq && isFMV_X_W );
-      Bit #(64) res = extend (pack ( sV1 ));
+      Bit #(64) res = signExtend (pack ( sV1 ));
 
       fa_driveResponse (res, 0);
       resultR     <= tagged Valid (tuple2 (res, 0));
