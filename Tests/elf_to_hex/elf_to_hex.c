@@ -131,7 +131,7 @@ void c_mem_load_elf (char *elf_filename,
     max_addr    = 0x0000000000000000llu;
     pc_start    = 0xFFFFFFFFFFFFFFFFllu;
     pc_exit     = 0xFFFFFFFFFFFFFFFFllu;
-    tohost_addr = 0xFFFFFFFFFFFFFFFFllu;
+    tohost_addr = 0x80001000;
 
     while ((scn = elf_nextscn (e,scn)) != NULL) {
         // get the header information for this section
