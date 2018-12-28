@@ -302,21 +302,19 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 `ifdef INCLUDE_GDB_CONTROL
 	 // Debugger stop-request
 	 if ((! do_halt) && rg_stop_req && (cur_verbosity != 0))
-	    $display ("    CPU.fa_start_ifetch: debugger stop-request: PC = 0x%08h", next_pc);
-
+	    $display ("    CPU.fa_start_ifetch: halting due to stop_req: PC = 0x%08h", next_pc);
 	 do_halt = (do_halt || rg_stop_req);
 
 	 // dcsr.step step-request
 	 if ((! do_halt) && rg_step_req && (cur_verbosity != 0))
-	    $display ("    CPU.fa_start_ifetch: dcsr.step-request");
-
+	    $display ("    CPU.fa_start_ifetch: halting due to step req: PC = 0x%08h", next_pc);
 	 do_halt = (do_halt || rg_step_req);
 
-	 // If single-step mode, set step-request to cause a stop at next fetch
-	 if (csr_regfile.read_dcsr_step) begin
+	 // If not halting now, and dcsr.step=1, set rg_step_req to cause a stop at next fetch
+	 if ((! do_halt) && (csr_regfile.read_dcsr_step)) begin
 	    rg_step_req <= True;
 	    if (cur_verbosity != 0)
-	       $display ("    CPU.fa_start_ifetch: step request");
+	       $display ("    CPU.fa_start_ifetch: dcsr.step=1; will stop at next fetch");
 	 end
 `endif
 
@@ -347,7 +345,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 	 rg_start_CPI_instrs <= csr_regfile.read_csr_minstret;
 
 	 if (cur_verbosity != 0)
-	    $display ("    restart with PC = 0x%0h", resume_pc);
+	    $display ("    fa_restart: RUNNING with PC = 0x%0h", resume_pc);
       endaction
    endfunction
 
@@ -448,7 +446,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
       rg_state <= CPU_DEBUG_MODE;
 
       if (cur_verbosity != 0)
-	 $display ("    entering DEBUG_MODE");
+	 $display ("    CPU entering DEBUG_MODE");
 `else
       WordXL dpc = truncate (pc_reset_value);
       fa_restart (dpc);
@@ -1144,17 +1142,19 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 
       // Notify debugger that we've halted
       f_run_halt_rsps.enq (False);
+
+      // Report CPI for info
+      fa_report_CPI;
    endrule: rl_trap_BREAK_to_Debug_Mode
 
    // Handle the flush responses from the caches when the flush was initiated
-   // on entering CPU_PAUSED state
+   // on entering CPU_GDB_PAUSING state
    rule rl_BREAK_cache_flush_finish (rg_state == CPU_GDB_PAUSING);
-      if (cur_verbosity > 1) $display ("%0d:  CPU.rl_BREAK_cache_flush_finish", mcycle);
-
       let ack <- near_mem.server_fence_i.response.get;
       rg_state <= CPU_DEBUG_MODE;
 
-      fa_report_CPI;
+      if (cur_verbosity > 0)
+	 $display ("%0d: CPU.rl_BREAK_cache_flush_finish; entering CPU_DEBUG_MODE", mcycle);
    endrule
 
    // ----------------
@@ -1162,7 +1162,8 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 
    rule rl_reset_from_Debug_Mode (   (rg_state == CPU_DEBUG_MODE)
 				  && f_reset_reqs.notEmpty);
-      if (cur_verbosity > 1) $display ("%0d:  CPU.rl_reset_from_Debug_Mode", mcycle);
+      if (cur_verbosity > 0)
+	 $display ("%0d:  CPU.rl_reset_from_Debug_Mode", mcycle);
 
       rg_state <= CPU_RESET1;
    endrule
@@ -1240,7 +1241,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 		   mcycle, minstret, rg_cur_priv, pc, instr);
 	 fa_report_CPI;
       end
-      else begin
+      else begin    // rg_step_req
 	 $display ("%0d: CPU.rl_stop: Stop after single-step. PC = 0x%08h", mcycle, pc);
       end
 
@@ -1257,8 +1258,6 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 
       // Flush both caches -- using the same interface as that used by FENCE_I
       near_mem.server_fence_i.request.put (?);
-
-      // Accounting: none (instruction is abandoned)
    endrule: rl_stage1_stop
 `endif
 
