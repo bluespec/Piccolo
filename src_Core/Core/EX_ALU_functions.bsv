@@ -1002,9 +1002,9 @@ function ALU_Outputs fv_AMO (ALU_Inputs inputs);
    alu_outputs.addr      = eaddr;
    alu_outputs.val1      = zeroExtend (inputs.decoded_instr.funct7);
 `ifdef ISA_D
-   alu_outputs.val1      = extend (inputs.rs2_val);
+   alu_outputs.val2      = extend (inputs.rs2_val);
 `else
-   alu_outputs.val1      = inputs.rs2_val;
+   alu_outputs.val2      = inputs.rs2_val;
 `endif
 
    // Normal trace output (if no trap)

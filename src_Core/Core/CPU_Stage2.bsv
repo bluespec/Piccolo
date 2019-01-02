@@ -553,17 +553,13 @@ module mkCPU_Stage2 #(Bit #(4)         verbosity,
 `ifdef ISA_F
 	 // If FBox op, initiate it
          else if (x.op_stage2 == OP_Stage2_FD) begin
-            // This flags changes rarely and should originate in CSRs
-            Bool use_FPU_not_PNU = True;
-
             // Instr fields required for decode for F/D opcodes
             let opcode = instr_opcode (x.instr);
 	    let funct7 = instr_funct7 (x.instr);
             let rs2    = instr_rs2    (x.instr);
 
 	    fbox.req (
-                 use_FPU_not_PNU
-               , opcode
+                 opcode
                , funct7
                , x.rounding_mode // rm
                , rs2

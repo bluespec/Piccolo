@@ -57,8 +57,7 @@ interface RISCV_FBox_IFC;
    // FBox interface: request
    (* always_ready *)
    method Action req (
-        Bool                        use_FPU_not_PNU
-      , Opcode                      opcode
+        Opcode                      opcode
       , Bit #(7)                    f7
       , Bit #(3)                    rm
       , RegName                     rs2
@@ -85,9 +84,8 @@ module mkRISCV_FBox (RISCV_FBox_IFC);
 
    Reg   #(FBoxState)      stateR               <- mkReg (FBOX_REQ);
 
-   Reg   #(Maybe #(Tuple8 #(
-        Bool
-      , Opcode
+   Reg   #(Maybe #(Tuple7 #(
+        Opcode
       , Bit #(7)
       , RegName 
       , Bit #(3)
@@ -105,8 +103,6 @@ module mkRISCV_FBox (RISCV_FBox_IFC);
       , Bit #(5))))        resultR              <- mkReg (tagged Invalid);
    
    FPU_IFC                 fpu                  <- mkFPU;
-   FPU_IFC                 pnu                  <- mkFPU;
-
 
    // =============================================================
    // Some helper function
@@ -151,7 +147,7 @@ module mkRISCV_FBox (RISCV_FBox_IFC);
 
    // =============================================================
    // Decode sub-opcodes (a direct lift from the spec)
-   match {.frmFPU, .opc, .f7, .rs2, .rm, .v1, .v2, .v3} = requestR.Valid;
+   match {.opc, .f7, .rs2, .rm, .v1, .v2, .v3} = requestR.Valid;
    Bit #(2) f2 = f7[1:0];
 `ifdef ISA_D
    let isFMADD_D     = (opc == op_FMADD)  && (f2 == 1);
@@ -246,86 +242,50 @@ module mkRISCV_FBox (RISCV_FBox_IFC);
    // Single precision operations
    let cmpres_s = compareFP ( sV1, sV2 );
    rule doFADD_S ( validReq && isFADD_S );
-      if (frmFPU) 
-         fpu.request.put (tuple5 (tagged S sV1, tagged S sV2, ?, rmd, FPAdd));
-      else
-         pnu.request.put (tuple5 (tagged S sV1, tagged S sV2, ?, rmd, FPAdd));
+      fpu.request.put (tuple5 (tagged S sV1, tagged S sV2, ?, rmd, FPAdd));
 
       stateR <= FBOX_BUSY;
-      frmFpuF.enq (frmFPU);
    endrule
 
    rule doFSUB_S ( validReq && isFSUB_S );
-      if (frmFPU) 
-         fpu.request.put (tuple5 (tagged S sV1, tagged S sV2, ?, rmd, FPSub));
-      else
-         pnu.request.put (tuple5 (tagged S sV1, tagged S sV2, ?, rmd, FPSub));
+      fpu.request.put (tuple5 (tagged S sV1, tagged S sV2, ?, rmd, FPSub));
       stateR <= FBOX_BUSY;
-      frmFpuF.enq (frmFPU);
    endrule
 
    rule doFMUL_S ( validReq && isFMUL_S );
-      if (frmFPU) 
-         fpu.request.put (tuple5 (tagged S sV1, tagged S sV2, ?, rmd, FPMul));
-      else
-         pnu.request.put (tuple5 (tagged S sV1, tagged S sV2, ?, rmd, FPMul));
+      fpu.request.put (tuple5 (tagged S sV1, tagged S sV2, ?, rmd, FPMul));
 
       stateR <= FBOX_BUSY;
-      frmFpuF.enq (frmFPU);
    endrule
 
    rule doFMADD_S ( validReq && isFMADD_S );
-      if (frmFPU) 
-         fpu.request.put( tuple5( tagged S sV1, tagged S sV2, tagged S sV3, rmd, FPMAdd ) );
-      else
-         pnu.request.put( tuple5( tagged S sV1, tagged S sV2, tagged S sV3, rmd, FPMAdd ) );
+      fpu.request.put( tuple5( tagged S sV1, tagged S sV2, tagged S sV3, rmd, FPMAdd ) );
       stateR <= FBOX_BUSY;
-      frmFpuF.enq (frmFPU);
    endrule
 
    rule doFMSUB_S ( validReq && isFMSUB_S );
-      if (frmFPU) 
-         fpu.request.put( tuple5( tagged S sV1, tagged S sV2, tagged S sV3, rmd, FPMSub ) );
-      else
-         pnu.request.put( tuple5( tagged S sV1, tagged S sV2, tagged S sV3, rmd, FPNMAdd ) );
+      fpu.request.put( tuple5( tagged S sV1, tagged S sV2, tagged S sV3, rmd, FPMSub ) );
       stateR <= FBOX_BUSY;
-      frmFpuF.enq (frmFPU);
    endrule
 
    rule doFNMADD_S ( validReq && isFNMADD_S );
-      if (frmFPU) 
-         fpu.request.put( tuple5( tagged S sV1, tagged S sV2, tagged S sV3, rmd, FPNMAdd ) );
-      else
-         pnu.request.put( tuple5( tagged S sV1, tagged S sV2, tagged S sV3, rmd, FPNMAdd ) );
+      fpu.request.put( tuple5( tagged S sV1, tagged S sV2, tagged S sV3, rmd, FPNMAdd ) );
       stateR <= FBOX_BUSY;
-      frmFpuF.enq (frmFPU);
    endrule
 
    rule doFNMSUB_S ( validReq && isFNMSUB_S );
-      if (frmFPU) 
-         fpu.request.put( tuple5( tagged S sV1, tagged S sV2, tagged S sV3, rmd, FPNMSub ) );
-      else
-         pnu.request.put( tuple5( tagged S sV1, tagged S sV2, tagged S sV3, rmd, FPNMSub ) );
+      fpu.request.put( tuple5( tagged S sV1, tagged S sV2, tagged S sV3, rmd, FPNMSub ) );
       stateR <= FBOX_BUSY;
-      frmFpuF.enq (frmFPU);
    endrule
 
    rule doFDIV_S ( validReq && isFDIV_S );
-      if (frmFPU) 
-         fpu.request.put( tuple5( tagged S sV1, tagged S sV2, ?, rmd, FPDiv) );
-      else
-         pnu.request.put( tuple5( tagged S sV1, tagged S sV2, ?, rmd, FPDiv) );
+      fpu.request.put( tuple5( tagged S sV1, tagged S sV2, ?, rmd, FPDiv) );
       stateR <= FBOX_BUSY;
-      frmFpuF.enq (frmFPU);
    endrule
 
    rule doFSQRT_S ( validReq && isFSQRT_S );
-      if (frmFPU) 
-         fpu.request.put( tuple5( tagged S sV1, ?, ?, rmd, FPSqrt) );
-      else
-         pnu.request.put( tuple5( tagged S sV1, ?, ?, rmd, FPSqrt) );
+      fpu.request.put( tuple5( tagged S sV1, ?, ?, rmd, FPSqrt) );
       stateR <= FBOX_BUSY;
-      frmFpuF.enq (frmFPU);
    endrule
 
    rule doFSGNJ_S ( validReq && isFSGNJ_S );
@@ -573,86 +533,50 @@ module mkRISCV_FBox (RISCV_FBox_IFC);
    // Double precision operations
    let cmpres_d = compareFP ( dV1, dV2 );
    rule doFADD_D ( validReq && isFADD_D );
-      if (frmFPU) 
-         fpu.request.put (tuple5 (tagged D dV1, tagged D dV2, ?, rmd, FPAdd));
-      else
-         pnu.request.put (tuple5 (tagged D dV1, tagged D dV2, ?, rmd, FPAdd));
+      fpu.request.put (tuple5 (tagged D dV1, tagged D dV2, ?, rmd, FPAdd));
 
       stateR <= FBOX_BUSY;
-      frmFpuF.enq (frmFPU);
    endrule
 
    rule doFSUB_D ( validReq && isFSUB_D );
-      if (frmFPU) 
-         fpu.request.put (tuple5 (tagged D dV1, tagged D dV2, ?, rmd, FPSub));
-      else
-         pnu.request.put (tuple5 (tagged D dV1, tagged D dV2, ?, rmd, FPSub));
+      fpu.request.put (tuple5 (tagged D dV1, tagged D dV2, ?, rmd, FPSub));
       stateR <= FBOX_BUSY;
-      frmFpuF.enq (frmFPU);
    endrule
 
    rule doFMUL_D ( validReq && isFMUL_D );
-      if (frmFPU) 
-         fpu.request.put (tuple5 (tagged D dV1, tagged D dV2, ?, rmd, FPMul));
-      else
-         pnu.request.put (tuple5 (tagged D dV1, tagged D dV2, ?, rmd, FPMul));
+      fpu.request.put (tuple5 (tagged D dV1, tagged D dV2, ?, rmd, FPMul));
 
       stateR <= FBOX_BUSY;
-      frmFpuF.enq (frmFPU);
    endrule
 
    rule doFMADD_D ( validReq && isFMADD_D );
-      if (frmFPU) 
-         fpu.request.put( tuple5( tagged D dV1, tagged D dV2, tagged D dV3, rmd, FPMAdd ) );
-      else
-         pnu.request.put( tuple5( tagged D dV1, tagged D dV2, tagged D dV3, rmd, FPMAdd ) );
+      fpu.request.put( tuple5( tagged D dV1, tagged D dV2, tagged D dV3, rmd, FPMAdd ) );
       stateR <= FBOX_BUSY;
-      frmFpuF.enq (frmFPU);
    endrule
 
    rule doFMSUB_D ( validReq && isFMSUB_D );
-      if (frmFPU) 
-         fpu.request.put( tuple5( tagged D dV1, tagged D dV2, tagged D dV3, rmd, FPMSub ) );
-      else
-         pnu.request.put( tuple5( tagged D dV1, tagged D dV2, tagged D dV3, rmd, FPNMAdd ) );
+      fpu.request.put( tuple5( tagged D dV1, tagged D dV2, tagged D dV3, rmd, FPMSub ) );
       stateR <= FBOX_BUSY;
-      frmFpuF.enq (frmFPU);
    endrule
 
    rule doFNMADD_D ( validReq && isFNMADD_D );
-      if (frmFPU) 
-         fpu.request.put( tuple5( tagged D dV1, tagged D dV2, tagged D dV3, rmd, FPNMAdd ) );
-      else
-         pnu.request.put( tuple5( tagged D dV1, tagged D dV2, tagged D dV3, rmd, FPNMAdd ) );
+      fpu.request.put( tuple5( tagged D dV1, tagged D dV2, tagged D dV3, rmd, FPNMAdd ) );
       stateR <= FBOX_BUSY;
-      frmFpuF.enq (frmFPU);
    endrule
 
    rule doFNMSUB_D ( validReq && isFNMSUB_D );
-      if (frmFPU) 
-         fpu.request.put( tuple5( tagged D dV1, tagged D dV2, tagged D dV3, rmd, FPNMSub ) );
-      else
-         pnu.request.put( tuple5( tagged D dV1, tagged D dV2, tagged D dV3, rmd, FPNMSub ) );
+      fpu.request.put( tuple5( tagged D dV1, tagged D dV2, tagged D dV3, rmd, FPNMSub ) );
       stateR <= FBOX_BUSY;
-      frmFpuF.enq (frmFPU);
    endrule
 
    rule doFDIV_D ( validReq && isFDIV_D );
-      if (frmFPU) 
-         fpu.request.put( tuple5( tagged D dV1, tagged D dV2, ?, rmd, FPDiv) );
-      else
-         pnu.request.put( tuple5( tagged D dV1, tagged D dV2, ?, rmd, FPDiv) );
+      fpu.request.put( tuple5( tagged D dV1, tagged D dV2, ?, rmd, FPDiv) );
       stateR <= FBOX_BUSY;
-      frmFpuF.enq (frmFPU);
    endrule
 
    rule doFSQRT_D ( validReq && isFSQRT_D );
-      if (frmFPU) 
-         fpu.request.put( tuple5( tagged D dV1, ?, ?, rmd, FPSqrt) );
-      else
-         pnu.request.put( tuple5( tagged D dV1, ?, ?, rmd, FPSqrt) );
+      fpu.request.put( tuple5( tagged D dV1, ?, ?, rmd, FPSqrt) );
       stateR <= FBOX_BUSY;
-      frmFpuF.enq (frmFPU);
    endrule
 
    rule doFSGNJ_D ( validReq && isFSGNJ_D );
@@ -912,28 +836,8 @@ module mkRISCV_FBox (RISCV_FBox_IFC);
    // =============================================================
 
    // This rule collects the response from FPU for compute opcodes
-   rule rl_get_fpu_result ((stateR == FBOX_BUSY) && frmFpuF.first);
-      frmFpuF.deq;
+   rule rl_get_fpu_result ((stateR == FBOX_BUSY));
       Fpu_Rsp r      <- fpu.response.get();
-      match {.v, .e}  = r;
-      Bit #(64) res = ?;
-
-      if (v matches tagged S .out)
-         res = fv_nanbox (extend (pack (out)));
-      else if (v matches tagged D .out)
-         res = extend (pack (out));
-      else
-         res = 0;  // note: just ain't possible
-
-      let fcsr    = exception_to_fcsr( e );
-      fa_driveResponse (res, fcsr);
-      resultR     <= tagged Valid (tuple2 (res, fcsr));
-      stateR      <= FBOX_RSP;
-   endrule
-
-   rule rl_get_pnu_result ((stateR == FBOX_BUSY) && !frmFpuF.first);
-      frmFpuF.deq;
-      Fpu_Rsp r      <- pnu.response.get();
       match {.v, .e}  = r;
       Bit #(64) res = ?;
 
@@ -964,17 +868,17 @@ module mkRISCV_FBox (RISCV_FBox_IFC);
 
    // FBox interface: request
    method Action req (
-        Bool      use_FPU_not_PNU
-      , Opcode    opcode
-      , Bit #(7)  f7
-      , Bit #(3)  rm
-      , Bit #(5)  rs2
-      , Bit #(64) v1
-      , Bit #(64) v2
-      , Bit #(64) v3
+        Opcode    opcode
+      , Bit #(7)  funct7
+      , Bit #(3)  rounding_mode
+      , Bit #(5)  rs2_name
+      , Bit #(64) val1
+      , Bit #(64) val2
+      , Bit #(64) val3
    );
       // Legal instruction
-      requestR <= tagged Valid (tuple8 (use_FPU_not_PNU, opcode, f7, rs2, rm, v1, v2, v3));
+      requestR <= tagged Valid (
+         tuple7 (opcode, funct7, rs2_name, rounding_mode, val1, val2, val3));
 
       // Start processing the instruction
       resultR  <= tagged Invalid;
