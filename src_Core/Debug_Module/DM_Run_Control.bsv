@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2018 Bluespec, Inc. All Rights Reserved.
+// Copyright (c) 2017-2019 Bluespec, Inc. All Rights Reserved.
 
 package DM_Run_Control;
 
@@ -188,7 +188,7 @@ module mkDM_Run_Control (DM_Run_Control_IFC);
 	 end
 	 else begin
 	    // Deassert platform reset
-	    if ((verbosity != 0) && (rg_dmcontrol_ndmreset))
+	    if ((verbosity != 0) && rg_dmcontrol_ndmreset)
 	       $display ("DM_Run_Control.write: dmcontrol 0x%08h: clearing ndmreset", dm_word);
 
 	    // Hart reset
@@ -200,7 +200,7 @@ module mkDM_Run_Control (DM_Run_Control_IFC);
 	    end
 	    else begin
 	       // Deassert hart reset
-	       if ((verbosity != 0) && (rg_dmcontrol_hartreset))
+	       if ((verbosity != 0) && rg_dmcontrol_hartreset)
 		  $display ("DM_Run_Control.write: dmcontrol 0x%08h: clearing hartreset", dm_word);
 
 	       if (hasel)

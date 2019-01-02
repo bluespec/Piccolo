@@ -70,7 +70,7 @@ module mkTop_HW_Side (Empty) ;
    rule rl_step0 (! rg_banner_printed);
       $display ("================================================================");
       $display ("Bluespec RISC-V standalone system simulation v1.2");
-      $display ("Copyright (c) 2017-2018 Bluespec, Inc. All Rights Reserved.");
+      $display ("Copyright (c) 2017-2019 Bluespec, Inc. All Rights Reserved.");
       $display ("================================================================");
 
       rg_banner_printed <= True;

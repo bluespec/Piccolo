@@ -541,8 +541,10 @@ uint8_t  c_debug_client_connect (const uint16_t tcp_port)
     fprintf (stdout, "Connected\n");
 
     logfile_fp = fopen (logfile_name, "w");
-    if (logfile_fp != NULL)
+    if (logfile_fp != NULL) {
 	fprintf (stdout, "    Logfile for debug client transactions is '%s'\n", logfile_name);
+	fprintf (logfile_fp, "CONNECTED on TCP port %0d\n", tcp_port);
+    }
     else
 	fprintf (stdout, "    Unable to open logfile for debug client transactions: '%s'\n",
 		 logfile_name);
@@ -578,7 +580,10 @@ uint8_t c_debug_client_disconnect (uint8_t dummy)
 	return DMI_STATUS_ERR;
     }
 
-    if (logfile_fp != NULL) fclose (logfile_fp);
+    if (logfile_fp != NULL) {
+	fprintf (logfile_fp, "DISCONNECTED on port %0d\n", port);
+	fclose (logfile_fp);
+    }
 
     return DMI_STATUS_OK;
 }
@@ -586,6 +591,8 @@ uint8_t c_debug_client_disconnect (uint8_t dummy)
 // ================================================================
 // Receive 7-byte request from remote client
 // Result is:    { status, data_b3, data_b2, data_b1, data_b0, addr_b1, addr_b0, op }
+
+static int command_num = 0;
 
 uint64_t c_debug_client_request_recv (uint8_t dummy)
 {
@@ -655,12 +662,32 @@ uint64_t c_debug_client_request_recv (uint8_t dummy)
 	uint8_t  op   = (result         & 0xFF);
 	uint16_t addr = ((result >> 8)  & 0xFFFF);
 	uint32_t data = ((result >> 24) & 0xFFFFFFFF);
-	fprintf (logfile_fp, "RECV  ");
         switch (op) {
-	case DMI_OP_READ:          fprintf (logfile_fp, "READ  0x%04x\n", addr);     break;
-	case DMI_OP_WRITE:         fprintf (logfile_fp, "WRITE  0x%04x  0x%08x\n", addr, data);    break;
-	case DMI_OP_SHUTDOWN:      fprintf (logfile_fp, "SHUTDOWN\n"); break;
-	case DMI_OP_START_COMMAND: fprintf (logfile_fp, "======== START_COMMAND\n");  break;
+
+	case DMI_OP_READ: {
+	    fprintf (logfile_fp, "C_to_S  READ  0x%04x\n", addr);
+	    break;
+	}
+	case DMI_OP_WRITE: {
+	    fprintf (logfile_fp, "C_to_S  WRITE  0x%04x  0x%08x\n", addr, data);
+	    break;
+	}
+	case DMI_OP_SHUTDOWN: {
+	    fprintf (logfile_fp, "C_to_S  SHUTDOWN\n");
+	    break;
+	}
+	case DMI_OP_START_COMMAND: {
+	    fprintf (logfile_fp, "C_to_S  ======== START_COMMAND %0d\n", command_num);
+	    command_num++;
+	    break;
+	}
+	default: {
+	    fprintf (logfile_fp, "C_to_S ERROR: Unrecognized op %0d; ignored\n", op);
+
+	    fprintf (stderr,
+		     "ERROR: c_debug_client_request_recv: Unrecognized op %0d; ignored\n",
+		     op);
+	}
 	}
 	fflush (logfile_fp);
     }
@@ -706,7 +733,7 @@ uint8_t c_debug_client_response_send (const uint32_t data)
     fsync (fd);
 
     if (logfile_fp != NULL) {
-	fprintf (logfile_fp, "SEND  0x%08x\n", data);
+	fprintf (logfile_fp, "S_to_C  0x%08x\n", data);
 	fflush (logfile_fp);
     }
 
