@@ -1,5 +1,5 @@
 // vim: tw=80:tabstop=8:softtabstop=3:shiftwidth=3:expandtab:
-// Copyright (c) 2013-2018 Bluespec, Inc. All Rights Reserved
+// Copyright (c) 2013-2019 Bluespec, Inc. All Rights Reserved
 
 // ================================================================
 // ISA defs for UC Berkeley RISC V
@@ -817,8 +817,10 @@ function Bool fv_is_fp_instr_legal (
       if (    (f7 == f7_FADD_S)  
           ||  (f7 == f7_FSUB_S)  
           ||  (f7 == f7_FMUL_S)  
+`ifdef ISA_FD_DIV
           ||  (f7 == f7_FDIV_S)  
           ||  (f7 == f7_FSQRT_S) 
+`endif
           || ((f7 == f7_FSGNJ_S)  && ( rm == 0))
           || ((f7 == f7_FSGNJ_S)  && ( rm == 1))
           || ((f7 == f7_FSGNJ_S)  && ( rm == 2))
@@ -846,8 +848,10 @@ function Bool fv_is_fp_instr_legal (
           ||  (f7 == f7_FADD_D)  
           ||  (f7 == f7_FSUB_D)  
           ||  (f7 == f7_FMUL_D)  
+`ifdef ISA_FD_DIV
           ||  (f7 == f7_FDIV_D)  
           ||  (f7 == f7_FSQRT_D) 
+`endif
           || ((f7 == f7_FSGNJ_D)  && ( rm == 0))
           || ((f7 == f7_FSGNJ_D)  && ( rm == 1))
           || ((f7 == f7_FSGNJ_D)  && ( rm == 2))

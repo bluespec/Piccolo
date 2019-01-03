@@ -157,8 +157,10 @@ module mkRISCV_FBox (RISCV_FBox_IFC);
    let isFADD_D      = (opc == op_FP) && (f7 == f7_FADD_D); 
    let isFSUB_D      = (opc == op_FP) && (f7 == f7_FSUB_D);
    let isFMUL_D      = (opc == op_FP) && (f7 == f7_FMUL_D);
+`ifdef ISA_FD_DIV
    let isFDIV_D      = (opc == op_FP) && (f7 == f7_FDIV_D);
    let isFSQRT_D     = (opc == op_FP) && (f7 == f7_FSQRT_D);
+`endif
    let isFSGNJ_D     = (opc == op_FP) && (f7 == f7_FSGNJ_D) && (rm == 0);
    let isFSGNJN_D    = (opc == op_FP) && (f7 == f7_FSGNJ_D) && (rm == 1);
    let isFSGNJX_D    = (opc == op_FP) && (f7 == f7_FSGNJ_D) && (rm == 2);
@@ -193,8 +195,10 @@ module mkRISCV_FBox (RISCV_FBox_IFC);
    let isFADD_S      = (opc == op_FP) && (f7 == f7_FADD_S); 
    let isFSUB_S      = (opc == op_FP) && (f7 == f7_FSUB_S);
    let isFMUL_S      = (opc == op_FP) && (f7 == f7_FMUL_S);
+`ifdef ISA_FD_DIV
    let isFDIV_S      = (opc == op_FP) && (f7 == f7_FDIV_S);
    let isFSQRT_S     = (opc == op_FP) && (f7 == f7_FSQRT_S);
+`endif
    let isFSGNJ_S     = (opc == op_FP) && (f7 == f7_FSGNJ_S) && (rm == 0);
    let isFSGNJN_S    = (opc == op_FP) && (f7 == f7_FSGNJ_S) && (rm == 1);
    let isFSGNJX_S    = (opc == op_FP) && (f7 == f7_FSGNJ_S) && (rm == 2);
@@ -278,6 +282,7 @@ module mkRISCV_FBox (RISCV_FBox_IFC);
       stateR <= FBOX_BUSY;
    endrule
 
+`ifdef ISA_FD_DIV
    rule doFDIV_S ( validReq && isFDIV_S );
       fpu.request.put( tuple5( tagged S sV1, tagged S sV2, ?, rmd, FPDiv) );
       stateR <= FBOX_BUSY;
@@ -287,6 +292,7 @@ module mkRISCV_FBox (RISCV_FBox_IFC);
       fpu.request.put( tuple5( tagged S sV1, ?, ?, rmd, FPSqrt) );
       stateR <= FBOX_BUSY;
    endrule
+`endif
 
    rule doFSGNJ_S ( validReq && isFSGNJ_S );
       let r1 = FSingle {  sign: sV2.sign
@@ -569,6 +575,7 @@ module mkRISCV_FBox (RISCV_FBox_IFC);
       stateR <= FBOX_BUSY;
    endrule
 
+`ifdef ISA_FD_DIV
    rule doFDIV_D ( validReq && isFDIV_D );
       fpu.request.put( tuple5( tagged D dV1, tagged D dV2, ?, rmd, FPDiv) );
       stateR <= FBOX_BUSY;
@@ -578,6 +585,7 @@ module mkRISCV_FBox (RISCV_FBox_IFC);
       fpu.request.put( tuple5( tagged D dV1, ?, ?, rmd, FPSqrt) );
       stateR <= FBOX_BUSY;
    endrule
+`endif
 
    rule doFSGNJ_D ( validReq && isFSGNJ_D );
       let r1 = FDouble {  sign: dV2.sign
