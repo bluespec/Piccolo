@@ -145,6 +145,10 @@ module mkRISCV_FBox (RISCV_FBox_IFC);
       endaction
    endfunction
 
+   // Definitions of Q-NaNs for single and double precision
+   Bit #(32) canonicalNaN32 = 32'h7fc00000;
+   Bit #(64) canonicalNaN64 = 64'h7ff8000000000000;
+
    // =============================================================
    // Decode sub-opcodes (a direct lift from the spec)
    match {.opc, .f7, .rs2, .rm, .v1, .v2, .v3} = requestR.Valid;
@@ -415,13 +419,13 @@ module mkRISCV_FBox (RISCV_FBox_IFC);
       // One or both of the values are NaNs
       if (cmpres_s == UO) begin
          if ( isSNaN (sV1) && isSNaN (sV2) )
-            res = fv_nanbox (extend (pack (nanQuiet (sV1))));
+            res = fv_nanbox (extend (pack ( canonicalNaN32 )));
          else if ( isSNaN (sV1) )
             res = fv_nanbox (extend (pack ( sV2 )));
          else if ( isSNaN (sV2) )
             res = fv_nanbox (extend (pack ( sV1 )));
          else if ( isQNaN (sV1) && isQNaN (sV2) )
-            res = fv_nanbox (extend (pack (nanQuiet (sV1))));
+            res = fv_nanbox (extend (pack ( canonicalNaN32 )));
          else if ( isQNaN (sV1) )
             res = fv_nanbox (extend (pack ( sV2 )));
          else if ( isQNaN (sV2) )
@@ -433,8 +437,13 @@ module mkRISCV_FBox (RISCV_FBox_IFC);
          res = (cmpres_s == LT) ? fv_nanbox (extend (pack (sV1)))
                                 : fv_nanbox (extend (pack (sV2)));
 
-      fa_driveResponse (res, 0);
-      resultR     <= tagged Valid (tuple2 (res, 0));
+      // flag generation
+      FloatingPoint::Exception e = defaultValue;
+      if ( isSNaN (sV1) || isSNaN (sV2) ) e.invalid_op = True;
+      let fcsr = exception_to_fcsr(e);
+
+      fa_driveResponse (res, fcsr);
+      resultR     <= tagged Valid (tuple2 (res, fcsr));
       stateR      <= FBOX_RSP;
    endrule
 
@@ -443,13 +452,13 @@ module mkRISCV_FBox (RISCV_FBox_IFC);
       // One or both of the values are NaNs
       if (cmpres_s == UO) begin
          if ( isSNaN (sV1) && isSNaN (sV2) )
-            res = fv_nanbox (extend (pack (nanQuiet (sV1))));
+            res = fv_nanbox (extend (pack ( canonicalNaN32 )));
          else if ( isSNaN (sV1) )
             res = fv_nanbox (extend (pack ( sV2 )));
          else if ( isSNaN (sV2) )
             res = fv_nanbox (extend (pack ( sV1 )));
          else if ( isQNaN (sV1) && isQNaN (sV2) )
-            res = fv_nanbox (extend (pack (nanQuiet (sV1))));
+            res = fv_nanbox (extend (pack ( canonicalNaN32 )));
          else if ( isQNaN (sV1) )
             res = fv_nanbox (extend (pack ( sV2 )));
          else if ( isQNaN (sV2) )
@@ -461,8 +470,13 @@ module mkRISCV_FBox (RISCV_FBox_IFC);
          res = (cmpres_s == LT) ? fv_nanbox (extend (pack (sV2)))
                                 : fv_nanbox (extend (pack (sV1)));
 
-      fa_driveResponse (res, 0);
-      resultR     <= tagged Valid (tuple2 (res, 0));
+      // flag generation
+      FloatingPoint::Exception e = defaultValue;
+      if ( isSNaN (sV1) || isSNaN (sV2) ) e.invalid_op = True;
+      let fcsr = exception_to_fcsr(e);
+
+      fa_driveResponse (res, fcsr);
+      resultR     <= tagged Valid (tuple2 (res, fcsr));
       stateR      <= FBOX_RSP;
    endrule
 
@@ -724,25 +738,31 @@ module mkRISCV_FBox (RISCV_FBox_IFC);
       Bit #(64) res = ?;
       if (cmpres_d == UO) begin
          if ( isSNaN (dV1) && isSNaN (dV2) )
-            res = pack (nanQuiet (dV1));
+            res = pack (canonicalNaN64);
          else if ( isSNaN (dV1) )
             res = pack ( dV2 );
          else if ( isSNaN (dV2) )
             res = pack ( dV1 );
          else if ( isQNaN (dV1) && isQNaN (dV2) )
-            res = pack (nanQuiet (dV1));
+            res = pack (canonicalNaN64);
          else if ( isQNaN (dV1) )
             res = pack ( dV2 );
          else if ( isQNaN (dV2) )
             res = pack ( dV1 );
+
       end
 
       // Both values are numbers
       else
          res = (cmpres_d == LT) ? pack (dV1) : pack (dV2);
 
-      fa_driveResponse (res, 0);
-      resultR     <= tagged Valid (tuple2 (res, 0));
+      // flag generation
+      FloatingPoint::Exception e = defaultValue;
+      if ( isSNaN (sV1) || isSNaN (sV2) ) e.invalid_op = True;
+      let fcsr = exception_to_fcsr(e);
+
+      fa_driveResponse (res, fcsr);
+      resultR     <= tagged Valid (tuple2 (res, fcsr));
       stateR      <= FBOX_RSP;
    endrule
 
@@ -751,13 +771,13 @@ module mkRISCV_FBox (RISCV_FBox_IFC);
       Bit #(64) res = ?;
       if (cmpres_d == UO) begin
          if ( isSNaN (dV1) && isSNaN (dV2) )
-            res = pack (nanQuiet (dV1));
+            res = pack ( canonicalNaN64 );
          else if ( isSNaN (dV1) )
             res = pack ( dV2 );
          else if ( isSNaN (dV2) )
             res = pack ( dV1 );
          else if ( isQNaN (dV1) && isQNaN (dV2) )
-            res = pack (nanQuiet (dV1));
+            res = pack ( canonicalNaN64 );
          else if ( isQNaN (dV1) )
             res = pack ( dV2 );
          else if ( isQNaN (dV2) )
@@ -768,8 +788,13 @@ module mkRISCV_FBox (RISCV_FBox_IFC);
       else
          res = (cmpres_s == LT) ? pack (dV2) : pack (dV1);
 
-      fa_driveResponse (res, 0);
-      resultR     <= tagged Valid (tuple2 (res, 0));
+      // flag generation
+      FloatingPoint::Exception e = defaultValue;
+      if ( isSNaN (sV1) || isSNaN (sV2) ) e.invalid_op = True;
+      let fcsr = exception_to_fcsr(e);
+
+      fa_driveResponse (res, fcsr);
+      resultR     <= tagged Valid (tuple2 (res, fcsr));
       stateR      <= FBOX_RSP;
    endrule
 
