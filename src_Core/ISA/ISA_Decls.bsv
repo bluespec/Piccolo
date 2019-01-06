@@ -1,15 +1,18 @@
-// vim: tw=80:tabstop=8:softtabstop=3:shiftwidth=3:expandtab:
 // Copyright (c) 2013-2019 Bluespec, Inc. All Rights Reserved
 
 // ================================================================
 // ISA defs for UC Berkeley RISC V
 //
 // References (from riscv.org):
-//   "The RISC-V Instruction Set Manual
-//    Volume I: User-Level ISA, Version 2.2, May 7, 2017"
+//     The RISC-V Instruction Set Manual
+//     Volume I: Unprivileged ISA
+//     Document Version 20181106-Base-Ratification
+//     November 6, 2018
 //
-//   "The RISC-V Instruction Set Manual
-//    Volume II: Privileged Architecture, Version 1.10, May 7, 2017"
+//     The RISC-V Instruction Set Manual
+//     Volume II: Privileged Architecture
+//     Document Version 20181203-Base-Ratification
+//     December 3, 2018
 //
 // ================================================================
 

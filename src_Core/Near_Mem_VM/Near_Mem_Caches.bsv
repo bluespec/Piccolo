@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2018 Bluespec, Inc. All Rights Reserved.
+// Copyright (c) 2016-2019 Bluespec, Inc. All Rights Reserved.
 
 // Near_Mem_IFC is an abstraction of two alternatives: caches or TCM
 // (TCM = Tightly Coupled Memory).  Both are memories that are
@@ -62,8 +62,6 @@ module mkNear_Mem (Near_Mem_IFC);
    // Reset response queue
    FIFOF #(Token) f_reset_rsps <- mkFIFOF;
 
-   // ICache and DCache
-   // ICache_IFC     icache <- mkICache;
    MMU_Cache_IFC  icache <- mkMMU_Cache (False);
    MMU_Cache_IFC  dcache <- mkMMU_Cache (True);
 

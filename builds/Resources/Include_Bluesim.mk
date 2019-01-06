@@ -1,6 +1,6 @@
 ###  -*-Makefile-*-
 
-# Copyright (c) 2018 Bluespec, Inc. All Rights Reserved
+# Copyright (c) 2018-2019 Bluespec, Inc. All Rights Reserved
 
 # This file is not a standalone Makefile, but 'include'd by 'Makefile' in the sub-directories
 
@@ -25,7 +25,7 @@ all: compile  mkSim
 
 REPO ?= ../..
 
-CORE_DIRS = $(REPO)/src_Core/ISA:$(REPO)/src_Core/RegFiles:$(REPO)/src_Core/Core:$(REPO)/src_Core/Near_Mem_VM:$(REPO)/src_Core/BSV_Additional_Libs
+CORE_DIRS = $(REPO)/src_Core/ISA:$(REPO)/src_Core/RegFiles:$(REPO)/src_Core/Core:$(REPO)/src_Core/Near_Mem_VM:$(REPO)/src_Core/Debug_Module:$(REPO)/src_Core/BSV_Additional_Libs
 
 TESTBENCH_DIRS  = $(REPO)/src_Testbench/Top:$(REPO)/src_Testbench/SoC:$(REPO)/src_Testbench/Fabrics/AXI4_Lite
 
