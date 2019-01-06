@@ -167,11 +167,13 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 
    CPU_Stage1_IFC  stage1 <- mkCPU_Stage1 (cur_verbosity,
 					   gpr_regfile,
-`ifdef ISA_F
-					   fpr_regfile,
-`endif
 					   csr_regfile,
 					   imem,
+`ifdef ISA_F
+					   fpr_regfile,
+					   stage2.out.fbypass,
+					   stage3.out.fbypass,
+`endif
 					   stage2.out.bypass,
 					   stage3.out.bypass,
 					   rg_cur_priv);
@@ -363,13 +365,18 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
 
       $display ("    Stage3: ", fshow (stage3.out));
       $display ("        Bypass to Stage1: ", fshow (stage3.out.bypass));
+`ifdef ISA_F
+      $display ("        FBypass to Stage1: ", fshow (stage3.out.fbypass));
+`endif
       $display ("    Stage2: pc 0x%08h instr 0x%08h priv %0d",
 		stage2.out.data_to_stage3.pc,
 		stage2.out.data_to_stage3.instr,
 		stage2.out.data_to_stage3.priv);
       $display ("        ", fshow (stage2.out));
       $display ("        Bypass to Stage1: ", fshow (stage2.out.bypass));
-
+`ifdef ISA_F
+      $display ("        FBypass to Stage1: ", fshow (stage2.out.fbypass));
+`endif
       $display ("    Stage1: pc 0x%08h instr 0x%08h priv %0d",
 		stage1.out.data_to_stage2.pc,
 		stage1.out.data_to_stage2.instr,
@@ -646,9 +653,16 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
       let rs1      = instr_rs1    (instr);
       let funct3   = instr_funct3 (instr);
       let rd       = instr_rd     (instr);
+      
+`ifdef ISA_F
+      // With FP, the val is always Bit #(64)
+      WordXL stg2_val1= truncate (stage1.out.data_to_stage2.val1);
+`else
+      WordXL stg2_val1= stage1.out.data_to_stage2.val1;
+`endif
 
       let rs1_val  = (  (funct3 == f3_CSRRW)
-		      ? stage1.out.data_to_stage2.val1    // CSRRW
+		      ? stg2_val1                         // CSRRW
 		      : extend (rs1));                    // CSRRWI
 
       Bool read_not_write = False;    // CSRRW always writes the CSR
@@ -724,9 +738,16 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
       let rs1      = instr_rs1    (instr);
       let funct3   = instr_funct3 (instr);
       let rd       = instr_rd     (instr);
+`ifdef ISA_F
+      // With FP, the val is always Bit #(64)
+      WordXL stg2_val1= truncate (stage1.out.data_to_stage2.val1);
+`else
+      WordXL stg2_val1= stage1.out.data_to_stage2.val1;
+`endif
+
 
       let rs1_val  = (  ((funct3 == f3_CSRRS) || (funct3 == f3_CSRRC))
-		      ? stage1.out.data_to_stage2.val1    // CSRRS,  CSRRC
+		      ? stg2_val1                         // CSRRS,  CSRRC
 		      : extend (rs1));                    // CSRRSI, CSRRCI
 
       Bool read_not_write = (rs1_val == 0);    // CSRR_S_or_C only reads, does not write CSR, if rs1_val == 0

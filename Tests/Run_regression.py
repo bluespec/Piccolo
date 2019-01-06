@@ -177,8 +177,8 @@ def select_test_families (arch):
 
     add_family ("m")
     add_family ("a")
-    add_family ("f")
-    add_family ("d")
+    #add_family ("f")
+    #add_family ("d")
     add_family ("c")
 
     return families

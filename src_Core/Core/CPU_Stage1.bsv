@@ -36,6 +36,9 @@ import ISA_Decls        :: *;
 import CPU_Globals      :: *;
 import Near_Mem_IFC     :: *;
 import GPR_RegFile      :: *;
+`ifdef ISA_F
+import FPR_RegFile      :: *;
+`endif
 import CSR_RegFile      :: *;
 import EX_ALU_functions :: *;
 
@@ -71,11 +74,13 @@ endinterface
 
 module mkCPU_Stage1 #(Bit #(4)         verbosity,
 		      GPR_RegFile_IFC  gpr_regfile,
-`ifdef ISA_F
-		      FPR_RegFile_IFC  fpr_regfile,
-`endif
 		      CSR_RegFile_IFC  csr_regfile,
 		      IMem_IFC         imem,
+`ifdef ISA_F
+		      FPR_RegFile_IFC  fpr_regfile,
+		      FBypass          fbypass_from_stage2,
+		      FBypass          fbypass_from_stage3,
+`endif
 		      Bypass           bypass_from_stage2,
 		      Bypass           bypass_from_stage3,
 		      Priv_Mode        cur_priv)
@@ -128,34 +133,72 @@ module mkCPU_Stage1 #(Bit #(4)         verbosity,
    Bool rs2_busy = (busy2a || busy2b);
    Word rs2_val_bypassed = ((rs2 == 0) ? 0 : rs2b);
 
-   // ALU function
-   let alu_inputs = ALU_Inputs {cur_priv:       cur_priv,
-				pc:             pc,
-				is_i32_not_i16: imem.is_i32_not_i16,
-				instr:          instr,
-`ifdef ISA_C
-				instr_C:        instr_C,
-`endif
-				decoded_instr:  decoded_instr,
-				rs1_val:        rs1_val_bypassed,
-				rs2_val:        rs2_val_bypassed,
-				mstatus:        csr_regfile.read_mstatus,
-				misa:           csr_regfile.read_misa};
+`ifdef ISA_F
+   // FP Register rs1 read and bypass
+   let frs1_val = fpr_regfile.read_rs1 (rs1);
+   match { .fbusy1a, .frs1a } = fn_fpr_bypass (fbypass_from_stage3, rs1, frs1_val);
+   match { .fbusy1b, .frs1b } = fn_fpr_bypass (fbypass_from_stage2, rs1, frs1a);
+   Bool frs1_busy = (fbusy1a || fbusy1b);
+   WordFL frs1_val_bypassed = frs1b;
 
+   // FP Register rs2 read and bypass
+   let frs2_val = fpr_regfile.read_rs2 (rs2);
+   match { .fbusy2a, .frs2a } = fn_fpr_bypass (fbypass_from_stage3, rs2, frs2_val);
+   match { .fbusy2b, .frs2b } = fn_fpr_bypass (fbypass_from_stage2, rs2, frs2a);
+   Bool frs2_busy = (fbusy2a || fbusy2b);
+   WordFL frs2_val_bypassed = frs2b;
+
+   // FP Register rs3 read and bypass
+   let rs3 = decoded_instr.rs3;
+   let frs3_val = fpr_regfile.read_rs3 (rs3);
+   match { .fbusy3a, .frs3a } = fn_fpr_bypass (fbypass_from_stage3, rs3, frs3_val);
+   match { .fbusy3b, .frs3b } = fn_fpr_bypass (fbypass_from_stage2, rs3, frs3a);
+   Bool frs3_busy = (fbusy3a || fbusy3b);
+   WordFL frs3_val_bypassed = frs3b;
+`endif
+
+   // ALU function
+   let alu_inputs = ALU_Inputs {
+        cur_priv        : cur_priv
+      , pc              : pc
+      , is_i32_not_i16  : imem.is_i32_not_i16
+      , instr           : instr
+`ifdef ISA_C
+      , instr_C         : instr_C
+`endif
+      , decoded_instr   : decoded_instr
+      , rs1_val         : rs1_val_bypassed
+      , rs2_val         : rs2_val_bypassed
+`ifdef ISA_F
+      , frs1_val        : frs1_val_bypassed
+      , frs2_val        : frs2_val_bypassed
+      , frs3_val        : frs3_val_bypassed
+      , fcsr_frm        : csr_regfile.read_frm
+`endif
+      , mstatus         : csr_regfile.read_mstatus
+      , misa            : csr_regfile.read_misa
+   }; 
    let alu_outputs = fv_ALU (alu_inputs);
 
-   let data_to_stage2 = Data_Stage1_to_Stage2 {priv:       cur_priv,
-					       pc:         pc,
-					       instr:      instr,
-					       op_stage2:  alu_outputs.op_stage2,
-					       rd:         alu_outputs.rd,
-					       addr:       alu_outputs.addr,
-					       val1:       alu_outputs.val1,
-					       val2:       alu_outputs.val2
-`ifdef INCLUDE_TANDEM_VERIF
-					       , trace_data: alu_outputs.trace_data
+   let data_to_stage2 = Data_Stage1_to_Stage2 {
+        priv            : cur_priv
+      , pc              : pc
+      , instr           : instr
+      , op_stage2       : alu_outputs.op_stage2
+      , rd              : alu_outputs.rd
+      , addr            : alu_outputs.addr
+      , val1            : alu_outputs.val1
+      , val2            : alu_outputs.val2
+`ifdef ISA_F
+      , val3            : alu_outputs.val3
+      , rd_in_fpr       : alu_outputs.rd_in_fpr
+      , rounding_mode   : alu_outputs.rm
 `endif
-					       };
+
+`ifdef INCLUDE_TANDEM_VERIF
+      , trace_data      : alu_outputs.trace_data
+`endif
+   };
 
    // ----------------
    // Combinational output function
