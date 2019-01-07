@@ -12,7 +12,6 @@ help:
 	@echo '                             (NOTE: needs Bluespec bsc compiler)'
 	@echo '    make  mkSim          Compiles and links Verilog files into a Verilator executable'
 	@echo '    make  all            = make gen_RTL mkSim'
-	@echo '    make  test           Run the executable on the standard RISC-V ISA test "$(TEST)"'
 
 .PHONY: all
 all: gen_RTL  mkSim
@@ -99,32 +98,9 @@ mkSim:
 		$(REPO)/src_Testbench/Top/C_Imported_Functions.c
 	@echo "INFO: Linking verilated files"
 	cd obj_dir; \
-	   ln -s -f ../$(VERILATOR_RESOURCES)/sim_main.cpp; \
+	   ln -s -f $(VERILATOR_RESOURCES)/sim_main.cpp; \
 	   make -j -f V$(TOPMODULE)_edited.mk  $(VTOP); \
 	   cp -p  $(VTOP)  ../$(SIM_EXE_FILE)
 	@echo "INFO: Created verilator executable:    $(SIM_EXE_FILE)"
-
-# ================================================================
-# Test: run the executable on the standard RISCV ISA test specified in TEST
-
-VERBOSITY ?= +v1
-
-.PHONY: test
-test:
-	make -C  $(REPO)/Tests/elf_to_hex
-	$(REPO)/Tests/elf_to_hex/elf_to_hex  $(REPO)/Tests/isa/$(TEST)  Mem.hex
-	./$(SIM_EXE_FILE)  $(VERBOSITY)  +tohost
-
-# ================================================================
-
-.PHONY: clean
-clean:
-	rm -r -f  *~  build
-	rm -r -f  obj_dir
-
-.PHONY: full_clean
-full_clean: clean
-	rm -r -f  *~  $(SIM_EXE_FILE)*  *.log  *.vcd  *.hex
-	rm -r -f  obj_dir
 
 # ================================================================

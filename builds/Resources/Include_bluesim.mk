@@ -12,7 +12,6 @@ help:
 	@echo '                             (NOTE: needs Bluespec bsc compiler)'
 	@echo '    make  mkSim          Compiles and links Bluesim intermediate files into a Bluesim executable'
 	@echo '    make  all            = make compile mkSim'
-	@echo '    make  test           Run the executable on the standard RISC-V ISA test "$(TEST)"'
 
 .PHONY: all
 all: compile  mkSim
@@ -76,26 +75,5 @@ mkSim:
 		$(BSC_C_FLAGS) \
 		$(REPO)/src_Testbench/Top/C_Imported_Functions.c
 	@echo "INFO: linked bsc-compiled objects into Bluesim executable"
-
-# ================================================================
-# Test: run the executable on the standard RISCV ISA test specified in TEST
-
-VERBOSITY ?= +v1
-
-.PHONY: test
-test:
-	make -C  $(REPO)/Tests/elf_to_hex
-	$(REPO)/Tests/elf_to_hex/elf_to_hex  $(REPO)/Tests/isa/$(TEST)  Mem.hex
-	./$(SIM_EXE_FILE)  $(VERBOSITY)  +tohost
-
-# ================================================================
-
-.PHONY: clean
-clean:
-	rm -r -f  *~  build
-
-.PHONY: full_clean
-full_clean: clean
-	rm -r -f  *~  $(SIM_EXE_FILE)*  *.log  *.vcd  *.hex
 
 # ================================================================

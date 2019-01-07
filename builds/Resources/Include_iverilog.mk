@@ -12,7 +12,6 @@ help:
 	@echo '                             (NOTE: needs Bluespec bsc compiler)'
 	@echo '    make  mkSim          Compiles and links Verilog files into an iverilog executable'
 	@echo '    make  all            = make gen_RTL mkSim'
-	@echo '    make  test           Run the executable on the standard RISC-V ISA test "$(TEST)"'
 
 .PHONY: all
 all: gen_RTL  mkSim
@@ -74,26 +73,5 @@ mkSim:
 		-DTOP=$(TOPMODULE) \
 		$(REPO)/src_bsc_lib_RTL/main.v
 	@echo INFO: iVerilog linking finished
-
-# ================================================================
-# Test: run the executable on the standard RISCV ISA test specified in TEST
-
-VERBOSITY ?= +v1
-
-.PHONY: test
-test:
-	make -C  $(REPO)/Tests/elf_to_hex
-	$(REPO)/Tests/elf_to_hex/elf_to_hex  $(REPO)/Tests/isa/$(TEST)  Mem.hex
-	./$(SIM_EXE_FILE)  $(VERBOSITY)  +tohost
-
-# ================================================================
-
-.PHONY: clean
-clean:
-	rm -r -f  *~  build
-
-.PHONY: full_clean
-full_clean: clean
-	rm -r -f  *~  $(SIM_EXE_FILE)*  *.log  *.vcd  *.hex
 
 # ================================================================
