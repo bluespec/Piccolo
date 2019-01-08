@@ -2,58 +2,20 @@
 
 # Copyright (c) 2018-2019 Bluespec, Inc. All Rights Reserved
 
-# This file is not a standalone Makefile, but 'include'd by 'Makefile' in the sub-directories
-
-# ================================================================
-
-.PHONY: help
-help:
-	@echo '    make  compile        Recompile Core (CPU, caches) into Bluesim intermediate files'
-	@echo '                             (NOTE: needs Bluespec bsc compiler)'
-	@echo '    make  mkSim          Compiles and links Bluesim intermediate files into a Bluesim executable'
-	@echo '    make  all            = make compile mkSim'
-
-.PHONY: all
-all: compile  mkSim
+# This file is not a standalone Makefile, but 'include'd by other Makefiles
 
 # ================================================================
 # Compile Bluesim intermediate files from BSV sources (needs Bluespec 'bsc' compiler)
 
-# ----------------
-# Search path for bsc for .bsv files
+TMP_DIRS  = -bdir build_dir  -simdir build_dir  -info-dir build_dir
 
-REPO ?= ../..
-
-CORE_DIRS = $(REPO)/src_Core/ISA:$(REPO)/src_Core/RegFiles:$(REPO)/src_Core/Core:$(REPO)/src_Core/Near_Mem_VM:$(REPO)/src_Core/Debug_Module:$(REPO)/src_Core/BSV_Additional_Libs
-
-TESTBENCH_DIRS  = $(REPO)/src_Testbench/Top:$(REPO)/src_Testbench/SoC:$(REPO)/src_Testbench/Fabrics/AXI4_Lite
-
-BSC_PATH = -p $(CORE_DIRS):$(TESTBENCH_DIRS):+
-
-# ----------------
-# Top-level file and module
-
-TOPFILE   = $(REPO)/src_Testbench/Top/Top_HW_Side.bsv
-TOPMODULE = mkTop_HW_Side
-
-#----------------
-# bsc flags
-
-BSC_FLAGS += -keep-fires -aggressive-conditions -no-warn-action-shadowing \
-		-suppress-warnings G0020 \
-		-D Near_Mem_Caches \
-		-D FABRIC64 \
-		+RTS -K128M -RTS  -show-range-conflict
-
-TMP_DIRS  = -bdir build  -simdir build  -info-dir build
-
-build:
+build_dir:
 	mkdir -p $@
 
 .PHONY: compile
-compile: build
+compile: build_dir
 	@echo "INFO: Re-compiling Core (CPU, Caches)"
-	bsc -u -elab -sim  $(TMP_DIRS)  $(BSC_FLAGS)  $(BSC_PATH)  $(TOPFILE)
+	bsc -u -elab -sim  $(TMP_DIRS)  $(BSC_COMPILATION_FLAGS)  $(BSC_PATH)  $(TOPFILE)
 	@echo "INFO: Re-compiled  Core (CPU, Caches)"
 
 # ================================================================
@@ -66,8 +28,8 @@ BSC_C_FLAGS += \
 	-Xl -v \
 	-Xc -O3 -Xc++ -O3 \
 
-.PHONY: mkSim
-mkSim:
+.PHONY: simulator
+simulator:
 	@echo "INFO: linking bsc-compiled objects into Bluesim executable"
 	bsc -sim -parallel-sim-link 8 \
 		$(TMP_DIRS) \

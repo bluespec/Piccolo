@@ -47,7 +47,7 @@ def main (argv = None):
         sys.stdout.write ("\n")
         return 1
 
-    repo = os.path.normpath (arg_repo)
+    repo = os.path.abspath (os.path.normpath (arg_repo))
     repobase = os.path.basename (repo)
 
     # ----------------
@@ -188,10 +188,10 @@ def make_build_dir (repo, repobase, arch, sim, debug, tv):
         sys.stdout.write ("Creating directory    '{0}'\n".format (dirname));
         os.mkdir (dirname)
 
-    # Create the Makefile
+    # Create the Makefile (backing up existing copy, if any)
     Makefile_filename = os.path.join (dirname, "Makefile")
     if os.path.exists (Makefile_filename):
-        # Rename existing Makefile by giving it a new suffix
+        # Back up exising copy by renaming it with a new numeric suffix
         j = 1
         while True:
             suffixed_name = "{0}_{1}".format (Makefile_filename, j)
@@ -204,12 +204,11 @@ def make_build_dir (repo, repobase, arch, sim, debug, tv):
     sys.stdout.write ("Creating Makefile  '{0}'\n".format (Makefile_filename))
     fo = open (Makefile_filename, "w")
 
-    # Fill in the Makefile
+    # Fill in the contents of the Makefile
     fo.write ("###  -*-Makefile-*-\n"
               "\n"
-              "#     *** DO NOT EDIT! ***\n"
-              "# (This file is program-generated, not hand-written.)\n")
-    fo.write ("\n")
+              "# *** DO NOT EDIT! ***\n"
+              "# *** This file is program-generated, not hand-written. ***\n")
 
     fo.write ("# ================================================================\n")
     fo.write ("\n")
@@ -217,11 +216,11 @@ def make_build_dir (repo, repobase, arch, sim, debug, tv):
     fo.write ("ARCH ?= {0}\n".format (arch))
     fo.write ("\n")
 
-    # Flags for Bluespec 'bsc' compiler
+    # RISC-V config macros passed into Bluespec 'bsc' compiler
     fo.write ("# ================================================================\n")
-    fo.write ("# bsc flags\n")
+    fo.write ("# RISC-V config macros passed into Bluespec 'bsc' compiler\n")
     fo.write ("\n")
-    fo.write ("BSC_FLAGS = \\\n")
+    fo.write ("BSC_COMPILATION_FLAGS += \\\n")
     fo.write ("\t-D " + arch [0:4] + " \\\n")
 
     # RISC-V privilege levels
@@ -254,6 +253,11 @@ def make_build_dir (repo, repobase, arch, sim, debug, tv):
     if ("C" in arch): arch_flags = arch_flags + "  -D ISA_C"
     fo.write ("\t{0}  \\\n".format (arch_flags.lstrip()))
 
+    # TODO: Uncomment after floating-point DIV is working
+    # HW implementation choice for floating point divide
+    #if (("F" in arch) or ("D" in arch)):
+    #   fo.write ("\t-D ISA_FD_DIV    \\\n")
+
     # Bluespec HW implementation choice for shifter
     # fo.write ("\t-D SHIFT_NONE    \\\n")
     fo.write ("\t-D SHIFT_BARREL    \\\n")
@@ -264,10 +268,11 @@ def make_build_dir (repo, repobase, arch, sim, debug, tv):
     fo.write ("\t-D MULT_SYNTH    \\\n")
     # fo.write ("\t-D MULT_SERIAL    \\\n")
 
-    # TODO: Uncomment when working
-    # HW implementation choice for floating point divide
-    #if (("F" in arch) or ("D" in arch)):
-    #   fo.write ("\t-D ISA_FD_DIV    \\\n")
+    # Bluespec HW implementation choice for "near-mem"
+    fo.write ("\t-D Near_Mem_Caches    \\\n")
+
+    # Bluespec HW implementation choice for fabric data width
+    fo.write ("\t-D FABRIC64    \\\n")
 
     # Support for RISC-V Debug Module
     if (debug != ""):
@@ -287,18 +292,18 @@ def make_build_dir (repo, repobase, arch, sim, debug, tv):
               + "ui-p-add\n")
     fo.write ("\n")
 
-    # Include simulator-specific Makefile rules
+    # Include common boilerplate Makefile rules
     fo.write ("#================================================================\n")
-    fo.write ("# Build rules for specific simulator\n")
+    fo.write ("# Common boilerplate rules\n")
     fo.write ("\n")
-    fo.write ("include $(REPO)/builds/Resources/Include_{0}.mk\n".format (sim))
+    fo.write ("include $(REPO)/builds/Resources/Include_Common.mk\n")
     fo.write ("\n")
 
-    # Include testing and cleanup makefile
+    # Include simulator-specific Makefile rules
     fo.write ("#================================================================\n")
-    fo.write ("# Build rules for testing\n")
+    fo.write ("# Makefile rules for building for specific simulator: {0}\n".format (sim))
     fo.write ("\n")
-    fo.write ("include $(REPO)/builds/Resources/Include_Test.mk\n")
+    fo.write ("include $(REPO)/builds/Resources/Include_{0}.mk\n".format (sim))
     fo.write ("\n")
 
     fo.close ()
