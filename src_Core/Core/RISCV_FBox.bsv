@@ -572,21 +572,21 @@ module mkRISCV_FBox (RISCV_FBox_IFC);
    endrule
 
    rule doFCLASS_S ( validReq && isFCLASS_S );
-      Bit #(64) res = ?;
+      Bit #(64) res = 1;
       if (isNaN(sV1)) begin
-	 res = isQNaN(sV1) ? 9 : 8;
+	 res = isQNaN(sV1) ? (res << 9) : (res << 8);
       end
       else if (isInfinity(sV1)) begin
-	 res = sV1.sign ? 0 : 7;
+	 res = sV1.sign ? res        : (res << 7);
       end
       else if (isZero(sV1)) begin
-	 res = sV1.sign ? 3 : 4;
+	 res = sV1.sign ? (res << 3) : (res << 4);
       end
       else if (isSubNormal(sV1)) begin
-	 res = sV1.sign ? 2 : 5;
+	 res = sV1.sign ? (res << 2) : (res << 5);
       end
       else begin
-	 res = sV1.sign ? 1 : 6;
+	 res = sV1.sign ? (res << 1) : (res << 6);
       end
 
       fa_driveResponse (res, 0);
@@ -808,7 +808,7 @@ module mkRISCV_FBox (RISCV_FBox_IFC);
 
       // flag generation
       FloatingPoint::Exception e = defaultValue;
-      if ( isSNaN (sV1) || isSNaN (sV2) ) e.invalid_op = True;
+      if ( isSNaN (dV1) || isSNaN (dV2) ) e.invalid_op = True;
       let fcsr = exception_to_fcsr(e);
 
       fa_driveResponse (res, fcsr);
@@ -841,11 +841,11 @@ module mkRISCV_FBox (RISCV_FBox_IFC);
       else if ( rs2IsNeg0 && rs1IsPos0 )
          res = pack ( dV1 );
       else
-         res = (cmpres_s == LT) ? pack (dV2) : pack (dV1);
+         res = (cmpres_d == LT) ? pack (dV2) : pack (dV1);
 
       // flag generation
       FloatingPoint::Exception e = defaultValue;
-      if ( isSNaN (sV1) || isSNaN (sV2) ) e.invalid_op = True;
+      if ( isSNaN (dV1) || isSNaN (dV2) ) e.invalid_op = True;
       let fcsr = exception_to_fcsr(e);
 
       fa_driveResponse (res, fcsr);
@@ -931,21 +931,21 @@ module mkRISCV_FBox (RISCV_FBox_IFC);
    endrule
 
    rule doFCLASS_D ( validReq && isFCLASS_D );
-      Bit #(64) res = ?;
+      Bit #(64) res = 1;
       if (isNaN(dV1)) begin
-	 res = isQNaN(dV1) ? 9 : 8;
+	 res = isQNaN(dV1) ? (res << 9) : (res << 8);
       end
       else if (isInfinity(dV1)) begin
-	 res = dV1.sign ? 0 : 7;
+	 res = dV1.sign ? res        : (res << 7);
       end
       else if (isZero(dV1)) begin
-	 res = dV1.sign ? 3 : 4;
+	 res = dV1.sign ? (res << 3) : (res << 4);
       end
       else if (isSubNormal(dV1)) begin
-	 res = dV1.sign ? 2 : 5;
+	 res = dV1.sign ? (res << 2) : (res << 5);
       end
       else begin
-	 res = dV1.sign ? 1 : 6;
+	 res = dV1.sign ? (res << 1) : (res << 6);
       end
 
       fa_driveResponse (res, 0);
