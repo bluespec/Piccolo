@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-# Copyright (c) 2018 Bluespec, Inc.
+# Copyright (c) 2018-2019 Bluespec, Inc.
 # See LICENSE for license details
 
 # ================================================================

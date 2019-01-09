@@ -340,7 +340,8 @@ module mkSoC_Top (SoC_Top_IFC);
       if (verbosity != 0) begin
 	 $display ("  Address map:");
 	 $display ("  Boot ROM:        0x%0h .. 0x%0h",
-		   soc_map.m_boot_rom_addr_base, soc_map.m_boot_rom_addr_lim);
+		   soc_map.m_boot_rom_addr_base,
+		   soc_map.m_boot_rom_addr_lim);
 	 $display ("  Mem0 Controller: 0x%0h .. 0x%0h",
 		   soc_map.m_mem0_controller_addr_base,
 		   soc_map.m_mem0_controller_addr_lim);

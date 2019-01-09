@@ -29,9 +29,6 @@ extern "C" {
 // Returns next input character (ASCII code) from the console.
 // Returns 0 if no input is available.
 
-// The dummy arg is not used, and is present only to appease Verilog
-// simulators which can be be finicky about zero-argument functions.
-
 extern
 uint8_t c_trygetchar (uint8_t  dummy);
 

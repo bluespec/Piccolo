@@ -742,7 +742,7 @@ function Bool fv_is_rd_in_GPR (Bit #(7) funct7, RegName rs2);
    // FCLASS.D also maps to this -- both write to GPR
    let is_FMV_X_D    =    (funct7 == f7_FMV_X_D);
    // FEQ.D, FLE.D, FLT.D map to this
-   let is_FCMP_D     =    (funct7 == f7_FCMP_S);
+   let is_FCMP_D     =    (funct7 == f7_FCMP_D);
 `endif
 
     let is_FCVT_W_S  =    (funct7 == f7_FCVT_W_S)

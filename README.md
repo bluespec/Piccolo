@@ -63,7 +63,7 @@ one can run RISC-V binaries in simulation by loading standard mem hex
 files and executing in Bluespec's Bluesim, Verilator simulation or
 iVerilog simulation.  The testbench contains an AXI4-Lite interconnect
 fabric that connects the CPU to models of a boot ROM, a memory, a
-timer and a UART for console I/O
+timer and a UART for console I/O.
 
 [Note: **iverilog functionality is currently limited** because we are
 still working out robust mechanisms to import C code, which is used in
@@ -222,7 +222,7 @@ You can regenerate the Verilog RTL in any of the
 `build/<ARCH>_Piccolo_verilator/` or `build/<ARCH>_Piccolo_iverilog/`
 directories.  Example:
 
-        $ cd  builds/RV32ACIMU_verilator
+        $ cd  builds/RV32ACIMU_Piccolo_verilator
         $ make compile
 
 #### Creating a new architecture configuration
@@ -238,7 +238,7 @@ populated with a `Makefile` to compile and link a bluesim simulation
 for an RV32 CPU with 'I' and 'C' ISA options.  You can build and run
 that simulator as usual:
 
-        $ cd  builds/RV32CIU_Piccol_bluesim
+        $ cd  builds/RV32CIU_Piccolo_bluesim
         $ make compile simulator test isa_tests
 
 ----------------------------------------------------------------

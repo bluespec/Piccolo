@@ -80,12 +80,10 @@ isa_tests:
 
 .PHONY: clean
 clean:
-	rm -r -f  *~  build  Makefile_*
-	rm -r -f  obj_dir
+	rm -r -f  *~  Makefile_*  build_dir  obj_dir
 
 .PHONY: full_clean
 full_clean: clean
-	rm -r -f  *~  $(SIM_EXE_FILE)*  *.log  *.vcd  *.hex  Logs/
-	rm -r -f  obj_dir
+	rm -r -f  $(SIM_EXE_FILE)*  *.log  *.vcd  *.hex  Logs/
 
 # ================================================================
