@@ -7,13 +7,6 @@ package RISCV_FBox;
 // This package executes the 'F, D' extension instructions
 
 // ================================================================
-// Exports
-
-export
-RISCV_FBox_IFC (..),
-mkRISCV_FBox;
-
-// ================================================================
 // BSV Library imports
 
 import FIFOF         :: *;
@@ -74,6 +67,49 @@ interface RISCV_FBox_IFC;
 endinterface
 
 // ================================================================
+// Some helper function
+// Convert the rounding mode into the format understood by the FPU/PNU
+function RoundMode fv_getRoundMode (Bit #(3) rm);
+   case (rm)
+      3'h0: return (Rnd_Nearest_Even);
+      3'h1: return (Rnd_Zero);
+      3'h2: return (Rnd_Minus_Inf);
+      3'h3: return (Rnd_Plus_Inf);
+      3'h4: return (Rnd_Nearest_Even); // XXX Different in v2.2 of spec
+      default: return (Rnd_Nearest_Even);
+   endcase
+endfunction
+
+// Converts the exception coming from the FPU/PNU to the format for the FCSR
+function Bit #(5) exception_to_fcsr( FloatingPoint::Exception x );
+   let nv  = x.invalid_op ? 1'b1 : 1'b0 ;
+   let dz  = x.divide_0   ? 1'b1 : 1'b0 ;
+   let of  = x.overflow   ? 1'b1 : 1'b0 ;
+   let uf  = x.underflow  ? 1'b1 : 1'b0 ;
+   let nx  = x.inexact    ? 1'b1 : 1'b0 ;
+   return pack ({nv, dz, of, uf, nx});
+endfunction
+
+// Take a single precision value and nanboxes it to be able to write it to a
+// 64-bit FPR register file. This is necessary if single precision operands
+// used with a register file capable of holding double precision values
+function Bit #(64) fv_nanbox (Bit #(64) x);
+   Bit #(64) fill_bits = (64'h1 << 32) - 1;  // [31: 0] all ones
+   Bit #(64) fill_mask = (fill_bits << 32);  // [63:32] all ones
+   return (x | fill_mask);
+endfunction
+
+// Check if FSingle is a +0
+function Bool fv_FSingleIsPositiveZero ( FSingle x );
+   return ( isZero (x) && !(x.sign) );
+endfunction
+
+// Check if FDouble is a +0
+function Bool fv_FDoubleIsPositiveZero ( FDouble x );
+   return ( isZero (x) && !(x.sign) );
+endfunction
+
+// ================================================================
 
 (* synthesize *)
 module mkRISCV_FBox (RISCV_FBox_IFC);
@@ -105,54 +141,12 @@ module mkRISCV_FBox (RISCV_FBox_IFC);
    FPU_IFC                 fpu                  <- mkFPU;
 
    // =============================================================
-   // Some helper function
-   // Convert the rounding mode into the format understood by the FPU/PNU
-   function RoundMode fv_getRoundMode (Bit #(3) rm);
-      case (rm)
-         3'h0: return (Rnd_Nearest_Even);
-         3'h1: return (Rnd_Zero);
-         3'h2: return (Rnd_Minus_Inf);
-         3'h3: return (Rnd_Plus_Inf);
-         3'h4: return (Rnd_Nearest_Even); // XXX Different in v2.2 of spec
-         default: return (Rnd_Nearest_Even);
-      endcase
-   endfunction
-
-   // Converts the exception coming from the FPU/PNU to the format for the FCSR
-   function Bit #(5) exception_to_fcsr( FloatingPoint::Exception x );
-      let nv  = x.invalid_op ? 1'b1 : 1'b0 ;
-      let dz  = x.divide_0   ? 1'b1 : 1'b0 ;
-      let of  = x.overflow   ? 1'b1 : 1'b0 ;
-      let uf  = x.underflow  ? 1'b1 : 1'b0 ;
-      let nx  = x.inexact    ? 1'b1 : 1'b0 ;
-      return pack ({nv, dz, of, uf, nx});
-   endfunction
-
-   // Take a single precision value and nanboxes it to be able to write it to a
-   // 64-bit FPR register file. This is necessary if single precision operands
-   // used with a register file capable of holding double precision values
-   function Bit #(64) fv_nanbox (Bit #(64) x);
-      Bit #(64) fill_bits = (64'h1 << 32) - 1;  // [31: 0] all ones
-      Bit #(64) fill_mask = (fill_bits << 32);  // [63:32] all ones
-      return (x | fill_mask);
-   endfunction
-
    // Drive response to the pipeline
    function Action fa_driveResponse (Bit #(64) res, Bit #(5) flags);
       action
       dw_valid    <= True;
       dw_result   <= tuple2 (res, flags);
       endaction
-   endfunction
-
-   // Check if FSingle is a +0
-   function Bool fv_FSingleIsPositiveZero ( FSingle x );
-      return ( isZero (x) && !(x.sign) );
-   endfunction
-
-   // Check if FDouble is a +0
-   function Bool fv_FDoubleIsPositiveZero ( FDouble x );
-      return ( isZero (x) && !(x.sign) );
    endfunction
 
    // Definitions of Q-NaNs for single and double precision
