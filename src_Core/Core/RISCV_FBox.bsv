@@ -68,6 +68,10 @@ endinterface
 
 // ================================================================
 // Some helper function
+// Definitions of Q-NaNs for single and double precision
+Bit #(32) canonicalNaN32 = 32'h7fc00000;
+Bit #(64) canonicalNaN64 = 64'h7ff8000000000000;
+
 // Convert the rounding mode into the format understood by the FPU/PNU
 function RoundMode fv_getRoundMode (Bit #(3) rm);
    case (rm)
@@ -97,6 +101,19 @@ function Bit #(64) fv_nanbox (Bit #(64) x);
    Bit #(64) fill_bits = (64'h1 << 32) - 1;  // [31: 0] all ones
    Bit #(64) fill_mask = (fill_bits << 32);  // [63:32] all ones
    return (x | fill_mask);
+endfunction
+
+// Take a 64-bit value and check if it is properly nanboxed if operating in a DP
+// capable environment. If not properly nanboxed, return canonicalNaN32
+function FSingle fv_unbox (Bit #(64) x);
+`ifdef ISA_D
+   if (x [63:32] == 32'hffffffff)
+      return (unpack (x [31:0]));
+   else
+      return (unpack (canonicalNaN32));
+`else  
+   return (unpack (x [31:0]));
+`endif
 endfunction
 
 // Check if FSingle is a +0
@@ -148,10 +165,6 @@ module mkRISCV_FBox (RISCV_FBox_IFC);
       dw_result   <= tuple2 (res, flags);
       endaction
    endfunction
-
-   // Definitions of Q-NaNs for single and double precision
-   Bit #(32) canonicalNaN32 = 32'h7fc00000;
-   Bit #(64) canonicalNaN64 = 64'h7ff8000000000000;
 
    // =============================================================
    // Decode sub-opcodes (a direct lift from the spec)
@@ -233,13 +246,17 @@ module mkRISCV_FBox (RISCV_FBox_IFC);
 
    // =============================================================
    // Prepare the operands. The operands come in as raw 64 bits. They need to be
-   // type cast as FSingle of FDouble
+   // type cast as FSingle of FDouble. This is also where the nanbox check needs
+   // to be done. If we are executing in a DP capable environment, all SP 64-bit
+   // rs values should be properly nanboxed. Otherwise, they will be treated as
+   // as canonicalNaN32
    FSingle sV1, sV2, sV3;
    FDouble dV1, dV2, dV3;
 
-   sV1 = unpack (v1[31:0]);
-   sV2 = unpack (v2[31:0]);
-   sV3 = unpack (v3[31:0]);
+   sV1 = fv_unbox (v1);
+   sV2 = fv_unbox (v2);
+   sV3 = fv_unbox (v3);
+
    dV1 = unpack (v1);
    dV2 = unpack (v2);
    dV3 = unpack (v3);
@@ -501,7 +518,10 @@ module mkRISCV_FBox (RISCV_FBox_IFC);
    endrule
 
    rule doFMV_X_W ( validReq && isFMV_X_W );
-      Bit #(64) res = signExtend (pack ( sV1 ));
+      // The FMV treats the data in the FPR and GPR as raw data and does not
+      // interpret it. So for this instruction we use the raw bits coming from
+      // the FPR
+      Bit #(64) res = signExtend ( v1[31:0] );
 
       fa_driveResponse (res, 0);
       resultR     <= tagged Valid (tuple2 (res, 0));
@@ -651,7 +671,7 @@ module mkRISCV_FBox (RISCV_FBox_IFC);
       let r1 = FDouble {  sign: dV2.sign
                         , exp:  dV1.exp
                         , sfd:  dV1.sfd};
-      Bit #(64) res = extend (pack (r1));
+      Bit #(64) res = pack (r1);
 
       fa_driveResponse (res, 0);
       resultR     <= tagged Valid (tuple2 (res, 0));
@@ -663,7 +683,7 @@ module mkRISCV_FBox (RISCV_FBox_IFC);
                         , exp:   dV1.exp
                         , sfd:   dV1.sfd};
 
-      Bit #(64) res = extend (pack (r1));
+      Bit #(64) res = pack (r1);
       fa_driveResponse (res, 0);
       resultR     <= tagged Valid (tuple2 (res, 0));
       stateR      <= FBOX_RSP;
@@ -673,7 +693,7 @@ module mkRISCV_FBox (RISCV_FBox_IFC);
       let r1 = FDouble {  sign:  (dV1.sign != dV2.sign)
                         , exp:   dV1.exp
                         , sfd:   dV1.sfd};
-      Bit #(64) res = extend (pack (r1));
+      Bit #(64) res = pack (r1);
       fa_driveResponse (res, 0);
       resultR     <= tagged Valid (tuple2 (res, 0));
       stateR      <= FBOX_RSP;
