@@ -40,9 +40,9 @@ import GetPut_Aux :: *;
 import ISA_Decls       :: *;
 import Near_Mem_IFC    :: *;
 import MMU_Cache       :: *;
-import SoC_Map         :: *;
 import AXI4_Lite_Types :: *;
 import Near_Mem_IO     :: *;
+import Fabric_Defs     :: *;
 
 // ================================================================
 // Exports
@@ -57,7 +57,9 @@ typedef enum {STATE_RESET, STATE_RESETTING, STATE_READY } State
 deriving (Bits, Eq, FShow);
 
 (* synthesize *)
-module mkNear_Mem (Near_Mem_IFC);
+module mkNear_Mem #(parameter Bit #(64)  near_mem_io_addr_base,
+		    parameter Bit #(64)  near_mem_io_addr_lim)
+                  (Near_Mem_IFC);
 
    Reg #(Bit #(4)) cfg_verbosity <- mkConfigReg (0);
    Reg #(State)    rg_state      <- mkReg (STATE_READY);
@@ -69,9 +71,6 @@ module mkNear_Mem (Near_Mem_IFC);
    MMU_Cache_IFC  dcache <- mkMMU_Cache (True);
 
    Near_Mem_IO_IFC  near_mem_io <- mkNear_Mem_IO;
-
-   // SoC_Map is needed only for near-mem-io's base and limit addresses
-   SoC_Map_IFC soc_map <- mkSoC_Map;
 
    // ----------------------------------------------------------------
    // BEHAVIOR
@@ -95,7 +94,7 @@ module mkNear_Mem (Near_Mem_IFC);
       let _dummy2 <- dcache.server_reset.response.get;
       let _dummy3 <- near_mem_io.server_reset.response.get;
 
-      near_mem_io.set_addr_map (soc_map.m_near_mem_io_addr_base, soc_map.m_near_mem_io_addr_lim);
+      near_mem_io.set_addr_map (near_mem_io_addr_base, near_mem_io_addr_lim);
 
       f_reset_rsps.enq (?);
       rg_state <= STATE_READY;

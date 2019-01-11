@@ -18,16 +18,16 @@ import ClientServer  :: *;
 // Project imports
 
 // Main fabric
-import AXI4_Lite_Types  :: *;
-import AXI4_Lite_Fabric :: *;
-import Fabric_Defs      :: *;
+import AXI4_Lite_Types   :: *;
+import AXI4_Lite_Fabric  :: *;
+import Fabric_Defs       :: *;
 
 `ifdef INCLUDE_TANDEM_VERIF
-import TV_Info :: *;
+import TV_Info  :: *;
 `endif
 
 `ifdef INCLUDE_GDB_CONTROL
-import Debug_Module   :: *;
+import Debug_Module  :: *;
 `endif
 
 // ================================================================

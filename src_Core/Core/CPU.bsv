@@ -108,7 +108,10 @@ endfunction
 // ================================================================
 
 (* synthesize *)
-module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
+module mkCPU #(parameter Bit #(64)  pc_reset_value,
+	       parameter Bit #(64)  near_mem_io_addr_base,
+	       parameter Bit #(64)  near_mem_io_addr_lim)
+             (CPU_IFC);
 
    // ----------------
    // General purpose registers and CSRs
@@ -124,7 +127,7 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
    let minstret = csr_regfile.read_csr_minstret;
 
    // Near mem (caches or TCM, for example)
-   Near_Mem_IFC  near_mem <- mkNear_Mem;
+   Near_Mem_IFC  near_mem <- mkNear_Mem (near_mem_io_addr_base, near_mem_io_addr_lim);
 
    // Take imem as is from near_mem, or use wrapper for 'C' extension
 `ifdef ISA_C

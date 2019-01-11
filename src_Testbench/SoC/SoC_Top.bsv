@@ -67,16 +67,6 @@ import Debug_Module     :: *;
 import Axi4LRegFile ::*;
 
 // ================================================================
-// PC reset value
-
-// Entry point for Boot ROM used in Spike/Rocket
-// (boot code jumps later to 'h_8000_0000)
-Bit #(64)  pc_reset_value    = 'h_0000_1000;
-
-// Entry point for code generated for Spike/Rocket
-// Bit #(64)  pc_reset_value    = 'h_8000_0000;
-
-// ================================================================
 // Local types and constants
 
 typedef enum {SOC_START, SOC_RESETTING, SOC_IDLE} SoC_State
@@ -111,6 +101,25 @@ interface SoC_Top_IFC;
 endinterface
 
 // ================================================================
+// Constant addresses of interest
+
+// ----------------
+// PC reset value
+
+// Entry point for Boot ROM used in Spike/Rocket
+// (boot code jumps later to 'h_8000_0000)
+Bit #(64)  pc_reset_value    = 'h_0000_1000;
+
+// Entry point for code generated for Spike/Rocket
+// Bit #(64)  pc_reset_value    = 'h_8000_0000;
+
+// ----------------
+// Near-mem-IO (timer, SIP, ... memory-mapped locations)
+
+Bit #(64)  near_mem_io_addr_base = 'h_0200_0000;
+Bit #(64)  near_mem_io_addr_lim  = 'h_0200_c000;
+
+// ================================================================
 // The module
 
 (* synthesize *)
@@ -123,7 +132,9 @@ module mkSoC_Top (SoC_Top_IFC);
    SoC_Map_IFC soc_map <- mkSoC_Map;
 
    // CPU + Debug module
-   Core_IFC  core <- mkCore (pc_reset_value);
+   Core_IFC  core <- mkCore (pc_reset_value,
+			     near_mem_io_addr_base,
+			     near_mem_io_addr_lim);
 
    // SoC Fabric
    Fabric_IFC  fabric <- mkFabric;

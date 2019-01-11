@@ -104,10 +104,15 @@ Bit #(64)  pc_reset_value    = 'h_0000_1000;
 // ================================================================
 
 (* synthesize *)
-module mkP1_Core (P1_Core_IFC);
+module mkP1_Core #(parameter Bit #(64)  pc_reset_value,
+		   parameter Bit #(64)  near_mem_io_addr_base,
+		   parameter Bit #(64)  near_mem_io_addr_lim)
+                 (P1_Core_IFC);
 
    // CPU + Debug module
-   Core_IFC::Core_IFC  core <- mkCore (pc_reset_value);
+   Core_IFC::Core_IFC  core <- mkCore (pc_reset_value,
+				       near_mem_io_addr_base,
+				       near_mem_io_addr_lim);
 
    // ================================================================
    // Tie-offs (not used in SSITH GFE)

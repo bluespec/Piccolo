@@ -18,8 +18,8 @@ import ISA_Decls       :: *;
 import TV_Info         :: *;
 `endif
 
-import Fabric_Defs     :: *;
-import AXI4_Lite_Types :: *;
+import AXI4_Lite_Types  :: *;
+import Fabric_Defs      :: *;
 
 // ================================================================
 // CPU interface
