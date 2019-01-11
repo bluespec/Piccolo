@@ -31,7 +31,8 @@ BSC_COMPILATION_FLAGS += \
 	-D MULT_SYNTH    \
 	-D Near_Mem_Caches    \
 	-D FABRIC64    \
-	-D INCLUDE_GDB_CONTROL
+	-D INCLUDE_GDB_CONTROL \
+	-D XILINX_BSCAN  -D XILINX_XCVU9P  -D JTAG_TAP
 
 # ================================================================
 # Search path for bsc for .bsv files
@@ -39,7 +40,9 @@ BSC_COMPILATION_FLAGS += \
 CORE_DIRS = $(REPO)/src_Core/ISA:$(REPO)/src_Core/RegFiles:$(REPO)/src_Core/Core:$(REPO)/src_Core/Near_Mem_VM:$(REPO)/src_Core/Debug_Module:$(REPO)/src_Core/BSV_Additional_Libs
 
 TESTBENCH_DIRS  = $(REPO)/src_Testbench/Top:$(REPO)/src_Testbench/SoC:$(REPO)/src_Testbench/Fabrics/AXI4_Lite
-BSC_PATH = -p $(CORE_DIRS):src_BSV:$(TESTBENCH_DIRS):+
+BSC_PATH = -p $(CORE_DIRS):src_BSV:$(TESTBENCH_DIRS):+:%/Libraries/TLM3:%/Libraries/Axi:%/Libraries/Axi4
+
+
 
 # ----------------
 # Top-level file and module

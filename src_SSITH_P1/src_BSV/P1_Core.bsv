@@ -18,9 +18,11 @@ package P1_Core;
 // ================================================================
 // BSV library imports
 
+import FIFO          :: *;
 import GetPut        :: *;
 import ClientServer  :: *;
 import Connectable   :: *;
+import Bus           :: *;
 
 // ----------------
 // BSV additional libs
@@ -45,6 +47,8 @@ import TV_Info :: *;
 
 `ifdef INCLUDE_GDB_CONTROL
 import Debug_Module :: *;
+import JtagTap      :: *;
+import Giraffe_IFC  :: *;
 `endif
 
 // ================================================================
@@ -75,12 +79,12 @@ interface P1_Core_IFC;
 `endif
 
 `ifdef INCLUDE_GDB_CONTROL
-   // ----------------------------------------------------------------
-   // Optional Debug Module interfaces
-
    // ----------------
-   // TODO: JTAG interface
+   // JTAG interface
 
+`ifdef JTAG_TAP
+   interface JTAG_IFC jtag;
+`endif
 `endif
 endinterface
 
@@ -100,7 +104,7 @@ Bit #(64)  pc_reset_value    = 'h_0000_1000;
 module mkP1_Core (P1_Core_IFC);
 
    // CPU + Debug module
-   Core_IFC  core <- mkCore (pc_reset_value);
+   Core_IFC::Core_IFC  core <- mkCore (pc_reset_value);
 
    // ================================================================
    // Tie-offs (not used in SSITH GFE)
@@ -151,6 +155,60 @@ module mkP1_Core (P1_Core_IFC);
    // Instantiate JTAG TAP controller,
    // connect to core.dm_dmi;
    // and export its JTAG interface
+
+   Wire#(Bit#(7)) w_dmi_req_addr <- mkDWire(0);
+   Wire#(Bit#(32)) w_dmi_req_data <- mkDWire(0);
+   Wire#(Bit#(2)) w_dmi_req_op <- mkDWire(0);
+
+   Wire#(Bit#(32)) w_dmi_rsp_data <- mkDWire(0);
+   Wire#(Bit#(2)) w_dmi_rsp_response <- mkDWire(0);
+
+   BusReceiver#(Tuple3#(Bit#(7),Bit#(32),Bit#(2))) bus_dmi_req <- mkBusReceiver;
+   BusSender#(Tuple2#(Bit#(32),Bit#(2))) bus_dmi_rsp <- mkBusSender(unpack(0));
+
+`ifdef JTAG_TAP
+   let jtagtap <- mkJtagTap;
+
+   mkConnection(jtagtap.dmi.req_ready, pack(bus_dmi_req.in.ready));
+   mkConnection(jtagtap.dmi.req_valid, compose(bus_dmi_req.in.valid, unpack));
+   mkConnection(jtagtap.dmi.req_addr, w_dmi_req_addr._write);
+   mkConnection(jtagtap.dmi.req_data, w_dmi_req_data._write);
+   mkConnection(jtagtap.dmi.req_op, w_dmi_req_op._write);
+   mkConnection(jtagtap.dmi.rsp_valid, pack(bus_dmi_rsp.out.valid));
+   mkConnection(jtagtap.dmi.rsp_ready, compose(bus_dmi_rsp.out.ready, unpack));
+   mkConnection(jtagtap.dmi.rsp_data, w_dmi_rsp_data);
+   mkConnection(jtagtap.dmi.rsp_response, w_dmi_rsp_response);
+`endif
+
+   rule rl_dmi_req;
+      bus_dmi_req.in.data(tuple3(w_dmi_req_addr, w_dmi_req_data, w_dmi_req_op));
+   endrule
+
+   rule rl_dmi_rsp;
+      match {.data, .response} = bus_dmi_rsp.out.data;
+      w_dmi_rsp_data <= data;
+      w_dmi_rsp_response <= response;
+   endrule
+
+   (* preempts = "rl_dmi_req_cpu, rl_dmi_rsp_cpu" *)
+   rule rl_dmi_req_cpu;
+      match {.addr, .data, .op} = bus_dmi_req.out.first;
+      bus_dmi_req.out.deq;
+      case (op)
+	 1: core.dm_dmi.read_addr(addr);
+	 2: begin
+	       core.dm_dmi.write(addr, data);
+	       bus_dmi_rsp.in.enq(tuple2(?, 0));
+	    end
+	 default: bus_dmi_rsp.in.enq(tuple2(?, 2));
+      endcase
+   endrule
+
+   rule rl_dmi_rsp_cpu;
+      let data <- core.dm_dmi.read_data;
+      bus_dmi_rsp.in.enq(tuple2(data, 0));
+   endrule
+
 `endif
 
    // ================================================================
@@ -180,6 +238,10 @@ module mkP1_Core (P1_Core_IFC);
 
    // ----------------
    // TODO: JTAG interface
+
+`ifdef JTAG_TAP
+   interface JTAG_IFC jtag = jtagtap.jtag;
+`endif
 
 `endif
 endmodule
