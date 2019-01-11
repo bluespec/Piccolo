@@ -1,9 +1,9 @@
 // Copyright (c) 2018-2019 Bluespec, Inc. All Rights Reserved.
 
-package BRVF_Core_IFC;
+package Core_IFC;
 
 // ================================================================
-// This package defines the interface of the BRVF_Core module which
+// This package defines the interface of the Core module which
 // contains:
 // - The RISC-V CPU with Tandem Verifier (TV) logic
 // - RISC-V Debug Module
@@ -31,9 +31,9 @@ import Debug_Module   :: *;
 `endif
 
 // ================================================================
-// The BRVF_Core interface
+// The Core interface
 
-interface BRVF_Core_IFC;
+interface Core_IFC;
 
    // ----------------------------------------------------------------
    // Core CPU interfaces
@@ -51,6 +51,7 @@ interface BRVF_Core_IFC;
    interface AXI4_Lite_Slave_IFC #(Wd_Addr, Wd_Data, Wd_User) cpu_slave;
 
    // External interrupts
+   (* always_ready, always_enabled *)
    method Action cpu_external_interrupt_req (Bool set_not_clear);
 
    // ----------------------------------------------------------------

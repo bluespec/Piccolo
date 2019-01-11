@@ -43,6 +43,7 @@ interface CPU_IFC;
    // ----------------
    // External Interrupts
 
+   (* always_ready, always_enabled *)
    method Action  external_interrupt_req (Bool set_not_clear);
 
    // ----------------

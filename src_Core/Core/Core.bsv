@@ -1,9 +1,9 @@
 // Copyright (c) 2018-2019 Bluespec, Inc. All Rights Reserved.
 
-package BRVF_Core;
+package Core;
 
 // ================================================================
-// This package defines the BRVF_Core module that combines:
+// This package defines the Core module that combines:
 // - the core RISC-V CPU
 // - Tandem-Verification (TV) logic (optional: INCLUDE_TANDEM_VERIF)
 // - a RISC-V Debug Module          (optional: INCLUDE_GDB_CONTROL)
@@ -33,27 +33,27 @@ import Fabric_Defs      :: *;
 import Debug_Module     :: *;
 `endif
 
-import CPU_IFC        :: *;
-import CPU            :: *;
-import BRVF_Core_IFC  :: *;
+import CPU_IFC  :: *;
+import CPU      :: *;
+import Core_IFC :: *;
 
 `ifdef INCLUDE_TANDEM_VERIF
-import TV_Info        :: *;
-import TV_Encode      :: *;
+import TV_Info   :: *;
+import TV_Encode :: *;
 `endif
 
 // TV_Taps needed when both GDB_CONTROL and TANDEM_VERIF are present
 `ifdef INCLUDE_GDB_CONTROL
 `ifdef INCLUDE_TANDEM_VERIF
-import TV_Taps        :: *;
+import TV_Taps :: *;
 `endif
 `endif
 
 // ================================================================
-// The BRVF_Core module
+// The Core module
 
 (* synthesize *)
-module mkBRVF_Core #(parameter Bit #(64)  pc_reset_value)  (BRVF_Core_IFC);
+module mkCore #(parameter Bit #(64)  pc_reset_value)  (Core_IFC);
 
    // ================================================================
    // STATE
