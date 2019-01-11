@@ -41,6 +41,9 @@ import AXI4_Lite_Types  :: *;
 import AXI4_Lite_Fabric :: *;
 import Fabric_Defs      :: *;
 
+// 2x1 AXI4_Lite fabric to mux IMem and Debug Module masters into a single master
+import IMem_DM_Mux_Fabric :: *;
+
 `ifdef INCLUDE_TANDEM_VERIF
 import TV_Info :: *;
 `endif
@@ -130,23 +133,16 @@ module mkP1_Core (P1_Core_IFC);
 `endif
 
    // ================================================================
-`ifdef INCLUDE_GDB_CONTROL
 
+`ifdef INCLUDE_GDB_CONTROL
    // Merge IMem and Debug Module AXI4-Lite Masters
    // since Piccolo uses 3 masters (IMem, DMem and Debug Module)
    // but SSITH GFE only has 2 masters
 
-   // TODO: core.dm_master is temporarily stubbed off.
-   // Need to instantiate a 2x1 fabric; connect, on the master side:
-   //     core.cpu_imem_master
-   //     core.dm_master
-   // and export slave side.
+   Fabric_2x1_IFC  fabric_2x1 <- mkFabric_2x1;
 
-   // Read/Write RISC-V memory
-   // interface AXI4_Lite_Master_IFC #(Wd_Addr, Wd_Data, Wd_User) dm_master;
-
-   AXI4_Lite_Slave_IFC #(Wd_Addr, Wd_Data, Wd_User) axi_slave_stub = dummy_AXI4_Lite_Slave_ifc;
-   mkConnection (core.dm_master, axi_slave_stub);
+   mkConnection (core.cpu_imem_master, fabric_2x1.v_from_masters [0]);
+   mkConnection (core.dm_master,       fabric_2x1.v_from_masters [1]);
 `endif
 
    // ================================================================
@@ -215,7 +211,7 @@ module mkP1_Core (P1_Core_IFC);
    // INTERFACE
 
    // CPU IMem to Fabric master interface
-   interface AXI4_Lite_Master_IFC master0 = core.cpu_imem_master;
+   interface AXI4_Lite_Master_IFC master0 = fabric_2x1.v_to_slaves [0];
 
    // CPU DMem to Fabric master interface
    interface AXI4_Lite_Master_IFC master1 = core.cpu_dmem_master;
