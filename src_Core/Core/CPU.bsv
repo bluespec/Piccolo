@@ -1285,6 +1285,23 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
    // ================================================================
    // ================================================================
    // ================================================================
+   // Connect timer and software interrupts
+
+   rule rl_relay_sw_interrupts;
+      let x <- near_mem.get_sw_interrupt_req.get;
+      csr_regfile.software_interrupt_req (x);
+      // $display ("%0d: CPU.rl_relay_sw_interrupts: relaying: %d", mcycle, pack (x));
+   endrule
+
+   rule rl_relay_timer_interrupts;
+      let x <- near_mem.get_timer_interrupt_req.get;
+      csr_regfile.timer_interrupt_req (x);
+      // $display ("%0d: CPU.rl_relay_timer_interrupts: relaying: %d", mcycle, pack (x));
+   endrule
+
+   // ================================================================
+   // ================================================================
+   // ================================================================
    // DEBUGGER ACCESS
 
    // ----------------
@@ -1435,11 +1452,9 @@ module mkCPU #(parameter Bit #(64)  pc_reset_value)  (CPU_IFC);
    interface  near_mem_slave = near_mem.near_mem_slave;
 
    // ----------------
-   // Interrupts
+   // External interrupts
 
    method Action  external_interrupt_req (x) = csr_regfile.external_interrupt_req (x);
-   method Action  software_interrupt_req (x) = csr_regfile.software_interrupt_req (x);
-   method Action  timer_interrupt_req (x)    = csr_regfile.timer_interrupt_req (x);
 
    // ----------------
    // For tracing

@@ -50,10 +50,8 @@ interface BRVF_Core_IFC;
    // CPU Back-door slave interface from fabric
    interface AXI4_Lite_Slave_IFC #(Wd_Addr, Wd_Data, Wd_User) cpu_slave;
 
-   // Interrupts
+   // External interrupts
    method Action cpu_external_interrupt_req (Bool set_not_clear);
-   method Action cpu_timer_interrupt_req (Bool set_not_clear);
-   method Action cpu_software_interrupt_req (Bool set_not_clear);
 
    // ----------------------------------------------------------------
    // Set core's verbosity

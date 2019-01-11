@@ -45,7 +45,6 @@ import BRVF_Core      :: *;
 
 import Boot_ROM       :: *;
 import Mem_Controller :: *;
-import Timer          :: *;
 import UART_Model     :: *;
 
 `ifdef INCLUDE_CAMERA_MODEL
@@ -136,7 +135,6 @@ module mkSoC_Top (SoC_Top_IFC);
    Mem_Controller_IFC  mem0_controller <- mkMem_Controller;
 
    // SoC IPs
-   Timer_IFC  timer0 <- mkTimer;
    UART_IFC   uart0  <- mkUART;
 
 `ifdef INCLUDE_ACCEL0
@@ -183,9 +181,6 @@ module mkSoC_Top (SoC_Top_IFC);
    // Fabric to UART0
    mkConnection (fabric.v_to_slaves [uart0_slave_num],           uart0.slave);
 
-   // Fabric to Timer0
-   mkConnection (fabric.v_to_slaves [timer0_slave_num],          timer0.slave);
-
 `ifdef INCLUDE_ACCEL0
    // Fabric to accel_aes0
    mkConnection (fabric.v_to_slaves [accel0_slave_num],          accel_aes0.slave);
@@ -198,7 +193,7 @@ module mkSoC_Top (SoC_Top_IFC);
 `endif
 
    // ----------------
-   // Connect interrupt sources for CPU interrupt request inputs.
+   // Connect interrupt sources for CPU external interrupt request inputs.
 
    // External interrupts. TODO: connect to external interrupt controller
    rule rl_connect_external_interrupt_request (False);
@@ -208,22 +203,6 @@ module mkSoC_Top (SoC_Top_IFC);
 	 $display ("%0d: SoC_Top.rl_connect_external_interrupt_request: ", cur_cycle, fshow (req));
    endrule
 
-   // Timer interrupt
-   rule rl_connect_timer_interrupt_request;
-      let req <- timer0.get_timer_interrupt_req.get;
-      brvf_core.cpu_timer_interrupt_req (req);
-      if (verbosity > 1)
-	 $display ("%0d: SoC_Top.rl_connect_timer_interrupt_request: ", cur_cycle, fshow (req));
-   endrule
-
-   // Software interrupt
-   rule rl_connect_software_interrupt_request;
-      let req <- timer0.get_sw_interrupt_req.get;
-      brvf_core.cpu_software_interrupt_req (req);
-      if (verbosity > 1)
-	 $display ("%0d: SoC_Top.rl_connect_software_interrupt_request: ", cur_cycle, fshow (req));
-   endrule
-
    // ================================================================
    // RESET BEHAVIOR WITHOUT DEBUG MODULE
 
@@ -231,7 +210,6 @@ module mkSoC_Top (SoC_Top_IFC);
       brvf_core.cpu_reset_server.request.put (?);
       mem0_controller.server_reset.request.put (?);
       uart0.server_reset.request.put (?);
-      timer0.server_reset.request.put (?);
 
       fabric.reset;
 
@@ -301,7 +279,6 @@ module mkSoC_Top (SoC_Top_IFC);
       brvf_core.cpu_reset_server.request.put (?);
       mem0_controller.server_reset.request.put (?);
       uart0.server_reset.request.put (?);
-      timer0.server_reset.request.put (?);
 
       fabric.reset;
 
@@ -316,7 +293,6 @@ module mkSoC_Top (SoC_Top_IFC);
       let cpu_rsp             <- brvf_core.cpu_reset_server.response.get;
       let mem0_controller_rsp <- mem0_controller.server_reset.response.get;
       let uart0_rsp           <- uart0.server_reset.response.get;
-      let timer0_rsp          <- timer0.server_reset.response.get;
 
       // Initialize address maps of slave IPs
       boot_rom.set_addr_map (soc_map.m_boot_rom_addr_base,
@@ -327,8 +303,6 @@ module mkSoC_Top (SoC_Top_IFC);
 
       uart0.set_addr_map (soc_map.m_uart0_addr_base, soc_map.m_uart0_addr_lim);
 
-      timer0.set_addr_map (soc_map.m_timer0_addr_base, soc_map.m_timer0_addr_lim);
-
       rg_state <= SOC_IDLE;
 
 `ifdef INCLUDE_GDB_CONTROL
@@ -338,16 +312,13 @@ module mkSoC_Top (SoC_Top_IFC);
 `endif
 
       if (verbosity != 0) begin
-	 $display ("  Address map:");
+	 $display ("  SoC address map:");
 	 $display ("  Boot ROM:        0x%0h .. 0x%0h",
 		   soc_map.m_boot_rom_addr_base,
 		   soc_map.m_boot_rom_addr_lim);
 	 $display ("  Mem0 Controller: 0x%0h .. 0x%0h",
 		   soc_map.m_mem0_controller_addr_base,
 		   soc_map.m_mem0_controller_addr_lim);
-	 $display ("  Timer0:          0x%0h .. 0x%0h",
-		   soc_map.m_timer0_addr_base,
-		   soc_map.m_timer0_addr_lim);
 	 $display ("  UART0:           0x%0h .. 0x%0h",
 		   soc_map.m_uart0_addr_base,
 		   soc_map.m_uart0_addr_lim);

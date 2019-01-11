@@ -41,11 +41,9 @@ interface CPU_IFC;
    interface AXI4_Lite_Slave_IFC #(Wd_Addr, Wd_Data, Wd_User)  near_mem_slave;
 
    // ----------------
-   // Interrupts
+   // External Interrupts
 
    method Action  external_interrupt_req (Bool set_not_clear);
-   method Action  timer_interrupt_req (Bool set_not_clear);
-   method Action  software_interrupt_req (Bool set_not_clear);
 
    // ----------------
    // Set core's verbosity

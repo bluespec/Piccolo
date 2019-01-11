@@ -264,11 +264,9 @@ module mkBRVF_Core #(parameter Bit #(64)  pc_reset_value)  (BRVF_Core_IFC);
    interface AXI4_Lite_Slave_IFC  cpu_slave = cpu.near_mem_slave;
 
    // ----------------
-   // Interrupts
+   // External interrupts
 
    method Action  cpu_external_interrupt_req (x) = cpu.external_interrupt_req (x);
-   method Action  cpu_software_interrupt_req (x) = cpu.software_interrupt_req (x);
-   method Action  cpu_timer_interrupt_req (x)    = cpu.timer_interrupt_req (x);
 
    // ----------------------------------------------------------------
    // Set core's verbosity
