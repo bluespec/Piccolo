@@ -1470,7 +1470,7 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
    endrule
 
    // ----------------------------------------------------------------
-   // Memory-mapped I/O read requests (LD and AMO_LR)
+   // Memory-mapped I/O read requests (LD and AMO_LR) to near-mem-io
    // LRs are treated just like LDs, but we do not place any reservation on the address
    // (so a subsequent SC is guaranteed to fail).
    // TODO: Move this into rl_probe_and_immed_rsp, post MMU translation
@@ -1569,7 +1569,7 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
    endrule
 
    // ----------------------------------------------------------------
-   // Memory-mapped I/O write requests (ST)
+   // Memory-mapped I/O write requests (ST) to near-mem IO
    // No caching, send request directly to fabric.
    // TODO: Move this into rl_probe_and_immed_rsp, post MMU translation
 

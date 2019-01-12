@@ -29,7 +29,10 @@ Bit#(IR_LENGTH) ir_idcode = 1;
 Bit#(IR_LENGTH) ir_dtmcs = 'h02;
 Bit#(IR_LENGTH) ir_dmi = 'h03;
 `elsif XILINX_XCVU9P
-Bit#(IR_LENGTH) ir_dtmcs = 'b000010100100100100;
+
+Bit#(IR_LENGTH) ir_dtmcs = 'b100010100100100100;    // USER3
+                        // 'b000010100100100100;    USER1
+
 Bit#(IR_LENGTH) ir_dmi = 'b000011100100100100;
 `endif
 `else

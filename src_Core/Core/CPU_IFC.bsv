@@ -41,7 +41,7 @@ interface CPU_IFC;
    interface AXI4_Lite_Slave_IFC #(Wd_Addr, Wd_Data, Wd_User)  near_mem_slave;
 
    // ----------------
-   // External Interrupts
+   // External interrupts
 
    (* always_ready, always_enabled *)
    method Action  external_interrupt_req (Bool set_not_clear);
@@ -71,7 +71,7 @@ interface CPU_IFC;
 
 `ifdef ISA_F
    // FPR access
-   interface MemoryServer #(5,  FLEN) hart0_fpr_mem_server;
+   interface MemoryServer #(5,  FLEN)  hart0_fpr_mem_server;
 `endif
 
    // CSR access
