@@ -4,7 +4,7 @@
 # *** This file is program-generated, not hand-written. ***
 # ================================================================
 
-REPO ?= /home/nikhil/GitHub/Piccolo
+REPO ?= ../..
 ARCH ?= RV32ACIMU
 
 # ================================================================
