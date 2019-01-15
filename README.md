@@ -1,12 +1,23 @@
-# Piccolo
+# Open-source RISC-V CPUs from Bluespec, Inc.
 
-Piccolo is one of a family of free, open-source RISC-V CPUs created by Bluespec, Inc.
+This is one of a family of free, open-source RISC-V CPUs created by Bluespec, Inc.
 
 - [Piccolo](https://github.com/bluespec/Piccolo): 3-stage, in-order pipeline
+
+  Piccolo is intended for low-end applications (Embedded Systems, IoT, microcontrollers, etc.).
+
 - [Flute](https://github.com/bluespec/Flute): 5-stage, in-order pipeline
+
+  Flute is intended for low-end to medium applications that require
+  64-bit operation, an MMU (Virtual Memory) and more performance than
+  Piccolo-class processors.
+
 - [Bassoon](https://github.com/bluespec/Bassoon): deep, out-of-order pipeline [Coming!]
 
-Piccolo is intended for low-end applications (Embedded Systems, IoT, microcontrollers, etc.).
+The three repo structures are nearly identical, and the ways to build
+and run are identical.  This README is identical--please substitute
+"Piccolo" or "Flute" or "Basoon" below wherever you see <CPU>.
+
 
 ### About the source codes (in BSV and Verilog)
 
@@ -63,7 +74,7 @@ one can run RISC-V binaries in simulation by loading standard mem hex
 files and executing in Bluespec's Bluesim, Verilator simulation or
 iVerilog simulation.  The testbench contains an AXI4-Lite interconnect
 fabric that connects the CPU to models of a boot ROM, a memory, a
-timer and a UART for console I/O
+timer and a UART for console I/O.
 
 [Note: **iverilog functionality is currently limited** because we are
 still working out robust mechanisms to import C code, which is used in
@@ -152,8 +163,8 @@ Inc. for more information.
 
 In any of the Verilog-build directories:
 
-            builds/<ARCH>_Piccolo_verilator/
-            builds/<ARCH>_Piccolo_iverilog/
+            builds/<ARCH>_<CPU>_verilator/
+            builds/<ARCH>_<CPU>_iverilog/
 
   - `$ make simulator` will create a Verilog simulation executable using Verilator or iverilog, respectively
 
@@ -199,7 +210,7 @@ problems with earlier versions of both tools.
 [Note: Bluespec, Inc. provides free licenses to academia and for non-profit research].
 
 Note: even without Bluespec's `bsc` compiler, you can use the Verilog
-sources in any of the `builds/<ARCH>_Piccolo_verilator/Verilog_RTL`
+sources in any of the `builds/<ARCH>_<CPU>_verilator/Verilog_RTL`
 directories-- build and run Verilog simulations, incorporate the
 Verilog CPU into your own SoC, etc.  This section describes additional
 things you can do with a `bsc` compiler.
@@ -208,7 +219,7 @@ things you can do with a `bsc` compiler.
 
 In any of the following directories:
 
-        builds/<ARCH>_Piccolo_bluesim
+        builds/<ARCH>_<CPU>_bluesim
 
   - `$ make compile simulator`
 
@@ -219,10 +230,10 @@ or run regressions on the full suite of relevant ISA tests.
 #### Re-generating Verilog RTL
 
 You can regenerate the Verilog RTL in any of the
-`build/<ARCH>_Piccolo_verilator/` or `build/<ARCH>_Piccolo_iverilog/`
+`build/<ARCH>_<CPU>_verilator/` or `build/<ARCH>_<CPU>_iverilog/`
 directories.  Example:
 
-        $ cd  builds/RV32ACIMU_verilator
+        $ cd  builds/RV32ACIMU_<CPU>_verilator
         $ make compile
 
 #### Creating a new architecture configuration
@@ -233,12 +244,12 @@ build a new configuration of interest.  For example:
         $ cd  builds
 	$ Resources/mkBuild_Dir.py  ..  RV32CI  bluesim
 
-will create a new directory: `builds\RV32CIU_Piccolo_bluesim`
+will create a new directory: `builds\RV32CIU_<CPU>_bluesim`
 populated with a `Makefile` to compile and link a bluesim simulation
 for an RV32 CPU with 'I' and 'C' ISA options.  You can build and run
 that simulator as usual:
 
-        $ cd  builds/RV32CIU_Piccol_bluesim
+        $ cd  builds/RV32CIU_<CPU>_bluesim
         $ make compile simulator test isa_tests
 
 ----------------------------------------------------------------

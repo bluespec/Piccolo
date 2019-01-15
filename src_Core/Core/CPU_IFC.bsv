@@ -18,8 +18,8 @@ import ISA_Decls       :: *;
 import TV_Info         :: *;
 `endif
 
-import Fabric_Defs     :: *;
-import AXI4_Lite_Types :: *;
+import AXI4_Lite_Types  :: *;
+import Fabric_Defs      :: *;
 
 // ================================================================
 // CPU interface
@@ -41,11 +41,10 @@ interface CPU_IFC;
    interface AXI4_Lite_Slave_IFC #(Wd_Addr, Wd_Data, Wd_User)  near_mem_slave;
 
    // ----------------
-   // Interrupts
+   // External interrupts
 
+   (* always_ready, always_enabled *)
    method Action  external_interrupt_req (Bool set_not_clear);
-   method Action  timer_interrupt_req (Bool set_not_clear);
-   method Action  software_interrupt_req (Bool set_not_clear);
 
    // ----------------
    // Set core's verbosity
@@ -69,10 +68,10 @@ interface CPU_IFC;
 
    // GPR access
    interface MemoryServer #(5,  XLEN)  hart0_gpr_mem_server;
-      
+
 `ifdef ISA_F
    // FPR access
-   interface MemoryServer #(5,  FLEN) hart0_fpr_mem_server;
+   interface MemoryServer #(5,  FLEN)  hart0_fpr_mem_server;
 `endif
 
    // CSR access

@@ -356,7 +356,7 @@ instance FShow #(Data_Stage2_to_Stage3);
 
 `ifdef ISA_F
       if (x.upd_flags)
-         fmt = fmt + $format ("  fflags: %05b", x.fpr_flags);
+         fmt = fmt + $format ("  fflags: %05b", fshow (x.fpr_flags));
 
       if (x.rd_in_fpr)
          fmt = fmt + $format ("  frd:%0d  rd_val:%h\n", x.rd, x.rd_val);

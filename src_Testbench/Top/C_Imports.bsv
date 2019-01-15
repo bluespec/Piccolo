@@ -25,7 +25,7 @@ import Vector :: *;
 // Functions for console I/O
 
 // ================================================================
-// c_trygetchar()
+// c_trygetchar ()
 // Returns next input character (ASCII code) from the console.
 // Returns 0 if no input is available.
 
@@ -33,7 +33,7 @@ import "BDPI"
 function ActionValue #(Bit #(8)) c_trygetchar (Bit #(8) dummy);
 
 // ================================================================
-// c_putchar()
+// c_putchar ()
 // Writes character to stdout
 
 import "BDPI"
@@ -59,10 +59,10 @@ function ActionValue #(Bit #(64)) c_get_symbol_val (String symbol);
 // ****************************************************************
 // ****************************************************************
 
-   // Functions for Tandem Verification trace file output.
+// Functions for Tandem Verification trace file output.
 
 // ================================================================
-// c_trace_file_open()
+// c_trace_file_open ()
 // Open file for recording binary trace output.
 
 import "BDPI"
@@ -83,7 +83,7 @@ import "BDPI"
 function ActionValue #(Bit #(32)) c_trace_file_load_word64_in_buffer (Bit #(32) byte_offset, Bit #(64) data);
 
 // ================================================================
-// c_trace_file_write_buffer()
+// c_trace_file_write_buffer ()
 // Write out 'n' bytes from the already-loaded output buffer to the trace file.
 
 import "BDPI"

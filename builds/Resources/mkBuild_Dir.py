@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-# Copyright (c) 2018 Bluespec, Inc.
+# Copyright (c) 2018-2019 Bluespec, Inc.
 # See LICENSE for license details
 
 # ================================================================
@@ -47,8 +47,8 @@ def main (argv = None):
         sys.stdout.write ("\n")
         return 1
 
-    repo = os.path.abspath (os.path.normpath (arg_repo))
-    repobase = os.path.basename (repo)
+    repo     = os.path.join ("..", arg_repo)
+    repobase = os.path.basename (os.path.abspath (os.path.normpath (arg_repo)))
 
     # ----------------
     # Collect <arch> and check if legal

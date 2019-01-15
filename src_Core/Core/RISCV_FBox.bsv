@@ -1,5 +1,4 @@
-// vim: tw=80:tabstop=8:softtabstop=3:shiftwidth=3:expandtab:
-// Copyright (c) 2016-2018 Bluespec, Inc. All Rights Reserved
+// Copyright (c) 2016-2019 Bluespec, Inc. All Rights Reserved
 
 package RISCV_FBox;
 
@@ -79,7 +78,7 @@ function RoundMode fv_getRoundMode (Bit #(3) rm);
       3'h1: return (Rnd_Zero);
       3'h2: return (Rnd_Minus_Inf);
       3'h3: return (Rnd_Plus_Inf);
-      3'h4: return (Rnd_Nearest_Away_Zero); // XXX Is this RMM?
+      3'h4: return (Rnd_Nearest_Even); // XXX Different in v2.2 of spec
       default: return (Rnd_Nearest_Even);
    endcase
 endfunction

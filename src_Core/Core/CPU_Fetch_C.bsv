@@ -39,6 +39,8 @@ module mkCPU_Fetch_C #(IMem_IFC  imem32) (IMem_IFC);
 
    // Assert: imem32.is_32b_not_16b == True
 
+   Integer verbosity = 0;
+
    // This register holds the actual PC value (which can be +/-2 from
    // the address given to the ICache.
    Reg #(WordXL)  rg_pc  <- mkRegU;
@@ -101,21 +103,42 @@ module mkCPU_Fetch_C #(IMem_IFC  imem32) (IMem_IFC);
 				   && is_odd_h_pc (rg_pc)
 				   && (is_32b_instr (imem32.instr [31:16])));
 
-   // ----------------
+   // ================================================================
+   // Assert: The underlying imem32 only knows about 32-bit aligned words
+
+   rule rl_assert_fail (! imem32.is_i32_not_i16);
+      $display ("ERROR: CPU_Fetch_C: imem32.is_i32_not_i16 is False");
+      $finish (1);
+   endrule
+
+   rule rl_debug_conds (False && (verbosity != 0) && imem32.valid);
+      $display ("    imem32.pc 0x%0h  pc 0x%0h  rg_f3 %0d  imem32.instr 0x%08h  rg_instr_15_0 0x%04h",
+		imem32.pc,  rg_pc,  rg_f3,  imem32.instr,  rg_instr_15_0);
+      $display ("    cond_i32_odd  = ", fshow (cond_i32_odd));
+      $display ("    cond_i32_even = ", fshow (cond_i32_even));
+      $display ("    cond_i16_odd  = ", fshow (cond_i16_odd));
+      $display ("    cond_i16_even = ", fshow (cond_i16_even));
+      $display ("    cond_i32_odd_fetch_next             = ", fshow (cond_i32_odd_fetch_next));
+      $display ("    eqw_rg_pc_imem_pc                   = ", fshow (eqw_rg_pc_imem_pc));
+      $display ("    is_odd_h_pc (rg_pc)                 = ", fshow (is_odd_h_pc (rg_pc)));
+      $display ("    is_32b_instr (imem32.instr [31:16]) = ", fshow (is_32b_instr (imem32.instr [31:16])));
+   endrule
+
+   // ================================================================
    // On 32b odd instr in imem32.instr [31:15], fetch next 32 bits
 
+   (* no_implicit_conditions, fire_when_enabled *)
    rule rl_fetch_next_32b (imem32.valid && cond_i32_odd_fetch_next);
       Addr next_word_addr = rg_pc + 2;
       imem32.req (rg_f3, next_word_addr, rg_priv, rg_sstatus_SUM, rg_mstatus_MXR, rg_satp);
       rg_instr_15_0 <= imem32.instr [31:16];
-      /*
-      $display ("CPU_Fetch_C.rl_fetch_next_32b:  imem32.pc 0x%0h  next_word_addr 0x%0h",
-		imem32.pc, next_word_addr);
-      */
+      if (verbosity != 0)
+	 $display ("CPU_Fetch_C.rl_fetch_next_32b:  imem32.pc 0x%0h  next_word_addr 0x%0h",
+		   imem32.pc, next_word_addr);
    endrule
 
    // ----------------
-   // Compose the output 32b instruction
+   // Compose the 'instr' 32b output
 
    Instr instr_out = imem32.instr;
    Bool  is_32b_not_16b = True;
@@ -132,7 +155,7 @@ module mkCPU_Fetch_C #(IMem_IFC  imem32) (IMem_IFC);
       is_32b_not_16b = False;
    end
 
-   // ----------------------------------------------------------------
+   // ================================================================
    // INTERFACE
 
    // CPU side: IMem request
@@ -152,10 +175,9 @@ module mkCPU_Fetch_C #(IMem_IFC  imem32) (IMem_IFC);
       rg_satp        <= satp;
       WordXL even_addr = { addr [xlen-1:2], 2'b_00 };
       imem32.req (f3, even_addr, priv, sstatus_SUM, mstatus_MXR, satp);
-      /* DEBUG
-      if (addr [1:0] != 0)
+      if (verbosity > 0) begin
 	 $display ("CPU_Fetch_C.req: addr 0x%0h, even_addr 0x%0h", addr, even_addr);
-      */
+      end
    endmethod
 
    // CPU side: IMem response
