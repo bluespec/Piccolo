@@ -18,16 +18,24 @@ typedef 32   Wd_Addr;
 typedef 32   Wd_Data;
 `endif
 
+
 // Width of fabric 'user' datapaths
 typedef  0   Wd_User;
+
+
+// Width of fabric 'id' datapaths
+typedef  0   Wd_Id;
 
 
 typedef  Bit #(Wd_Addr)  Fabric_Addr;
 typedef  Bit #(Wd_Data)  Fabric_Data;
 typedef  Bit #(Wd_User)  Fabric_User;
+typedef  Bit #(Wd_Id)    Fabric_Id;
+
 
 typedef  TDiv #(Wd_Addr, 8)  Bytes_per_Fabric_Addr;
 Integer  bytes_per_fabric_addr = valueOf (Bytes_per_Fabric_Addr);
+
 
 typedef  TDiv #(Wd_Data, 8)  Bytes_per_Fabric_Data;
 Integer  bytes_per_fabric_data = valueOf (Bytes_per_Fabric_Data);
