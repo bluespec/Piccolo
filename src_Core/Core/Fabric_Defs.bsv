@@ -3,8 +3,16 @@
 package Fabric_Defs;
 
 // ================================================================
-// Defines key parameters of the SoC Fabric, such as address bus
-// width, data bus width, etc.
+// Defines key parameters of the AXI4/AXI4-Lite system interconnect
+// fabric to which the core connects, such as address bus width, data
+// bus width, etc.
+
+// ***** WARNING! WARNING! WARNING! *****
+
+// During system integration, these parameters should be checked to be
+// identical to the system interconnect settings.  Strong
+// type-checking (EXACT match on bus widths) will do this; but some
+// languages/tools may silently ignore mismatched widths.
 
 // ================================================================
 // Fabric parameters
