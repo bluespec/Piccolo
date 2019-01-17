@@ -24,7 +24,7 @@ typedef  0   Wd_User;
 
 
 // Width of fabric 'id' datapaths
-typedef  0   Wd_Id;
+typedef  4   Wd_Id;
 
 
 typedef  Bit #(Wd_Addr)  Fabric_Addr;

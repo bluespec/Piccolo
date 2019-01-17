@@ -99,12 +99,8 @@ endinterface
 // ================================================================
 // PC reset value
 
-// Entry point for Boot ROM used in Spike/Rocket
-// (boot code jumps later to 'h_8000_0000)
-Bit #(64)  pc_reset_value    = 'h_0000_1000;
-
-// Entry point for code generated for Spike/Rocket
-// Bit #(64)  pc_reset_value    = 'h_8000_0000;
+// Entry point for Boot ROM used in SSITH GFE
+Bit #(64)  pc_reset_value    = 'h_7000_0000;
 
 // ================================================================
 
