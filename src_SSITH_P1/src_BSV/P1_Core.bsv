@@ -97,12 +97,6 @@ interface P1_Core_IFC;
 endinterface
 
 // ================================================================
-// PC reset value
-
-// Entry point for Boot ROM used in SSITH GFE
-Bit #(64)  pc_reset_value    = 'h_7000_0000;
-
-// ================================================================
 
 (* synthesize *)
 module mkP1_Core #(parameter Bit #(64)  pc_reset_value,
@@ -128,24 +122,24 @@ module mkP1_Core #(parameter Bit #(64)  pc_reset_value,
    endrule
 
    // ================================================================
-   // NDM reset from Debug Module (for all except Debug Module)
+   // Reset on startup, and also on NDM reset from Debug Module
+   // (NDM reset from Debug Module = reset all except Debug Module)
 
-`ifdef INCLUDE_GDB_CONTROL
-   Reg #(Bool) rg_resetting <- mkReg (False);
+   Reg#(Bool) rg_once <- mkReg(False);
 
-   rule rl_reset_start (! rg_resetting);
-      let req <- core.dm_ndm_reset_req_get.get;
+   rule rl_once (! rg_once);
       core.cpu_reset_server.request.put (?);
-      rg_resetting <= True;
-      $display ("P1_Core.rl_reset_start (Debug Module NDM reset, all except debug module) ...");
+      rg_once <= True;
    endrule
 
-   rule rl_reset_complete (rg_resetting);
-      let cpu_rsp <- core.cpu_reset_server.response.get;
-      rg_resetting <= False;
-      $display ("P1_Core: NDM reset complete (all except debug module)");
+   rule rl_reset_response;
+      let tmp <- core.cpu_reset_server.response.get;
    endrule
-`endif
+
+   rule rl_ndmreset (rg_once);
+      let tmp <- core.dm_ndm_reset_req_get.get;
+      rg_once <= False;
+   endrule
 
    // ================================================================
    // Merge IMem and Debug Module AXI4-Lite Masters
