@@ -97,8 +97,10 @@ module mkCPU_Stage3 #(Bit #(4)         verbosity,
    let bypass_base = Bypass {bypass_state: BYPASS_RD_NONE
 			   , rd:           rg_stage3.rd
 `ifdef ISA_D
+                          // WordXL        WordFL (64)
 			   , rd_val:       truncate (rg_stage3.rd_val) 
 `else
+                          // WordXL        WordXL
 			   , rd_val:       rg_stage3.rd_val
 `endif
                            };
@@ -107,11 +109,14 @@ module mkCPU_Stage3 #(Bit #(4)         verbosity,
    let fbypass_base = FBypass {bypass_state: BYPASS_RD_NONE
 			   , rd:           rg_stage3.rd
 `ifdef ISA_D
+                          // WordFL        WordFL
 			   , rd_val:       rg_stage3.rd_val 
 `else
 `ifdef RV64
-			   , rd_val:       extend (rg_stage3.rd_val)
+                          // WordFL (32)   WordXL (64)
+			   , rd_val:       truncate (rg_stage3.rd_val)
 `else
+                          // WordFL (32)   WordXL (32)
 			   , rd_val:       rg_stage3.rd_val
 `endif
 `endif
@@ -161,12 +166,14 @@ module mkCPU_Stage3 #(Bit #(4)         verbosity,
 	 // Writeback Rd if valid
 	 if (rg_stage3.rd_valid) begin
 `ifdef ISA_F
+            // Write to FPR
             if (rg_stage3.rd_in_fpr)
 `ifdef ISA_D
                fpr_regfile.write_rd (rg_stage3.rd, rg_stage3.rd_val);
 `else
                fpr_regfile.write_rd (rg_stage3.rd, truncate (rg_stage3.rd_val));
 `endif
+            // Write to GPR in a FD system
             else
 `ifdef RV64
                gpr_regfile.write_rd (rg_stage3.rd, rg_stage3.rd_val);
@@ -175,6 +182,7 @@ module mkCPU_Stage3 #(Bit #(4)         verbosity,
                gpr_regfile.write_rd (rg_stage3.rd, truncate (rg_stage3.rd_val));
 `endif
 `else
+            // Write to GPR in a non-FD system
             gpr_regfile.write_rd (rg_stage3.rd, rg_stage3.rd_val);
 `endif
 	    if (verbosity > 1)
