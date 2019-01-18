@@ -132,9 +132,7 @@ module mkSoC_Top (SoC_Top_IFC);
    SoC_Map_IFC soc_map <- mkSoC_Map;
 
    // CPU + Debug module
-   Core_IFC  core <- mkCore (pc_reset_value,
-			     near_mem_io_addr_base,
-			     near_mem_io_addr_lim);
+   Core_IFC  core <- mkCore;
 
    // SoC Fabric
    Fabric_IFC  fabric <- mkFabric;

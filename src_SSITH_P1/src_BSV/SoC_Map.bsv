@@ -2,6 +2,7 @@
 
 package SoC_Map;
 
+// ================================================================
 // This module defines the overall 'address map' of the SoC, showing
 // the addresses serviced by each slave IP, and which addresses are
 // memory vs. I/O.
@@ -42,36 +43,36 @@ import Fabric_Defs :: *;    // Only for type Fabric_Addr
 // Interface and module for the address map
 
 interface SoC_Map_IFC;
-   (* always_ready *)   method  Fabric_Addr  m_flash_mem_addr_size;
    (* always_ready *)   method  Fabric_Addr  m_flash_mem_addr_base;
+   (* always_ready *)   method  Fabric_Addr  m_flash_mem_addr_size;
    (* always_ready *)   method  Fabric_Addr  m_flash_mem_addr_lim;
 
-   (* always_ready *)   method  Fabric_Addr  m_plic_addr_size;
    (* always_ready *)   method  Fabric_Addr  m_plic_addr_base;
+   (* always_ready *)   method  Fabric_Addr  m_plic_addr_size;
    (* always_ready *)   method  Fabric_Addr  m_plic_addr_lim;
 
-   (* always_ready *)   method  Fabric_Addr  m_ethernet0_addr_size;
    (* always_ready *)   method  Fabric_Addr  m_ethernet0_addr_base;
+   (* always_ready *)   method  Fabric_Addr  m_ethernet0_addr_size;
    (* always_ready *)   method  Fabric_Addr  m_ethernet0_addr_lim;
 
-   (* always_ready *)   method  Fabric_Addr  m_dma0_addr_size;
    (* always_ready *)   method  Fabric_Addr  m_dma0_addr_base;
+   (* always_ready *)   method  Fabric_Addr  m_dma0_addr_size;
    (* always_ready *)   method  Fabric_Addr  m_dma0_addr_lim;
 
-   (* always_ready *)   method  Fabric_Addr  m_uart0_addr_size;
    (* always_ready *)   method  Fabric_Addr  m_uart0_addr_base;
+   (* always_ready *)   method  Fabric_Addr  m_uart0_addr_size;
    (* always_ready *)   method  Fabric_Addr  m_uart0_addr_lim;
 
-   (* always_ready *)   method  Fabric_Addr  m_near_mem_io_addr_size;
    (* always_ready *)   method  Fabric_Addr  m_near_mem_io_addr_base;
+   (* always_ready *)   method  Fabric_Addr  m_near_mem_io_addr_size;
    (* always_ready *)   method  Fabric_Addr  m_near_mem_io_addr_lim;
 
-   (* always_ready *)   method  Fabric_Addr  m_boot_rom_addr_size;
    (* always_ready *)   method  Fabric_Addr  m_boot_rom_addr_base;
+   (* always_ready *)   method  Fabric_Addr  m_boot_rom_addr_size;
    (* always_ready *)   method  Fabric_Addr  m_boot_rom_addr_lim;
 
-   (* always_ready *)   method  Fabric_Addr  m_ddr4_0_addr_size;
    (* always_ready *)   method  Fabric_Addr  m_ddr4_0_addr_base;
+   (* always_ready *)   method  Fabric_Addr  m_ddr4_0_addr_size;
    (* always_ready *)   method  Fabric_Addr  m_ddr4_0_addr_lim;
 
    (* always_ready *)
@@ -82,6 +83,8 @@ interface SoC_Map_IFC;
 
    (* always_ready *)
    method  Bool  m_is_near_mem_IO_addr (Fabric_Addr addr);
+
+   (* always_ready *)   method  Bit #(64)    m_pc_reset_value;
 endinterface
 
 // ================================================================
@@ -167,7 +170,7 @@ module mkSoC_Map (SoC_Map_IFC);
    endfunction
 
    // ----------------------------------------------------------------
-   // Main Mem Controller 0
+   // DDR memory 0
 
    Fabric_Addr ddr4_0_addr_base = 'h_8000_0000;
    Fabric_Addr ddr4_0_addr_size = 'h_7FFF_FFFF;    // 2G
@@ -204,38 +207,43 @@ module mkSoC_Map (SoC_Map_IFC);
    endfunction
 
    // ----------------------------------------------------------------
+   // PC reset value
+
+   Bit #(64) pc_reset_value = boot_rom_addr_base;
+
+   // ================================================================
    // INTERFACE
 
-   method  Fabric_Addr  m_flash_mem_addr_size = flash_mem_addr_size;
    method  Fabric_Addr  m_flash_mem_addr_base = flash_mem_addr_base;
+   method  Fabric_Addr  m_flash_mem_addr_size = flash_mem_addr_size;
    method  Fabric_Addr  m_flash_mem_addr_lim  = flash_mem_addr_lim;
 
-   method  Fabric_Addr  m_plic_addr_size = plic_addr_size;
    method  Fabric_Addr  m_plic_addr_base = plic_addr_base;
+   method  Fabric_Addr  m_plic_addr_size = plic_addr_size;
    method  Fabric_Addr  m_plic_addr_lim  = plic_addr_lim;
 
-   method  Fabric_Addr  m_ethernet0_addr_size = ethernet0_addr_size;
    method  Fabric_Addr  m_ethernet0_addr_base = ethernet0_addr_base;
+   method  Fabric_Addr  m_ethernet0_addr_size = ethernet0_addr_size;
    method  Fabric_Addr  m_ethernet0_addr_lim  = ethernet0_addr_lim;
 
-   method  Fabric_Addr  m_dma0_addr_size = dma0_addr_size;
    method  Fabric_Addr  m_dma0_addr_base = dma0_addr_base;
+   method  Fabric_Addr  m_dma0_addr_size = dma0_addr_size;
    method  Fabric_Addr  m_dma0_addr_lim  = dma0_addr_lim;
 
-   method  Fabric_Addr  m_uart0_addr_size = uart0_addr_size;
    method  Fabric_Addr  m_uart0_addr_base = uart0_addr_base;
+   method  Fabric_Addr  m_uart0_addr_size = uart0_addr_size;
    method  Fabric_Addr  m_uart0_addr_lim  = uart0_addr_lim;
 
-   method  Fabric_Addr  m_near_mem_io_addr_size = near_mem_io_addr_size;
    method  Fabric_Addr  m_near_mem_io_addr_base = near_mem_io_addr_base;
+   method  Fabric_Addr  m_near_mem_io_addr_size = near_mem_io_addr_size;
    method  Fabric_Addr  m_near_mem_io_addr_lim  = near_mem_io_addr_lim;
 
-   method  Fabric_Addr  m_boot_rom_addr_size = boot_rom_addr_size;
    method  Fabric_Addr  m_boot_rom_addr_base = boot_rom_addr_base;
+   method  Fabric_Addr  m_boot_rom_addr_size = boot_rom_addr_size;
    method  Fabric_Addr  m_boot_rom_addr_lim  = boot_rom_addr_lim;
 
-   method  Fabric_Addr  m_ddr4_0_addr_size = ddr4_0_addr_size;
    method  Fabric_Addr  m_ddr4_0_addr_base = ddr4_0_addr_base;
+   method  Fabric_Addr  m_ddr4_0_addr_size = ddr4_0_addr_size;
    method  Fabric_Addr  m_ddr4_0_addr_lim  = ddr4_0_addr_lim;
 
    method  Bool  m_is_mem_addr (Fabric_Addr addr) = fn_is_mem_addr (addr);
@@ -243,6 +251,8 @@ module mkSoC_Map (SoC_Map_IFC);
    method  Bool  m_is_IO_addr (Fabric_Addr addr) = fn_is_IO_addr (addr);
 
    method  Bool  m_is_near_mem_IO_addr (Fabric_Addr addr) = fn_is_near_mem_io_addr (addr);
+
+   method  Bit #(64)    m_pc_reset_value = pc_reset_value;
 endmodule
 
 // ================================================================
