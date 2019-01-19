@@ -247,7 +247,7 @@ module mkNear_Mem_IO (Near_Mem_IO_IFC);
    // ----------------------------------------------------------------
    // Handle 'memory'-write requests
 
-   rule rl_process_wr_req ((rg_state == MODULE_STATE_READY)
+   rule rl_process_wr_req (   (rg_state == MODULE_STATE_READY)
 			   && (! f_reset_reqs.notEmpty)
 			   && (! f_reqs.first.read_not_write));
       let req <- pop (f_reqs);

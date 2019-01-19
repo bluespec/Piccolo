@@ -120,7 +120,7 @@ module mkP1_Core (P1_Core_IFC);
    // Reset on startup, and also on NDM reset from Debug Module
    // (NDM reset from Debug Module = reset all except Debug Module)
 
-   Reg#(Bool) rg_once <- mkReg (False);
+   Reg #(Bool) rg_once <- mkReg (False);
 
    rule rl_once (! rg_once);
       core.cpu_reset_server.request.put (?);
