@@ -78,7 +78,7 @@ function RoundMode fv_getRoundMode (Bit #(3) rm);
       3'h1: return (Rnd_Zero);
       3'h2: return (Rnd_Minus_Inf);
       3'h3: return (Rnd_Plus_Inf);
-      3'h4: return (Rnd_Nearest_Even); // XXX Different in v2.2 of spec
+      3'h4: return (Rnd_Nearest_Away_Zero); // XXX Is this RMM?
       default: return (Rnd_Nearest_Even);
    endcase
 endfunction
