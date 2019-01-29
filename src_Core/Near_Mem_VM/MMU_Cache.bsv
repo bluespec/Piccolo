@@ -595,7 +595,7 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
       action
 	 dw_valid         <= True;
 	 // Value loaded into rd (LOAD, LR, AMO, SC success/fail result)
-	 dw_output_ld_val <= fn_extend_bytes (f3, ld_val);
+	 dw_output_ld_val <= ld_val;
 	 if (cfg_verbosity > 1)
 	    $display ("%0d: %s.drive_IO_read_rsp: addr 0x%0h ld_val 0x%0h", cur_cycle, d_or_i, addr, ld_val);
       endaction
@@ -1451,8 +1451,7 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 	 $display ("    ", fshow (rd_data));
       end
 
-      let fabric_word = rd_data.rdata;
-      let ld_val      = zeroExtend (fabric_word);
+      let ld_val = fn_extract_and_extend_bytes(rg_f3, rg_addr, zeroExtend (rd_data.rdata));
       rg_ld_val <= ld_val;
 
       // Successful read
@@ -1513,8 +1512,7 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 	 $display ("    ", fshow (rsp));
       end
 
-      let fabric_word = rsp.rdata;
-      let ld_val      = zeroExtend (fabric_word);
+      let ld_val = fn_extract_and_extend_bytes(rg_f3, rg_addr, zeroExtend (rsp.rdata));
       rg_ld_val <= ld_val;
 
       // Successful read

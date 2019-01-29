@@ -187,7 +187,6 @@ module mkSoC_Map (SoC_Map_IFC);
 
    function Bool fn_is_mem_addr (Fabric_Addr addr);
       return (   fn_is_flash_mem_addr (addr)
-	      || fn_is_boot_rom_addr (addr)
 	      || fn_is_ddr4_0_addr (addr)
 	      );
    endfunction
@@ -203,6 +202,7 @@ module mkSoC_Map (SoC_Map_IFC);
 	      || fn_is_dma0_addr (addr)
 	      || fn_is_uart0_addr  (addr)
 	      || fn_is_near_mem_io_addr (addr)
+	      || fn_is_boot_rom_addr (addr)
 	      );
    endfunction
 

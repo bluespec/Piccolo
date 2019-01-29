@@ -48,6 +48,9 @@ Integer  bytes_per_fabric_addr = valueOf (Bytes_per_Fabric_Addr);
 typedef  TDiv #(Wd_Data, 8)  Bytes_per_Fabric_Data;
 Integer  bytes_per_fabric_data = valueOf (Bytes_per_Fabric_Data);
 
+typedef  TLog #(Bytes_per_Fabric_Data)  ZLSBs_Aligned_Fabric_Addr;
+Integer  zlsbs_aligned_fabric_addr = valueOf (ZLSBs_Aligned_Fabric_Addr);
+
 // ================================================================
 
 endpackage
