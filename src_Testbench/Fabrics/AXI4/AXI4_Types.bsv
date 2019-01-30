@@ -41,8 +41,8 @@ typedef Bit #(3)  AXI4_Size;
 
 AXI4_Size  axsize_1   = 3'b_000;
 AXI4_Size  axsize_2   = 3'b_001;
-AXI4_Size  axsize_4   = 3'b_001;
-AXI4_Size  axsize_8   = 3'b_001;
+AXI4_Size  axsize_4   = 3'b_010;
+AXI4_Size  axsize_8   = 3'b_011;
 AXI4_Size  axsize_16  = 3'b_100;
 AXI4_Size  axsize_32  = 3'b_101;
 AXI4_Size  axsize_64  = 3'b_110;

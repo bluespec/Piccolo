@@ -138,7 +138,9 @@ interface MMU_Cache_IFC;
    interface Client #(Near_Mem_IO_Req, Near_Mem_IO_Rsp) near_mem_io_client;
 endinterface
 
-// ================================================================
+// ****************************************************************
+// ****************************************************************
+// ****************************************************************
 // Internal types and constants
 
 typedef enum { CTAG_EMPTY, CTAG_CLEAN } CTagState
@@ -215,6 +217,19 @@ function Bool fn_is_aligned (Bit #(3) f3, Bit #(n) addr);
 	   || ((f3 [1:0] == 2'b10) && (addr [1:0] == 2'b00))      // W, WU
 	   || ((f3 [1:0] == 2'b11) && (addr [2:0] == 3'b000))     // D
 	   );
+endfunction
+
+// ================================================================
+// Convert RISC-V funct3 code into AXI4_Size code (number of bytes in a beat)
+
+function AXI4_Size fn_funct3_to_AXI4_Size (Bit #(3) funct3);
+   Bit #(2)   x = funct3 [1:0];
+   AXI4_Size  result;
+   if      (x == f3_SIZE_B)        result = axsize_1;
+   else if (x == f3_SIZE_H)        result = axsize_2;
+   else if (x == f3_SIZE_W)        result = axsize_4;
+   else /* if (x == f3_SIZE_D) */  result = axsize_8;
+   return result;
 endfunction
 
 // ================================================================
@@ -319,6 +334,49 @@ function Word64_Set fn_update_word64_set (Word64_Set   old_word64_set,
 endfunction: fn_update_word64_set
 
 // ================================================================
+// ALU for AMO ops.
+// Returns the value to be stored back to mem.
+
+`ifdef ISA_A
+function Tuple2 #(Bit #(64),
+		  Bit #(64)) fn_amo_op (Bit #(3)   funct3,    // encodes data size (.W or .D)
+					Bit #(7)   funct7,    // encodes the AMO op
+					WordXL     addr,      // lsbs indicate which 32b W in 64b D (.W)
+					Bit #(64)  ld_val,    // 64b value loaded from mem
+					Bit #(64)  st_val);   // 64b value from CPU reg Rs2
+   Bit #(64) w1     = fn_extract_and_extend_bytes (funct3, addr, ld_val);
+   Bit #(64) w2     = st_val;
+   Int #(64) i1     = unpack (w1);    // Signed, for signed ops
+   Int #(64) i2     = unpack (w2);    // Signed, for signed ops
+   if (funct3 == f3_AMO_W) begin
+      w1 = zeroExtend (w1 [31:0]);
+      w2 = zeroExtend (w2 [31:0]);
+      i1 = unpack (signExtend (w1 [31:0]));
+      i2 = unpack (signExtend (w2 [31:0]));
+   end
+   Bit #(5)  f5     = funct7 [6:2];
+   // new_st_val is new value to be stored back to mem (w1 op w2)
+   Bit #(64) new_st_val = ?;
+   case (f5)
+      f5_AMO_SWAP: new_st_val = w2;
+      f5_AMO_ADD:  new_st_val = pack (i1 + i2);
+      f5_AMO_XOR:  new_st_val = w1 ^ w2;
+      f5_AMO_AND:  new_st_val = w1 & w2;
+      f5_AMO_OR:   new_st_val = w1 | w2;
+      f5_AMO_MINU: new_st_val = ((w1 < w2) ? w1 : w2);
+      f5_AMO_MAXU: new_st_val = ((w1 > w2) ? w1 : w2);
+      f5_AMO_MIN:  new_st_val = ((i1 < i2) ? w1 : w2);
+      f5_AMO_MAX:  new_st_val = ((i1 > i2) ? w1 : w2);
+   endcase
+
+   if (funct3 == f3_AMO_W)
+      new_st_val = zeroExtend (new_st_val [31:0]);
+
+   return tuple2 (truncate (pack (i1)), new_st_val);
+endfunction: fn_amo_op
+`endif
+
+// ================================================================
 // Displays, for debugging
 
 function Action fa_display_state_and_ctag_cset (CSet_in_Cache        cset_in_cache,
@@ -358,7 +416,10 @@ function Reg #(t) fn_genNullRegIfc (t x) provisos (Literal#(t));
    );
 endfunction
 
-// ================================================================
+// ****************************************************************
+// ****************************************************************
+// ****************************************************************
+// The module implementation
                 
 (* synthesize *)
 module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
@@ -602,12 +663,12 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
    endfunction
 
    // Send a read-request into the fabric
-   function Action fa_fabric_send_read_req (Fabric_Addr  addr);
+   function Action fa_fabric_send_read_req (Fabric_Addr  addr, AXI4_Size  size);
       action
 	 let mem_req_rd_addr = AXI4_Rd_Addr {arid:     fabric_default_id,
 					     araddr:   addr,
 					     arlen:    1,
-					     arsize:   6,    // 64b TODO: CHANGE TO ACTUAL SIZE OF REQ
+					     arsize:   size,
 					     arburst:  fabric_default_burst,
 					     arlock:   fabric_default_lock,
 					     arcache:  fabric_default_arcache,
@@ -991,7 +1052,7 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
       PA           lev_1_pte_pa        = satp_pa + vpn_1_pa;
       PA           lev_1_pte_pa_w64    = { lev_1_pte_pa [pa_sz - 1 : 3], 3'b0 };    // 64b-aligned addr
       Fabric_Addr  lev_1_pte_pa_w64_fa = fn_PA_to_Fabric_Addr (lev_1_pte_pa_w64);
-      fa_fabric_send_read_req (lev_1_pte_pa_w64_fa);
+      fa_fabric_send_read_req (lev_1_pte_pa_w64_fa, axsize_4);
 
       rg_pte_pa <= lev_1_pte_pa;
       rg_state  <= PTW_LEVEL_1;
@@ -1006,7 +1067,7 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
       PA           lev_2_pte_pa        = satp_pa + vpn_2_pa;
       PA           lev_2_pte_pa_w64    = { lev_2_pte_pa [pa_sz - 1 : 3], 3'b0 };    // 64b-aligned addr
       Fabric_Addr  lev_2_pte_pa_w64_fa = fn_PA_to_Fabric_Addr (lev_2_pte_pa_w64);
-      fa_fabric_send_read_req (lev_2_pte_pa_w64_fa);
+      fa_fabric_send_read_req (lev_2_pte_pa_w64_fa, axsize_8);
 
       rg_pte_pa <= lev_2_pte_pa;
       rg_state  <= PTW_LEVEL_2;
@@ -1015,7 +1076,7 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
    endrule
 
    // ----------------
-   // Receive Level 2 PTE and process it
+   // Receive Level 2 PTE and process it (Sv39 or Sv48 only)
 
 `ifdef SV39
    rule rl_ptw_level_2 (rg_state == PTW_LEVEL_2);
@@ -1024,17 +1085,11 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 
       Bit #(64) x64 = zeroExtend (mem_rsp.rdata);
       WordXL pte;
-`ifdef RV32    // TODO: we can't have RV32 inside ifdef SV39!
-      // PTE is lower or upper 32b word of 64b mem response
-      pte = x64 [31:0];
-      if ((valueOf (Wd_Data) == 64) && (rg_pte_pa [2] == 1'b1))
-	 pte = x64 [63:32];
-`else       // ifdef RV32
-      // PTE is 64b response
+
+      // PTE is 64b response (RV32 does not have Level 2 PTEs)
       // TODO: this is ok only when Wd_Data == 64
       // When Wd_Data == 32, have to do two transactions to get a PTE
       pte = mem_rsp.rdata;
-`endif      // ifndef RV32
 
       // Bus error
       if (mem_rsp.rresp != axi4_resp_okay) begin
@@ -1069,7 +1124,7 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 	 PA           lev_1_pte_pa        = lev_1_PTN_pa + vpn_1_pa;
 	 PA           lev_1_pte_pa_w64    = { lev_1_pte_pa [pa_sz - 1 : 3], 3'b0 };    // 64b-aligned addr
 	 Fabric_Addr  lev_1_pte_pa_w64_fa = fn_PA_to_Fabric_Addr (lev_1_pte_pa_w64);
-	 fa_fabric_send_read_req (lev_1_pte_pa_w64_fa);
+	 fa_fabric_send_read_req (lev_1_pte_pa_w64_fa, axsize_8);
 
 	 rg_pte_pa <= lev_1_pte_pa;
 	 rg_state  <= PTW_LEVEL_1;
@@ -1109,7 +1164,7 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 `endif      // ifdef SV39
 
    // ----------------
-   // Receive Level 1 PTE and process it
+   // Receive Level 1 PTE and process it (Sv32, Sv39 or Sv48)
 
    rule rl_ptw_level_1 (rg_state == PTW_LEVEL_1);
       // Memory read-response is a level 1 PTE
@@ -1162,7 +1217,12 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 	 PA           lev_0_pte_pa        = lev_0_PTN_pa + vpn_0_pa;
 	 PA           lev_0_pte_pa_w64    = { lev_0_pte_pa [pa_sz - 1 : 3], 3'b0 };    // 64b-aligned addr
 	 Fabric_Addr  lev_0_pte_pa_w64_fa = fn_PA_to_Fabric_Addr (lev_0_pte_pa_w64);
-	 fa_fabric_send_read_req (lev_0_pte_pa_w64_fa);
+`ifdef Sv32
+	 AXI4_Size    axi4_size           = axsize_4;
+`else
+	 AXI4_Size    axi4_size           = axsize_8;
+`endif
+	 fa_fabric_send_read_req (lev_0_pte_pa_w64_fa, axi4_size);
 
 	 rg_pte_pa <= lev_0_pte_pa;
 	 rg_state  <= PTW_LEVEL_0;
@@ -1284,7 +1344,8 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
       // Send request into fabric for first fabric-word of cache line
       PA             cline_addr        = fn_align_Addr_to_CLine (rg_pa);
       Fabric_Addr    cline_fabric_addr = fn_PA_to_Fabric_Addr (cline_addr);
-      fa_fabric_send_read_req (cline_fabric_addr);
+      AXI4_Size      axi4_size         = ((bytes_per_fabric_data == 4) ? axsize_4 : axsize_8);
+      fa_fabric_send_read_req (cline_fabric_addr, axi4_size);
 
       rg_requesting_cline  <= True;
       rg_req_byte_in_cline <= ((valueOf (Wd_Data) == 32) ? 4 : 8);
@@ -1330,15 +1391,14 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
       // Send request into fabric for next fabric-word of cache line
       PA          cline_addr        = fn_align_Addr_to_CLine (rg_pa);
       Fabric_Addr cline_fabric_addr = (fn_PA_to_Fabric_Addr (cline_addr) | rg_req_byte_in_cline);
-      fa_fabric_send_read_req (cline_fabric_addr);
+      AXI4_Size      axi4_size         = ((bytes_per_fabric_data == 4) ? axsize_4 : axsize_8);
+      fa_fabric_send_read_req (cline_fabric_addr, axi4_size);
 
       // Check if end of refill loop (req_byte_in_cline is last one)
-      Integer     bytes_per_fabric_word     = ((valueOf (Wd_Data) == 32) ? 4 : 8);
-      Fabric_Addr last_byte_offset_in_cline = fromInteger (bytes_per_cline - bytes_per_fabric_word);
+      Fabric_Addr last_byte_offset_in_cline = fromInteger (bytes_per_cline - bytes_per_fabric_data);
 
       rg_requesting_cline  <= (rg_req_byte_in_cline != last_byte_offset_in_cline);
-      rg_req_byte_in_cline <= rg_req_byte_in_cline + fromInteger (bytes_per_fabric_word);
-
+      rg_req_byte_in_cline <= rg_req_byte_in_cline + fromInteger (bytes_per_fabric_data);
    endrule
 
    // ----------------------------------------------------------------
@@ -1474,7 +1534,7 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 		   cur_cycle, d_or_i, rg_f3, rg_addr, rg_pa);
 
       Fabric_Addr fabric_addr = fn_PA_to_Fabric_Addr (rg_pa);
-      fa_fabric_send_read_req (fabric_addr);
+      fa_fabric_send_read_req (fabric_addr, fn_funct3_to_AXI4_Size (rg_f3));
 
 `ifdef ISA_A
       // Invalidate LR/SC reservation if AMO_LR
@@ -1676,7 +1736,7 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 		   cur_cycle, d_or_i, rg_f3, rg_addr, rg_pa);
 
       Fabric_Addr fabric_addr = fn_PA_to_Fabric_Addr (rg_pa);
-      fa_fabric_send_read_req (fabric_addr);
+      fa_fabric_send_read_req (fabric_addr, fn_funct3_to_AXI4_Size (rg_f3));
 
       rg_state <= IO_AWAITING_AMO_READ_RSP;
 
@@ -1695,8 +1755,7 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 	 $display ("    ", fshow (rd_data));
       end
 
-      let fabric_word = rd_data.rdata;
-      let ld_val      = zeroExtend (fabric_word);
+      let ld_val = fn_extract_and_extend_bytes(rg_f3, rg_addr, zeroExtend (rd_data.rdata));
 
       // Bus error for AMO read
       if (rd_data.rresp != axi4_resp_okay) begin
@@ -1902,49 +1961,6 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
    // Near-mem IO interface (nearby memory-mapped locations like timer, core configs, ...)
    interface  near_mem_io_client = toGPClient (f_near_mem_io_reqs, f_near_mem_io_rsps);
 endmodule: mkMMU_Cache
-
-// ================================================================
-// ALU for AMO ops.
-// Returns the value to be stored back to mem.
-
-`ifdef ISA_A
-function Tuple2 #(Bit #(64),
-		  Bit #(64)) fn_amo_op (Bit #(3)   funct3,    // encodes data size (.W or .D)
-					Bit #(7)   funct7,    // encodes the AMO op
-					WordXL     addr,      // lsbs indicate which 32b W in 64b D (.W)
-					Bit #(64)  ld_val,    // 64b value loaded from mem
-					Bit #(64)  st_val);   // 64b value from CPU reg Rs2
-   Bit #(64) w1     = fn_extract_and_extend_bytes (funct3, addr, ld_val);
-   Bit #(64) w2     = st_val;
-   Int #(64) i1     = unpack (w1);    // Signed, for signed ops
-   Int #(64) i2     = unpack (w2);    // Signed, for signed ops
-   if (funct3 == f3_AMO_W) begin
-      w1 = zeroExtend (w1 [31:0]);
-      w2 = zeroExtend (w2 [31:0]);
-      i1 = unpack (signExtend (w1 [31:0]));
-      i2 = unpack (signExtend (w2 [31:0]));
-   end
-   Bit #(5)  f5     = funct7 [6:2];
-   // new_st_val is new value to be stored back to mem (w1 op w2)
-   Bit #(64) new_st_val = ?;
-   case (f5)
-      f5_AMO_SWAP: new_st_val = w2;
-      f5_AMO_ADD:  new_st_val = pack (i1 + i2);
-      f5_AMO_XOR:  new_st_val = w1 ^ w2;
-      f5_AMO_AND:  new_st_val = w1 & w2;
-      f5_AMO_OR:   new_st_val = w1 | w2;
-      f5_AMO_MINU: new_st_val = ((w1 < w2) ? w1 : w2);
-      f5_AMO_MAXU: new_st_val = ((w1 > w2) ? w1 : w2);
-      f5_AMO_MIN:  new_st_val = ((i1 < i2) ? w1 : w2);
-      f5_AMO_MAX:  new_st_val = ((i1 > i2) ? w1 : w2);
-   endcase
-
-   if (funct3 == f3_AMO_W)
-      new_st_val = zeroExtend (new_st_val [31:0]);
-
-   return tuple2 (truncate (pack (i1)), new_st_val);
-endfunction: fn_amo_op
-`endif
 
 // ================================================================
 

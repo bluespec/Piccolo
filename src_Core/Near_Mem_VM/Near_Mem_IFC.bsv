@@ -247,14 +247,10 @@ function Bit #(64) fn_extend_bytes (Bit #(3) f3, Bit #(64) word64);
 endfunction
 
 // ================================================================
+// Convert width of an address from PA to Fabric_Addr
 
 function Fabric_Addr fn_PA_to_Fabric_Addr (PA pa);
-   // Align pa to fabric-address-alignment (based on width of fabric data bus)
-   PA  fabric_addr_align_mask = ('1 << zlsbs_aligned_fabric_addr);
-   PA  pa_aligned             = (pa & fabric_addr_align_mask);
-
-   // Convert width from PA to Fabric_Addr
-   Bit #(TAdd #(Wd_Addr, PA_sz)) fa = zeroExtend (pa_aligned);
+   Bit #(TAdd #(Wd_Addr, PA_sz)) fa = zeroExtend (pa);
    Integer hi = valueOf (Wd_Addr) - 1;
    return fa [hi:0];
 endfunction
