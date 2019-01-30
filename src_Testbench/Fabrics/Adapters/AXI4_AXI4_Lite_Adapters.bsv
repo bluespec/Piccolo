@@ -70,7 +70,7 @@ function AXI4_Master_IFC #(wd_id, wd_addr, wd_data, wd_user)
       method Bit #(8)       m_awlen    = 0;                       // burst length = awlen+1
       method Bit #(3)       m_awsize   = wd_data_to_axsize (valueOf (wd_data));
       method Bit #(2)       m_awburst  = 2'b_00;                  // FIXED
-      method Bit #(1)       m_awlock   = 0;                       // NORMAL
+      method Bit #(2)       m_awlock   = 0;                       // NORMAL
       method Bit #(4)       m_awcache  = 4'b_0000;                // Device Non-Bufferable
       method Bit #(3)       m_awprot   = axi4_lite.m_awprot;
       method Bit #(4)       m_awqos    = 4'b_0000;
@@ -85,6 +85,7 @@ function AXI4_Master_IFC #(wd_id, wd_addr, wd_data, wd_user)
       // output buses
       method Bool                      m_wvalid = axi4_lite.m_wvalid;
 
+      method Bit #(wd_id)              m_wid    = 0;
       method Bit #(wd_data)            m_wdata  = axi4_lite.m_wdata;
       method Bit #(TDiv #(wd_data, 8)) m_wstrb  = axi4_lite.m_wstrb;
       method Bool                      m_wlast  = True;
@@ -116,7 +117,7 @@ function AXI4_Master_IFC #(wd_id, wd_addr, wd_data, wd_user)
       method Bit #(8)        m_arlen    = 0;                       // burst length = awlen+1
       method Bit #(3)        m_arsize   = wd_data_to_axsize (valueOf (wd_data));
       method Bit #(2)        m_arburst  = 2'b_00;                  // FIXED
-      method Bit #(1)        m_arlock   = 0;                       // NORMAL
+      method Bit #(2)        m_arlock   = 0;                       // NORMAL
       method Bit #(4)        m_arcache  = 4'b_0000;                // Device Non-Bufferable
       method Bit #(3)        m_arprot   = axi4_lite.m_arprot;
       method Bit #(4)        m_arqos    = 4'b_0000;
