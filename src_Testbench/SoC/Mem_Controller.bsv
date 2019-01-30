@@ -71,9 +71,9 @@ import ByteLane   :: *;
 // ================================================================
 // Project imports
 
-import Fabric_Defs     :: *;
-import SoC_Map         :: *;
-import AXI4_Lite_Types :: *;
+import Fabric_Defs :: *;
+import SoC_Map     :: *;
+import AXI4_Types  :: *;
 
 // ================================================================
 // Raw mem data width:    256 (bits/ 32 x Byte/ 8 x Word32/ 4 x Word64)
@@ -169,7 +169,7 @@ interface Mem_Controller_IFC;
    method Action set_addr_map (Fabric_Addr addr_base, Fabric_Addr addr_lim);
 
    // Main Fabric Reqs/Rsps
-   interface AXI4_Lite_Slave_IFC #(Wd_Addr, Wd_Data, Wd_User) slave;
+   interface AXI4_Slave_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User) slave;
 
    // To raw memory (outside the SoC)
    interface MemoryClient #(Bits_per_Raw_Mem_Addr, Bits_per_Raw_Mem_Word)  to_raw_mem;
@@ -179,7 +179,7 @@ interface Mem_Controller_IFC;
 endinterface
 
 // ================================================================
-// AXI4 Lite has independent read and write channels and does not specify
+// AXI4 has independent read and write channels and does not specify
 // which one should be prioritized if requests are available on both
 // channels.  We merge them into a single queue.
 
@@ -187,12 +187,23 @@ typedef enum { REQ_OP_RD, REQ_OP_WR } Req_Op
 deriving (Bits, Eq, FShow);
 
 typedef struct {Req_Op                     req_op;
+
+		// AW and AR channel info
+		Fabric_Id                  id;
 		Fabric_Addr                addr;
-		Bit #(3)                   prot;
+		AXI4_Len                   len;
+		AXI4_Size                  size;
+		AXI4_Burst                 burst;
+		AXI4_Lock                  lock;
+		AXI4_Cache                 cache;
+		AXI4_Prot                  prot;
+		AXI4_QoS                   qos;
+		AXI4_Region                region;
 		Bit #(Wd_User)             user;
 
-		Bit #(TDiv #(Wd_Data, 8))  wstrb;    // For writes
-		Fabric_Data                data;     // For writes
+		// Write data info
+		Bit #(TDiv #(Wd_Data, 8))  wstrb;
+		Fabric_Data                data;
    } Req
 deriving (Bits, FShow);
 
@@ -215,14 +226,16 @@ module mkMem_Controller (Mem_Controller_IFC);
    FIFOF #(Bit #(0)) f_reset_rsps <- mkFIFOF;
 
    // Communication with fabric
-   AXI4_Lite_Slave_Xactor_IFC #(Wd_Addr, Wd_Data, Wd_User) slave_xactor <- mkAXI4_Lite_Slave_Xactor;
+   AXI4_Slave_Xactor_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User) slave_xactor <- mkAXI4_Slave_Xactor;
 
    // Requests merged from the (WrA, WrD) and RdA channels
    FIFOF #(Req) f_reqs <- mkPipelineFIFOF;
 
    // FIFOFs for requests/responses to raw memory
-   FIFOF #(MemoryRequest  #(Bits_per_Raw_Mem_Addr, Bits_per_Raw_Mem_Word)) f_raw_mem_reqs <- mkPipelineFIFOF;
-   FIFOF #(MemoryResponse #(Bits_per_Raw_Mem_Word))                        f_raw_mem_rsps <- mkPipelineFIFOF;
+   FIFOF #(MemoryRequest  #(Bits_per_Raw_Mem_Addr, Bits_per_Raw_Mem_Word))
+       f_raw_mem_reqs <- mkPipelineFIFOF;
+   FIFOF #(MemoryResponse #(Bits_per_Raw_Mem_Word))
+       f_raw_mem_rsps <- mkPipelineFIFOF;
 
    // We maintain a 1-raw_mem_word cache
    Reg #(Bool)          rg_cached_clean        <- mkRegU;
@@ -285,8 +298,16 @@ module mkMem_Controller (Mem_Controller_IFC);
    rule rl_merge_rd_req;
       let rda <- pop_o (slave_xactor.o_rd_addr);
       let req = Req {req_op:     REQ_OP_RD,
+		     id:         rda.arid,
 		     addr:       rda.araddr,
+		     len:        rda.arlen,
+		     size:       rda.arsize,
+		     burst:      rda.arburst,
+		     lock:       rda.arlock,
+		     cache:      rda.arcache,
 		     prot:       rda.arprot,
+		     qos:        rda.arqos,
+		     region:     rda.arregion,
 		     user:       rda.aruser,
 		     wstrb:      ?,
 		     data:       ?};
@@ -303,8 +324,16 @@ module mkMem_Controller (Mem_Controller_IFC);
       let wra <- pop_o (slave_xactor.o_wr_addr);
       let wrd <- pop_o (slave_xactor.o_wr_data);
       let req = Req {req_op:     REQ_OP_WR,
+		     id:         wra.awid,
 		     addr:       wra.awaddr,
+		     len:        wra.awlen,
+		     size:       wra.awsize,
+		     burst:      wra.awburst,
+		     lock:       wra.awlock,
+		     cache:      wra.awcache,
 		     prot:       wra.awprot,
+		     qos:        wra.awqos,
+		     region:     wra.awregion,
 		     user:       wra.awuser,
 		     wstrb:      wrd.wstrb,
 		     data:       wrd.wdata};
@@ -422,7 +451,11 @@ module mkMem_Controller (Mem_Controller_IFC);
       // Extract the response data
       Bit #(Wd_Data) rdata = truncate (pack (raw_mem_word_V_Word32));
 
-      let rdr = AXI4_Lite_Rd_Data {rresp: AXI4_LITE_OKAY,  rdata: rdata,  ruser: f_reqs.first.user};
+      let rdr = AXI4_Rd_Data {rid:   f_reqs.first.id,
+			      rdata: rdata,
+			      rresp: axi4_resp_okay,
+			      rlast: True,
+			      ruser: f_reqs.first.user};
       slave_xactor.i_rd_data.enq (rdr);
       f_reqs.deq;
 
@@ -462,7 +495,9 @@ module mkMem_Controller (Mem_Controller_IFC);
       rg_cached_raw_mem_word <= pack (raw_mem_word_V_Word64);
       rg_cached_clean        <= False;
 
-      let wrr = AXI4_Lite_Wr_Resp {bresp: AXI4_LITE_OKAY, buser: f_reqs.first.user};
+      let wrr = AXI4_Wr_Resp {bid:   f_reqs.first.id,
+			      bresp: axi4_resp_okay,
+			      buser: f_reqs.first.user};
       slave_xactor.i_wr_resp.enq (wrr);
       f_reqs.deq;
 
@@ -528,9 +563,11 @@ module mkMem_Controller (Mem_Controller_IFC);
 			       && (! fn_addr_is_ok (rg_addr_base, f_reqs.first.addr, rg_addr_lim))
 			       && (f_reqs.first.req_op == REQ_OP_RD));
       Fabric_Data rdata = zeroExtend (f_reqs.first.addr);
-      let rdr = AXI4_Lite_Rd_Data {rresp: AXI4_LITE_SLVERR,
-				   rdata: rdata,                 // for debugging only
-				   ruser: f_reqs.first.user};
+      let rdr = AXI4_Rd_Data {rid:   f_reqs.first.id,
+			      rdata: rdata,                 // for debugging only
+			      rresp: axi4_resp_slverr,
+			      rlast: True,
+			      ruser: f_reqs.first.user};
       slave_xactor.i_rd_data.enq (rdr);
       f_reqs.deq;
 
@@ -547,7 +584,9 @@ module mkMem_Controller (Mem_Controller_IFC);
    rule rl_invalid_wr_address (   (rg_state == STATE_READY)
 			       && (! fn_addr_is_ok (rg_addr_base, f_reqs.first.addr, rg_addr_lim))
 			       && (f_reqs.first.req_op == REQ_OP_WR));
-      let wrr = AXI4_Lite_Wr_Resp {bresp: AXI4_LITE_SLVERR, buser: f_reqs.first.user};
+      let wrr = AXI4_Wr_Resp {bid:   f_reqs.first.id,
+			      bresp: axi4_resp_slverr,
+			      buser: f_reqs.first.user};
       slave_xactor.i_wr_resp.enq (wrr);
       f_reqs.deq;
 

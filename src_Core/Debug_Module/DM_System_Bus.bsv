@@ -22,8 +22,8 @@ import Semi_FIFOF :: *;
 import ISA_Decls :: *;
 import DM_Common :: *;
 
-import Fabric_Defs     :: *;
-import AXI4_Lite_Types :: *;
+import AXI4_Types  :: *;
+import Fabric_Defs :: *;
 
 // ================================================================
 // Interface
@@ -38,13 +38,8 @@ interface DM_System_Bus_IFC;
 
    // ----------------
    // Facing System
-   interface AXI4_Lite_Master_IFC #(Wd_Addr, Wd_Data, Wd_User) master;
+   interface AXI4_Master_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User) master;
 endinterface
-
-// ================================================================
-// AXI4-Lite 'user' field
-
-Bit #(Wd_User) dummy_user = ?;
 
 // ================================================================
 
@@ -76,7 +71,7 @@ module mkDM_System_Bus (DM_System_Bus_IFC);
    // ----------------------------------------------------------------
 
    // TRX interface to memory
-   AXI4_Lite_Master_Xactor_IFC #(Wd_Addr, Wd_Data, Wd_User) master_xactor <- mkAXI4_Lite_Master_Xactor_2;
+   AXI4_Master_Xactor_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User) master_xactor <- mkAXI4_Master_Xactor_2;
 
    // ----------------------------------------------------------------
    // System Bus Read Engine state
@@ -212,9 +207,17 @@ module mkDM_System_Bus (DM_System_Bus_IFC);
 	       rg_sb_state <= SB_READ_FINISH_L32;
 `endif
 	       Fabric_Addr fabric_addr = truncate (addr64);
-	       let rda = AXI4_Lite_Rd_Addr {araddr: fabric_addr,
-					    arprot: 0,
-					    aruser: dummy_user};
+	       let rda = AXI4_Rd_Addr {arid:     fabric_default_id,
+				       araddr:   fabric_addr,
+				       arlen:    1,
+				       arsize:   6,    // 64b (= 2^6)
+				       arburst:  fabric_default_burst,
+				       arlock:   fabric_default_lock,
+				       arcache:  fabric_default_arcache,
+				       arprot:   fabric_default_prot,
+				       arqos:    fabric_default_qos,
+				       arregion: fabric_default_region,
+				       aruser:   fabric_default_user};
 	       master_xactor.i_rd_addr.enq (rda);
 	       if (verbosity != 0) begin
 		  $display ("DM_System_Bus.sbdata_read: autoread: Initiating read");
@@ -258,20 +261,34 @@ module mkDM_System_Bus (DM_System_Bus_IFC);
 	    Bit #(64) addr64 = fn_align_addr_to_32_bit ({ sbaddress1, rg_sbaddress0 });
 `endif
 	    Fabric_Addr fabric_addr = truncate (addr64);
-	    let wra = AXI4_Lite_Wr_Addr {awaddr: fabric_addr,
-					 awprot: 0,
-					 awuser: dummy_user};
+	    let wra = AXI4_Wr_Addr {awid:     fabric_default_id,
+				    awaddr:   fabric_addr,
+				    awlen:    1,
+				    awsize:   6,    // 64b (2^6)
+				    awburst:  fabric_default_burst,
+				    awlock:   fabric_default_lock,
+				    awcache:  fabric_default_awcache,
+				    awprot:   fabric_default_prot,
+				    awqos:    fabric_default_qos,
+				    awregion: fabric_default_region,
+				    awuser:   fabric_default_user};
 	    master_xactor.i_wr_addr.enq (wra);
 
 `ifdef FABRIC64
 	    // Using only half the lanes of a 64-bit system bus. Duplicate the
 	    // word across lanes and select between upper and lowere lanes based
 	    // on fabric_addr [2]
-	    let wrd = AXI4_Lite_Wr_Data {wdata: {dm_word, dm_word},
-					 wstrb: (rg_sbaddress0 [2] == 1'b1) ? 'hf0 : 'h0f};   
+	    let wrd = AXI4_Wr_Data {wid:   fabric_default_id,
+				    wdata: {dm_word, dm_word},
+				    wstrb: ((rg_sbaddress0 [2] == 1'b1) ? 'hf0 : 'h0f),
+				    wlast: True,
+				    wuser: fabric_default_user};
 `else
-	    let wrd = AXI4_Lite_Wr_Data {wdata: dm_word,
-					 wstrb: '1};
+	    let wrd = AXI4_Wr_Data {wid:   fabric_default_id,
+				    wdata: dm_word,
+				    wstrb: '1
+				    wlast: True,
+				    wuser: fabric_default_user};
 `endif
 	    master_xactor.i_wr_data.enq (wrd);
 
@@ -299,7 +316,7 @@ module mkDM_System_Bus (DM_System_Bus_IFC);
       Bit #(64) data64 = zeroExtend (rdr.rdata);
       DM_Word rdata = ((rg_sb_state == SB_READ_FINISH_L32) ? data64 [31:0] : data64 [63:32]);
 
-      if (rdr.rresp != AXI4_LITE_OKAY)
+      if (rdr.rresp != axi4_resp_okay)
 	 rg_sbcs_sberror <= DM_SBERROR_OTHER;
 
       rg_sbdata0      <= rdata;
@@ -355,7 +372,7 @@ module mkDM_System_Bus (DM_System_Bus_IFC);
 
    rule rl_sb_write_response;
       let wrr <- pop_o (master_xactor.o_wr_resp);
-      if (wrr.bresp != AXI4_LITE_OKAY)
+      if (wrr.bresp != axi4_resp_okay)
 	 rg_sbcs_sberror <= DM_SBERROR_OTHER;
    endrule
 
@@ -447,9 +464,17 @@ module mkDM_System_Bus (DM_System_Bus_IFC);
 	       rg_sb_state <= SB_READ_FINISH_L32;
 `endif
 	       Fabric_Addr fabric_addr = truncate (addr64);
-	       let rda = AXI4_Lite_Rd_Addr {araddr: fabric_addr,
-					    arprot: 0,
-					    aruser: dummy_user};
+	       let rda = AXI4_Rd_Addr {arid:     fabric_default_id,
+				       araddr:   fabric_addr,
+				       arlen:    1,
+				       arsize:   6,    // 64b (= 2^6)
+				       arburst:  fabric_default_burst,
+				       arlock:   fabric_default_lock,
+				       arcache:  fabric_default_arcache,
+				       arprot:   fabric_default_prot,
+				       arqos:    fabric_default_qos,
+				       arregion: fabric_default_region,
+				       aruser:   fabric_default_user};
 	       master_xactor.i_rd_addr.enq (rda);
 	       if (verbosity != 0) begin
 		  $display ("DM_System_Bus.sbcs_write: Initiating singleread");
@@ -481,7 +506,7 @@ module mkDM_System_Bus (DM_System_Bus_IFC);
 
    // ----------------
    // Facing System
-   interface AXI4_Lite_Master_IFC master = master_xactor.axi_side;
+   interface AXI4_Master_IFC master = master_xactor.axi_side;
 endmodule
 
 // ================================================================

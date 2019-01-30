@@ -32,6 +32,93 @@ import EdgeFIFOFs :: *;
 // ****************************************************************
 
 // ================================================================
+// Fixed-width AXI4 buses
+
+typedef Bit #(8)  AXI4_Len;
+
+// AxSIZE
+typedef Bit #(3)  AXI4_Size;
+
+AXI4_Size  axsize_1   = 3'b_000;
+AXI4_Size  axsize_2   = 3'b_001;
+AXI4_Size  axsize_4   = 3'b_001;
+AXI4_Size  axsize_8   = 3'b_001;
+AXI4_Size  axsize_16  = 3'b_100;
+AXI4_Size  axsize_32  = 3'b_101;
+AXI4_Size  axsize_64  = 3'b_110;
+AXI4_Size  axsize_128 = 3'b_111;
+
+// AxBURST
+typedef Bit #(2)  AXI4_Burst;
+
+AXI4_Burst  axburst_fixed = 2'b_00;
+AXI4_Burst  axburst_incr  = 2'b_01;
+AXI4_Burst  axburst_wrap  = 2'b_10;
+
+// AxLOCK
+typedef Bit #(1)  AXI4_Lock;
+
+AXI4_Lock  axlock_normal    = 1'b_0;
+AXI4_Lock  axlock_exclusive = 1'b_1;
+
+// ARCACHE
+typedef Bit #(4)  AXI4_Cache;
+
+AXI4_Cache  arcache_dev_nonbuf           = 'b_0000;
+AXI4_Cache  arcache_dev_buf              = 'b_0001;
+
+AXI4_Cache  arcache_norm_noncache_nonbuf = 'b_0010;
+AXI4_Cache  arcache_norm_noncache_buf    = 'b_0011;
+
+AXI4_Cache  arcache_wthru_no_alloc       = 'b_1010;
+AXI4_Cache  arcache_wthru_r_alloc        = 'b_1110;
+AXI4_Cache  arcache_wthru_w_alloc        = 'b_1010;
+AXI4_Cache  arcache_wthru_r_w_alloc      = 'b_1110;
+
+AXI4_Cache  arcache_wback_no_alloc       = 'b_1011;
+AXI4_Cache  arcache_wback_r_alloc        = 'b_1111;
+AXI4_Cache  arcache_wback_w_alloc        = 'b_1011;
+AXI4_Cache  arcache_wback_r_w_alloc      = 'b_1111;
+
+// AWCACHE
+AXI4_Cache  awcache_dev_nonbuf           = 'b_0000;
+AXI4_Cache  awcache_dev_buf              = 'b_0001;
+
+AXI4_Cache  awcache_norm_noncache_nonbuf = 'b_0010;
+AXI4_Cache  awcache_norm_noncache_buf    = 'b_0011;
+
+AXI4_Cache  awcache_wthru_no_alloc       = 'b_0110;
+AXI4_Cache  awcache_wthru_r_alloc        = 'b_0110;
+AXI4_Cache  awcache_wthru_w_alloc        = 'b_1110;
+AXI4_Cache  awcache_wthru_r_w_alloc      = 'b_1110;
+
+AXI4_Cache  awcache_wback_no_alloc       = 'b_0111;
+AXI4_Cache  awcache_wback_r_alloc        = 'b_0111;
+AXI4_Cache  awcache_wback_w_alloc        = 'b_1111;
+AXI4_Cache  awcache_wback_r_w_alloc      = 'b_1111;
+
+// PROT
+typedef Bit #(3)  AXI4_Prot;
+
+Bit #(1)  axprot_0_unpriv     = 0;    Bit #(1) axprot_0_priv       = 1;
+Bit #(1)  axprot_1_secure     = 0;    Bit #(1) axprot_1_non_secure = 1;
+Bit #(1)  axprot_2_data       = 0;    Bit #(1) axprot_2_instr      = 1;
+
+// QoS
+typedef Bit #(4)  AXI4_QoS;
+
+// REGION
+typedef Bit #(4)  AXI4_Region;
+
+// RESP
+typedef Bit #(2)  AXI4_Resp;
+
+AXI4_Resp  axi4_resp_okay   = 2'b_00;
+AXI4_Resp  axi4_resp_exokay = 2'b_01;
+AXI4_Resp  axi4_resp_slverr = 2'b_10;
+AXI4_Resp  axi4_resp_decerr = 2'b_11;
+
+// ================================================================
 // These are the signal-level interfaces for an AXI4 master.
 // The (*..*) attributes ensure that when bsc compiles this to Verilog,
 // we get exactly the signals specified in the ARM spec.
@@ -144,20 +231,20 @@ interface AXI4_Slave_IFC #(numeric type wd_id,
 
    // Wr Data channel
    (* always_ready, always_enabled, prefix = "" *)
-   method Action m_wvalid ((* port="wvalid" *) Bool                     wvalid,    // in
-			   (* port="wid" *)    Bit #(wd_id)             wid,       // in
-			   (* port="wdata" *)  Bit #(wd_data)           wdata,     // in
-			   (* port="wstrb" *)  Bit #(TDiv #(wd_data,8)) wstrb,     // in
-			   (* port="wlast" *)  Bool                     wlast,     // in
-			   (* port="wuser" *)  Bit #(wd_user)           wuser);    // in
+   method Action m_wvalid ((* port="wvalid" *) Bool                      wvalid,    // in
+			   (* port="wid" *)    Bit #(wd_id)              wid,       // in
+			   (* port="wdata" *)  Bit #(wd_data)            wdata,     // in
+			   (* port="wstrb" *)  Bit #(TDiv #(wd_data,8))  wstrb,     // in
+			   (* port="wlast" *)  Bool                      wlast,     // in
+			   (* port="wuser" *)  Bit #(wd_user)            wuser);    // in
    (* always_ready, result="wready" *)
    method Bool m_wready;                                                           // out
 
    // Wr Response channel
-   (* always_ready, result="bvalid" *)  method Bool           m_bvalid;    // out
-   (* always_ready, result="bid" *)     method Bit #(wd_id)   m_bid;       // out
-   (* always_ready, result="bresp" *)   method Bit #(2)       m_bresp;     // out
-   (* always_ready, result="buser" *)   method Bit #(wd_user) m_buser;     // out
+   (* always_ready, result="bvalid" *)  method Bool            m_bvalid;    // out
+   (* always_ready, result="bid" *)     method Bit #(wd_id)    m_bid;       // out
+   (* always_ready, result="bresp" *)   method Bit #(2)        m_bresp;     // out
+   (* always_ready, result="buser" *)   method Bit #(wd_user)  m_buser;     // out
    (* always_ready, always_enabled, prefix="" *)
    method Action m_bready  ((* port="bready" *)   Bool bready);            // in
 
@@ -297,10 +384,10 @@ AXI4_Master_IFC #(wd_id, wd_addr, wd_data, wd_user)
 			       method Action m_wready (Bool wready) = noAction;        // in
 
 			       // Wr Response channel
-			       method Action m_bvalid (Bool           bvalid,    // in
-						       Bit #(wd_id)   bid,       // in
-						       Bit #(2)       bresp,     // in
-						       Bit #(wd_user) buser);    // in
+			       method Action m_bvalid (Bool            bvalid,    // in
+						       Bit #(wd_id)    bid,       // in
+						       Bit #(2)        bresp,     // in
+						       Bit #(wd_user)  buser);    // in
 				  noAction;
 			       endmethod
 			       method Bool m_bready = False;                     // out
@@ -321,12 +408,12 @@ AXI4_Master_IFC #(wd_id, wd_addr, wd_data, wd_user)
 			       method Action m_arready (Bool arready) = noAction;     // in
 
 			       // Rd Data channel
-			       method Action m_rvalid (Bool           rvalid,    // in
-						       Bit #(wd_id)   rid,       // in
-						       Bit #(wd_data) rdata,     // in
-						       Bit #(2)       rresp,     // in
-						       Bool           rlast,     // in
-						       Bit #(wd_user) ruser);    // in
+			       method Action m_rvalid (Bool            rvalid,    // in
+						       Bit #(wd_id)    rid,       // in
+						       Bit #(wd_data)  rdata,     // in
+						       Bit #(2)        rresp,     // in
+						       Bool            rlast,     // in
+						       Bit #(wd_user)  ruser);    // in
 				  noAction;
 			       endmethod
 			       method Bool m_rready = False;                     // out
@@ -481,71 +568,6 @@ endfunction
 
 // ================================================================
 // Higher-level types for payloads (rather than just bits)
-
-// AxSIZE
-Bit #(3) axsize_1   = 3'b_000;
-Bit #(3) axsize_2   = 3'b_001;
-Bit #(3) axsize_4   = 3'b_001;
-Bit #(3) axsize_8   = 3'b_001;
-Bit #(3) axsize_16  = 3'b_100;
-Bit #(3) axsize_32  = 3'b_101;
-Bit #(3) axsize_64  = 3'b_110;
-Bit #(3) axsize_128 = 3'b_111;
-
-// AxBURST
-Bit #(2) axburst_fixed = 2'b_00;
-Bit #(2) axburst_incr  = 2'b_01;
-Bit #(2) axburst_wrap  = 2'b_10;
-
-// AxLOCK
-Bit #(1) axlock_normal    = 1'b_0;
-Bit #(1) axlock_exclusive = 1'b_1;
-
-// ARCACHE
-Bit #(4) arcache_dev_nonbuf           = 'b_0000;
-Bit #(4) arcache_dev_buf              = 'b_0001;
-
-Bit #(4) arcache_norm_noncache_nonbuf = 'b_0010;
-Bit #(4) arcache_norm_noncache_buf    = 'b_0011;
-
-Bit #(4) arcache_wthru_no_alloc       = 'b_1010;
-Bit #(4) arcache_wthru_r_alloc        = 'b_1110;
-Bit #(4) arcache_wthru_w_alloc        = 'b_1010;
-Bit #(4) arcache_wthru_r_w_alloc      = 'b_1110;
-
-Bit #(4) arcache_wback_no_alloc       = 'b_1011;
-Bit #(4) arcache_wback_r_alloc        = 'b_1111;
-Bit #(4) arcache_wback_w_alloc        = 'b_1011;
-Bit #(4) arcache_wback_r_w_alloc      = 'b_1111;
-
-// AWCACHE
-Bit #(4) awcache_dev_nonbuf           = 'b_0000;
-Bit #(4) awcache_dev_buf              = 'b_0001;
-
-Bit #(4) awcache_norm_noncache_nonbuf = 'b_0010;
-Bit #(4) awcache_norm_noncache_buf    = 'b_0011;
-
-Bit #(4) awcache_wthru_no_alloc       = 'b_0110;
-Bit #(4) awcache_wthru_r_alloc        = 'b_0110;
-Bit #(4) awcache_wthru_w_alloc        = 'b_1110;
-Bit #(4) awcache_wthru_r_w_alloc      = 'b_1110;
-
-Bit #(4) awcache_wback_no_alloc       = 'b_0111;
-Bit #(4) awcache_wback_r_alloc        = 'b_0111;
-Bit #(4) awcache_wback_w_alloc        = 'b_1111;
-Bit #(4) awcache_wback_r_w_alloc      = 'b_1111;
-
-// PROT
-Bit #(1) axport_0_unpriv     = 0;    Bit #(1) axport_0_priv       = 1;
-Bit #(1) axport_0_secure     = 0;    Bit #(1) axport_0_non_secure = 1;
-Bit #(1) axport_0_data       = 0;    Bit #(1) axport_0_instr      = 1;
-
-// xRESP
-
-Bit #(2) axi4_resp_okay   = 2'b_00;
-Bit #(2) axi4_resp_exokay = 2'b_01;
-Bit #(2) axi4_resp_slverr = 2'b_10;
-Bit #(2) axi4_resp_decerr = 2'b_11;
 
 // Write Address channel
 

@@ -70,7 +70,6 @@ import CreditCounter :: *;
 // ================================================================
 // Project imports
 
-import Fabric_Defs  :: *;
 import ISA_Decls    :: *;
 import Near_Mem_IFC :: *;
 
@@ -84,10 +83,11 @@ import Cache_Decls_RV32 :: *;
 import Cache_Decls_RV64 :: *;
 `endif
 
-import SoC_Map         :: *;
-import AXI4_Lite_Types :: *;
+import SoC_Map      :: *;
+import AXI4_Types   :: *;
+import Fabric_Defs  :: *;
 
-import Near_Mem_IO     :: *;    // For Near_Mem_IO_Req/Rsp types
+import Near_Mem_IO  :: *;    // For Near_Mem_IO_Req/Rsp types
 
 // ================================================================
 
@@ -132,7 +132,7 @@ interface MMU_Cache_IFC;
    method Action tlb_flush;
 
    // Fabric master interface
-   interface AXI4_Lite_Master_IFC #(Wd_Addr, Wd_Data, Wd_User) mem_master;
+   interface AXI4_Master_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User) mem_master;
 
    // Near-mem IO interface (nearby memory-mapped locations like timer, core configs, ...)
    interface Client #(Near_Mem_IO_Req, Near_Mem_IO_Rsp) near_mem_io_client;
@@ -186,7 +186,7 @@ Bool bram_cmd_write = True;
 typedef enum {REQUESTOR_RESET_IFC, REQUESTOR_FLUSH_IFC} Requestor
 deriving (Bits, Eq, FShow);
 
-Bit #(Wd_User) dummy_user = ?;    // For AXI4-Lite 'user' field (here unused)
+Bit #(Wd_User) dummy_user = ?;    // For AXI4 'user' field (here unused)
 
 `ifndef ISA_PRIV_S
 
@@ -382,7 +382,7 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
    FIFOF #(Requestor) f_reset_rsps <- mkFIFOF;
 
    // Fabric request/response
-   AXI4_Lite_Master_Xactor_IFC #(Wd_Addr, Wd_Data, Wd_User) master_xactor <- mkAXI4_Lite_Master_Xactor_2;
+   AXI4_Master_Xactor_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User) master_xactor <- mkAXI4_Master_Xactor_2;
 
    FIFOF #(Near_Mem_IO_Req) f_near_mem_io_reqs <- mkFIFOF;
    FIFOF #(Near_Mem_IO_Rsp) f_near_mem_io_rsps <- mkFIFOF;
@@ -598,6 +598,65 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 	 dw_output_ld_val <= ld_val;
 	 if (cfg_verbosity > 1)
 	    $display ("%0d: %s.drive_IO_read_rsp: addr 0x%0h ld_val 0x%0h", cur_cycle, d_or_i, addr, ld_val);
+      endaction
+   endfunction
+
+   // Send a read-request into the fabric
+   function Action fa_fabric_send_read_req (Fabric_Addr  addr);
+      action
+	 let mem_req_rd_addr = AXI4_Rd_Addr {arid:     fabric_default_id,
+					     araddr:   addr,
+					     arlen:    1,
+					     arsize:   6,    // 64b TODO: CHANGE TO ACTUAL SIZE OF REQ
+					     arburst:  fabric_default_burst,
+					     arlock:   fabric_default_lock,
+					     arcache:  fabric_default_arcache,
+					     arprot:   fabric_default_prot,
+					     arqos:    fabric_default_qos,
+					     arregion: fabric_default_region,
+					     aruser:   fabric_default_user};
+
+	 master_xactor.i_rd_addr.enq (mem_req_rd_addr);
+
+	 // Debugging
+	 if (cfg_verbosity > 1) begin
+	    $display ("            To fabric: ", fshow (mem_req_rd_addr));
+	 end
+      endaction
+   endfunction
+
+   // Send a write-request into the fabric
+   function Action fa_fabric_send_write_req (Fabric_Addr  addr, Fabric_Data  data, Fabric_Strb  strb);
+      action
+	 let mem_req_wr_addr = AXI4_Wr_Addr {awid:     fabric_default_id,
+					     awaddr:   addr,
+					     awlen:    1,
+					     awsize:   6,    // 64b TODO: CHANGE TO ACTUAL SIZE OF REQ
+					     awburst:  fabric_default_burst,
+					     awlock:   fabric_default_lock,
+					     awcache:  fabric_default_awcache,
+					     awprot:   fabric_default_prot,
+					     awqos:    fabric_default_qos,
+					     awregion: fabric_default_region,
+					     awuser:   fabric_default_user};
+
+	 let mem_req_wr_data = AXI4_Wr_Data {wid:    fabric_default_id,
+					     wdata:  data,
+					     wstrb:  strb,
+					     wlast:  True,
+					     wuser:  fabric_default_user};
+
+	 master_xactor.i_wr_addr.enq (mem_req_wr_addr);
+	 master_xactor.i_wr_data.enq (mem_req_wr_data);
+
+	 // Expect a fabric response
+	 ctr_wr_rsps_pending.incr;
+
+	 // Debugging
+	 if (cfg_verbosity > 1) begin
+	    $display ("            To fabric: ", fshow (mem_req_wr_addr));
+	    $display ("                       ", fshow (mem_req_wr_data));
+	 end
       endaction
    endfunction
 
@@ -824,16 +883,14 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 			$display ("        Write-Cache-Miss: pa 0x%0h word64 0x%0h", vm_xlate_result.pa, rg_st_amo_val);
 		  end
 
+		  if (cfg_verbosity > 1)
+		     $display ("        Write-Cache-Hit/Miss: eaddr 0x%0h word64 0x%0h", rg_addr, rg_st_amo_val);
+
 		  // For write-hits and write-misses, writeback data to memory (so cache remains clean)
 		  match {.fabric_addr,
 			 .fabric_data,
 			 .fabric_strb } = fn_to_fabric_addr_data_strobe (rg_f3, vm_xlate_result.pa, rg_st_amo_val);
-		  let mem_req_wr_addr = AXI4_Lite_Wr_Addr {awaddr: fabric_addr, awprot: 0, awuser: dummy_user};
-		  let mem_req_wr_data = AXI4_Lite_Wr_Data {wdata:  fabric_data, wstrb: fabric_strb};
-
-		  master_xactor.i_wr_addr.enq (mem_req_wr_addr);
-		  master_xactor.i_wr_data.enq (mem_req_wr_data);
-		  ctr_wr_rsps_pending.incr;            // Expect a fabric response
+		  fa_fabric_send_write_req (fabric_addr, fabric_data, fabric_strb);
 
 		  // TODO: mark the pte A and D bits, writeback PTE if changed
 
@@ -841,13 +898,8 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 		  // in case the next incoming request tries to read from the same SRAM address.
 		  rg_state <= CACHE_ST_AMO_RSP;
 
-		  if (cfg_verbosity > 1) begin
-		     $display ("        Write-Hit/Miss: eaddr 0x%0h word64 0x%0h", rg_addr, rg_st_amo_val);
-		     $display ("            To fabric: ", fshow (mem_req_wr_addr));
-		     $display ("                       ", fshow (mem_req_wr_data));
-		     $display ("    => rl_write_response");
-		  end
-
+		  if (cfg_verbosity > 1)
+		     $display ("        => rl_write_response");
 	       end
 	       else begin // do_write == False
 		  // SC fail
@@ -868,6 +920,13 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 		     $display ("        AMO Miss: -> CACHE_START_REFILL.");
 	       end
 	       else begin
+		  if (cfg_verbosity > 1) begin
+		     $display ("        AMO: addr 0x%0h amo_f7 0x%0h f3 %0d rs2_val 0x%0h",
+			       rg_addr, rg_amo_funct7, rg_f3, rg_st_amo_val);
+		     $display ("          PA 0x%0h ", vm_xlate_result.pa);
+		     $display ("          Cache word64 0x%0h, load-result 0x%0h", word64, word64);
+		  end
+
 		  // Do the AMO op on the loaded value and the store value
 		  match {.new_ld_val,
 			 .new_st_val} = fn_amo_op (rg_f3, rg_amo_funct7, rg_addr, word64, rg_st_amo_val);
@@ -876,15 +935,17 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 		  let new_word64_set = fn_update_word64_set (word64_set, way_hit, vm_xlate_result.pa, rg_f3, new_st_val);
 		  ram_word64_set.a.put (bram_cmd_write, word64_set_in_cache, new_word64_set);
 
+		  if (cfg_verbosity > 1) begin
+		     $display ("          0x%0h  op  0x%0h -> 0x%0h", word64, word64, new_st_val);
+		     $write   ("          New Word64_Set:");
+		     fa_display_word64_set (cset_in_cache, word64_in_cline, new_word64_set);
+		  end
+
 		  // Writeback data to memory (so cache remains clean)
 		  match {.fabric_addr,
 			 .fabric_data,
 			 .fabric_strb } = fn_to_fabric_addr_data_strobe (rg_f3, vm_xlate_result.pa, new_st_val);
-		  let mem_req_wr_addr = AXI4_Lite_Wr_Addr {awaddr: fabric_addr, awprot: 0, awuser: dummy_user};
-		  let mem_req_wr_data = AXI4_Lite_Wr_Data {wdata:  fabric_data, wstrb: fabric_strb};
-		  master_xactor.i_wr_addr.enq (mem_req_wr_addr);
-		  master_xactor.i_wr_data.enq (mem_req_wr_data);
-		  ctr_wr_rsps_pending.incr;            // Expect a fabric response
+		  fa_fabric_send_write_req (fabric_addr, fabric_data, fabric_strb);
 
 		  // If this is to the LR/SC reserved address, invalidate the reservation
 		  // TODO: should we invalidate even if to a different
@@ -903,18 +964,6 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 		  rg_ld_val     <= new_ld_val;
 		  rg_st_amo_val <= new_st_val;
 		  rg_state      <= CACHE_ST_AMO_RSP;
-
-		  if (cfg_verbosity > 1) begin
-		     $display ("        AMO: addr 0x%0h amo_f7 0x%0h f3 %0d rs2_val 0x%0h",
-			       rg_addr, rg_amo_funct7, rg_f3, rg_st_amo_val);
-		     $display ("          PA 0x%0h ", vm_xlate_result.pa);
-		     $display ("          Cache word64 0x%0h, load-result 0x%0h", word64, word64);
-		     $display ("          0x%0h  op  0x%0h -> 0x%0h", word64, word64, new_st_val);
-		     $write   ("          New Word64_Set:");
-		     fa_display_word64_set (cset_in_cache, word64_in_cline, new_word64_set);
-		     $display ("          To fabric: ", fshow (mem_req_wr_addr));
-		     $display ("                     ", fshow (mem_req_wr_data));
-		  end
 	       end
 	    end
 `endif
@@ -933,34 +982,34 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 
 `ifdef RV32
       // RV32.Sv32: Page Table top is at Level 1
+
+      if (cfg_verbosity > 1)
+	 $display ("%0d: %s.rl_start_tlb_refill for eaddr 0x%0h; req for level 1 PTE",
+		   cur_cycle, d_or_i, rg_addr);
+
       PA           vpn_1_pa            = (zeroExtend (vpn_1) << bits_per_byte_in_wordxl);
       PA           lev_1_pte_pa        = satp_pa + vpn_1_pa;
       PA           lev_1_pte_pa_w64    = { lev_1_pte_pa [pa_sz - 1 : 3], 3'b0 };    // 64b-aligned addr
       Fabric_Addr  lev_1_pte_pa_w64_fa = fn_PA_to_Fabric_Addr (lev_1_pte_pa_w64);
-      let mem_req = AXI4_Lite_Rd_Addr {araddr: lev_1_pte_pa_w64_fa, arprot: 0, aruser: dummy_user};
-      master_xactor.i_rd_addr.enq (mem_req);
+      fa_fabric_send_read_req (lev_1_pte_pa_w64_fa);
 
       rg_pte_pa <= lev_1_pte_pa;
       rg_state  <= PTW_LEVEL_1;
-      if (cfg_verbosity > 1) begin
-	 $display ("%0d: %s.rl_start_tlb_refill for eaddr 0x%0h", cur_cycle, d_or_i, rg_addr);
-	 $display ("    Req for level 1 PTE: ", fshow (mem_req));
-      end
 `elsif SV39    // ifdef RV32
       // RV64.Sv39: Page Table top is at Level 2
+
+      if (cfg_verbosity > 1)
+	 $display ("%0d: %s.rl_start_tlb_refill for eaddr 0x%0h; req for level 2 PTE",
+		   cur_cycle, d_or_i, rg_addr);
+
       PA           vpn_2_pa            = (zeroExtend (vpn_2) << bits_per_byte_in_wordxl);
       PA           lev_2_pte_pa        = satp_pa + vpn_2_pa;
       PA           lev_2_pte_pa_w64    = { lev_2_pte_pa [pa_sz - 1 : 3], 3'b0 };    // 64b-aligned addr
       Fabric_Addr  lev_2_pte_pa_w64_fa = fn_PA_to_Fabric_Addr (lev_2_pte_pa_w64);
-      let mem_req = AXI4_Lite_Rd_Addr {araddr: lev_2_pte_pa_w64_fa, arprot: 0, aruser: dummy_user};
-      master_xactor.i_rd_addr.enq (mem_req);
+      fa_fabric_send_read_req (lev_2_pte_pa_w64_fa);
 
       rg_pte_pa <= lev_2_pte_pa;
       rg_state  <= PTW_LEVEL_2;
-      if (cfg_verbosity > 1) begin
-	 $display ("%0d: %s.rl_start_tlb_refill for eaddr 0x%0h", cur_cycle, d_or_i, rg_addr);
-	 $display ("    Req for level 2 PTE: ", fshow (mem_req));
-      end
 `endif         // elsif SV39
 
    endrule
@@ -988,7 +1037,7 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 `endif      // ifndef RV32
 
       // Bus error
-      if (mem_rsp.rresp != AXI4_LITE_OKAY) begin
+      if (mem_rsp.rresp != axi4_resp_okay) begin
 	 rg_exc_code <= access_exc_code;
 	 rg_state    <= MODULE_EXCEPTION_RSP;
 	 if (cfg_verbosity > 1)
@@ -1008,23 +1057,22 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 
       // Pointer to next-level PTE
       else if ((fn_PTE_to_X (pte) == 0) && (fn_PTE_to_R (pte) == 0)) begin
+	 if (cfg_verbosity > 1) begin
+	    $display ("%0d: %s.rl_rl_ptw_level_2: for eaddr 0x%0h: pte 0x%0h @ 0x%0h: continue to level 1",
+		      cur_cycle, d_or_i, rg_addr, pte, rg_pte_pa);
+	    $display ("    Req for level 1 PTE");
+	 end
+
 	 PPN          ppn                 = fn_PTE_to_PPN (pte);
 	 PA           lev_1_PTN_pa        = fn_PPN_and_Offset_to_PA (ppn, 12'b0);
 	 PA           vpn_1_pa            = (zeroExtend (vpn_1) << bits_per_byte_in_wordxl);
 	 PA           lev_1_pte_pa        = lev_1_PTN_pa + vpn_1_pa;
 	 PA           lev_1_pte_pa_w64    = { lev_1_pte_pa [pa_sz - 1 : 3], 3'b0 };    // 64b-aligned addr
 	 Fabric_Addr  lev_1_pte_pa_w64_fa = fn_PA_to_Fabric_Addr (lev_1_pte_pa_w64);
-	 let mem_req = AXI4_Lite_Rd_Addr {araddr: lev_1_pte_pa_w64_fa, arprot: 0, aruser: dummy_user};
-	 master_xactor.i_rd_addr.enq (mem_req);
+	 fa_fabric_send_read_req (lev_1_pte_pa_w64_fa);
 
 	 rg_pte_pa <= lev_1_pte_pa;
 	 rg_state  <= PTW_LEVEL_1;
-
-	 if (cfg_verbosity > 1) begin
-	    $display ("%0d: %s.rl_rl_ptw_level_2: for eaddr 0x%0h: pte 0x%0h @ 0x%0h: continue to level 1",
-		      cur_cycle, d_or_i, rg_addr, pte, rg_pte_pa);
-	    $display ("    Req for level 1 PTE: ", fshow (mem_req));
-	 end
       end
 
       // Leaf PTE pointing at address-space gigapage
@@ -1082,7 +1130,7 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 `endif      // ifndef RV32
 
       // Bus error
-      if (mem_rsp.rresp != AXI4_LITE_OKAY) begin
+      if (mem_rsp.rresp != axi4_resp_okay) begin
 	 rg_exc_code <= access_exc_code;
 	 rg_state    <= MODULE_EXCEPTION_RSP;
 	 if (cfg_verbosity > 1)
@@ -1102,23 +1150,23 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 
       // Pointer to next-level PTE
       else if ((fn_PTE_to_X (pte) == 0) && (fn_PTE_to_R (pte) == 0)) begin
+	 if (cfg_verbosity > 1) begin
+	    $display ("%0d: %s.rl_rl_ptw_level_1: for eaddr 0x%0h: pte 0x%0h @ 0x%0h: continue to level 0",
+		      cur_cycle, d_or_i, rg_addr, pte, rg_pte_pa);
+	    $display ("    Req for level 0 PTE");
+	 end
+
 	 PPN          ppn                 = fn_PTE_to_PPN (pte);
 	 PA           lev_0_PTN_pa        = fn_PPN_and_Offset_to_PA (ppn, 12'b0);
 	 PA           vpn_0_pa            = (zeroExtend (vpn_0) << bits_per_byte_in_wordxl);
 	 PA           lev_0_pte_pa        = lev_0_PTN_pa + vpn_0_pa;
 	 PA           lev_0_pte_pa_w64    = { lev_0_pte_pa [pa_sz - 1 : 3], 3'b0 };    // 64b-aligned addr
 	 Fabric_Addr  lev_0_pte_pa_w64_fa = fn_PA_to_Fabric_Addr (lev_0_pte_pa_w64);
-	 let mem_req = AXI4_Lite_Rd_Addr {araddr: lev_0_pte_pa_w64_fa, arprot: 0, aruser: dummy_user};
-	 master_xactor.i_rd_addr.enq (mem_req);
+	 fa_fabric_send_read_req (lev_0_pte_pa_w64_fa);
 
 	 rg_pte_pa <= lev_0_pte_pa;
 	 rg_state  <= PTW_LEVEL_0;
 
-	 if (cfg_verbosity > 1) begin
-	    $display ("%0d: %s.rl_rl_ptw_level_1: for eaddr 0x%0h: pte 0x%0h @ 0x%0h: continue to level 0",
-		      cur_cycle, d_or_i, rg_addr, pte, rg_pte_pa);
-	    $display ("    Req for level 0 PTE: ", fshow (mem_req));
-	 end
       end
 
       // Leaf PTE pointing at address-space megapage
@@ -1175,7 +1223,7 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 `endif      // ifndef RV32
 
       // Bus error
-      if (mem_rsp.rresp != AXI4_LITE_OKAY) begin
+      if (mem_rsp.rresp != axi4_resp_okay) begin
 	 rg_exc_code <= access_exc_code;
 	 rg_state    <= MODULE_EXCEPTION_RSP;
 	 if (cfg_verbosity > 1)
@@ -1230,12 +1278,13 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
    // Initiate read of word64_set in cache for read-modify-write of word64
 
    rule rl_start_cache_refill ((rg_state == CACHE_START_REFILL) && (ctr_wr_rsps_pending.value == 0));
+      if (cfg_verbosity > 1)
+	 $display ("%0d: %s.rl_start_cache_refill: ", cur_cycle, d_or_i);
+
       // Send request into fabric for first fabric-word of cache line
       PA             cline_addr        = fn_align_Addr_to_CLine (rg_pa);
       Fabric_Addr    cline_fabric_addr = fn_PA_to_Fabric_Addr (cline_addr);
-
-      let mem_req = AXI4_Lite_Rd_Addr {araddr: cline_fabric_addr, arprot: 0, aruser: dummy_user};
-      master_xactor.i_rd_addr.enq (mem_req);
+      fa_fabric_send_read_req (cline_fabric_addr);
 
       rg_requesting_cline  <= True;
       rg_req_byte_in_cline <= ((valueOf (Wd_Data) == 32) ? 4 : 8);
@@ -1269,19 +1318,19 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
       rg_error_during_refill <= False;
       rg_state               <= CACHE_REFILL;
 
-      if (cfg_verbosity > 1) begin
-	 $display ("%0d: %s.rl_start_cache_refill: mem req: ", cur_cycle, d_or_i, fshow (mem_req));
+      if (cfg_verbosity > 1)
 	 $display ("    Victim way is %0d; => CACHE_REFILL", new_victim_way);
-      end
    endrule: rl_start_cache_refill
 
    // Loop that issues requests for subsequent fabric-words in cline refill
    rule rl_cache_refill_req_loop (rg_requesting_cline);
+      if (cfg_verbosity > 2)
+	 $display ("%0d: %s.rl_cache_refill_req_loop", cur_cycle, d_or_i);
+
       // Send request into fabric for next fabric-word of cache line
       PA          cline_addr        = fn_align_Addr_to_CLine (rg_pa);
       Fabric_Addr cline_fabric_addr = (fn_PA_to_Fabric_Addr (cline_addr) | rg_req_byte_in_cline);
-      let mem_req = AXI4_Lite_Rd_Addr {araddr: cline_fabric_addr, arprot: 0, aruser: dummy_user};
-      master_xactor.i_rd_addr.enq (mem_req);
+      fa_fabric_send_read_req (cline_fabric_addr);
 
       // Check if end of refill loop (req_byte_in_cline is last one)
       Integer     bytes_per_fabric_word     = ((valueOf (Wd_Data) == 32) ? 4 : 8);
@@ -1290,8 +1339,6 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
       rg_requesting_cline  <= (rg_req_byte_in_cline != last_byte_offset_in_cline);
       rg_req_byte_in_cline <= rg_req_byte_in_cline + fromInteger (bytes_per_fabric_word);
 
-      if (cfg_verbosity > 2)
-	 $display ("%0d: %s.rl_cache_refill_req_loop: mem req: ", cur_cycle, d_or_i, fshow (mem_req));
    endrule
 
    // ----------------------------------------------------------------
@@ -1327,7 +1374,7 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
       end
 
       // Bus errors; remember it, and raise exception after all the refill responses
-      Bool err_rsp = (mem_rsp.rresp != AXI4_LITE_OKAY);
+      Bool err_rsp = (mem_rsp.rresp != axi4_resp_okay);
       if (err_rsp) begin
 	 rg_error_during_refill <= True;
 	 rg_exc_code            <= access_exc_code;
@@ -1422,21 +1469,18 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 			&& ((rg_op == CACHE_LD) || is_AMO_LR)
 			&& (! soc_map.m_is_near_mem_IO_addr (fn_PA_to_Fabric_Addr (rg_pa))));
 
+      if (cfg_verbosity > 1)
+	 $display ("%0d: %s.rl_io_read_req; f3 0x%0h vaddr %0h  paddr %0h",
+		   cur_cycle, d_or_i, rg_f3, rg_addr, rg_pa);
+
       Fabric_Addr fabric_addr = fn_PA_to_Fabric_Addr (rg_pa);
-      let io_req_rd_addr = AXI4_Lite_Rd_Addr {araddr: fabric_addr, arprot: 0, aruser: dummy_user};
-      master_xactor.i_rd_addr.enq (io_req_rd_addr);
+      fa_fabric_send_read_req (fabric_addr);
 
 `ifdef ISA_A
       // Invalidate LR/SC reservation if AMO_LR
       if (is_AMO_LR) rg_lrsc_valid <= False;
 `endif
-
       rg_state <= IO_AWAITING_READ_RSP;
-
-      if (cfg_verbosity > 1) begin
-	 $display ("%0d: %s.rl_io_read_req; f3 0x%0h vaddr %0h  paddr %0h", cur_cycle, d_or_i, rg_f3, rg_addr, rg_pa);
-	 $display ("    ", io_req_rd_addr);
-      end
    endrule
 
    // ----------------------------------------------------------------
@@ -1455,7 +1499,7 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
       rg_ld_val <= ld_val;
 
       // Successful read
-      if (rd_data.rresp == AXI4_LITE_OKAY) begin
+      if (rd_data.rresp == axi4_resp_okay) begin
 	 fa_drive_IO_read_rsp (rg_f3, rg_addr, ld_val);
 	 rg_state <= IO_READ_RSP;
       end
@@ -1546,26 +1590,19 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 
    rule rl_io_write_req ((rg_state == IO_REQ) && (rg_op == CACHE_ST)
 			 && (! soc_map.m_is_near_mem_IO_addr (fn_PA_to_Fabric_Addr (rg_pa))));
+      if (cfg_verbosity > 1)
+	 $display ("%0d: %s: rl_io_write_req; f3 0x%0h  vaddr %0h  paddr %0h  word64 0x%0h",
+		   cur_cycle, d_or_i, rg_f3, rg_addr, rg_pa, rg_st_amo_val);
+
       match {.fabric_addr,
 	     .fabric_data,
 	     .fabric_strb } = fn_to_fabric_addr_data_strobe (rg_f3, rg_pa, rg_st_amo_val);
-      let io_req_wr_addr = AXI4_Lite_Wr_Addr {awaddr: fabric_addr, awprot: 0, awuser: dummy_user};
-      let io_req_wr_data = AXI4_Lite_Wr_Data {wdata:  fabric_data, wstrb: fabric_strb};
-
-      master_xactor.i_wr_addr.enq (io_req_wr_addr);
-      master_xactor.i_wr_data.enq (io_req_wr_data);
-
-      ctr_wr_rsps_pending.incr;            // Expect a fabric response
+      fa_fabric_send_write_req (fabric_addr, fabric_data, fabric_strb);
 
       rg_state <= CACHE_ST_AMO_RSP;
 
-      if (cfg_verbosity > 1) begin
-	 $display ("%0d: %s: rl_io_write_req; f3 0x%0h  vaddr %0h  paddr %0h  word64 0x%0h",
-		   cur_cycle, d_or_i, rg_f3, rg_addr, rg_pa, rg_st_amo_val);
-	 $display ("    ", fshow (io_req_wr_addr));
-	 $display ("    ", fshow (io_req_wr_data));
+      if (cfg_verbosity > 1)
 	 $display ("    => rl_ST_AMO_response");
-      end
    endrule
 
    // ----------------------------------------------------------------
@@ -1634,17 +1671,15 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 
 `ifdef ISA_A
    rule rl_io_AMO_op_req ((rg_state == IO_REQ) && is_AMO && (! is_AMO_LR) && (! is_AMO_SC));
+      if (cfg_verbosity > 1)
+	 $display ("%0d: %s.rl_io_AMO_op_req; f3 0x%0h vaddr %0h  paddr %0h",
+		   cur_cycle, d_or_i, rg_f3, rg_addr, rg_pa);
+
       Fabric_Addr fabric_addr = fn_PA_to_Fabric_Addr (rg_pa);
-      let io_req_rd_addr = AXI4_Lite_Rd_Addr {araddr: fabric_addr, arprot: 0, aruser: dummy_user};
-      master_xactor.i_rd_addr.enq (io_req_rd_addr);
+      fa_fabric_send_read_req (fabric_addr);
 
       rg_state <= IO_AWAITING_AMO_READ_RSP;
 
-      if (cfg_verbosity > 1) begin
-	 $display ("%0d: %s.rl_io_AMO_op_req; f3 0x%0h vaddr %0h  paddr %0h",
-		   cur_cycle, d_or_i, rg_f3, rg_addr, rg_pa);
-	 $display ("    ", io_req_rd_addr);
-      end
    endrule
 `endif
 
@@ -1664,7 +1699,7 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
       let ld_val      = zeroExtend (fabric_word);
 
       // Bus error for AMO read
-      if (rd_data.rresp != AXI4_LITE_OKAY) begin
+      if (rd_data.rresp != axi4_resp_okay) begin
 	 rg_state    <= MODULE_EXCEPTION_RSP;
 	 rg_exc_code <= exc_code_STORE_AMO_ACCESS_FAULT;
 	 if (cfg_verbosity > 1)
@@ -1673,6 +1708,10 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
       end
       // Successful AMO read
       else begin
+	 if (cfg_verbosity > 1)
+	    $display ("%0d: %s: rl_io_AMO_read_rsp; f3 0x%0h  vaddr %0h  paddr %0h  word64 0x%0h",
+		      cur_cycle, d_or_i, rg_f3, rg_addr, rg_pa, rg_st_amo_val);
+
 	 // Do the AMO op on the loaded value and the store value
 	 match {.new_ld_val,
 		.new_st_val} = fn_amo_op (rg_f3, rg_amo_funct7, rg_addr, ld_val, rg_st_amo_val);
@@ -1681,25 +1720,14 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 	 match {.fabric_addr,
 		.fabric_data,
 		.fabric_strb } = fn_to_fabric_addr_data_strobe (rg_f3, rg_pa, new_st_val);
-	 let io_req_wr_addr = AXI4_Lite_Wr_Addr {awaddr: fabric_addr, awprot: 0, awuser: dummy_user};
-	 let io_req_wr_data = AXI4_Lite_Wr_Data {wdata:  fabric_data, wstrb: fabric_strb};
-
-	 master_xactor.i_wr_addr.enq (io_req_wr_addr);
-	 master_xactor.i_wr_data.enq (io_req_wr_data);
-
-	 ctr_wr_rsps_pending.incr;            // Expect a fabric response
+	 fa_fabric_send_write_req (fabric_addr, fabric_data, fabric_strb);
 
 	 fa_drive_IO_read_rsp (rg_f3, rg_addr, new_ld_val);
 	 rg_ld_val <= new_ld_val;
 	 rg_state  <= IO_READ_RSP;
 
-	 if (cfg_verbosity > 1) begin
-	    $display ("%0d: %s: rl_io_AMO_read_rsp; f3 0x%0h  vaddr %0h  paddr %0h  word64 0x%0h",
-		      cur_cycle, d_or_i, rg_f3, rg_addr, rg_pa, rg_st_amo_val);
-	    $display ("    ", fshow (io_req_wr_addr));
-	    $display ("    ", fshow (io_req_wr_data));
+	 if (cfg_verbosity > 1)
 	    $display ("    => rl_ST_AMO_response");
-	 end
       end
    endrule
 `endif
@@ -1720,7 +1748,7 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 
       ctr_wr_rsps_pending.decr;
 
-      if (wr_resp.bresp != AXI4_LITE_OKAY) begin
+      if (wr_resp.bresp != axi4_resp_okay) begin
 	 // TODO: need to raise a non-maskable interrupt (NMI) here
 	 $display ("%0d: %s.rl_discard_write_rsp: fabric response error: exit", cur_cycle, d_or_i);
 	 $display ("    ", fshow (wr_resp));

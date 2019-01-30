@@ -38,7 +38,7 @@ import Semi_FIFOF :: *;
 // ================================================================
 // Project imports
 
-import AXI4_Lite_Types :: *;
+import AXI4_Types :: *;
 
 import ISA_Decls :: *;
 

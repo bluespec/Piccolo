@@ -32,8 +32,8 @@ import GetPut_Aux  :: *;
 // Project imports
 
 // Main fabric
-import AXI4_Lite_Types  :: *;
-import AXI4_Lite_Fabric :: *;
+import AXI4_Types  :: *;
+import AXI4_Fabric :: *;
 
 import Fabric_Defs :: *;
 import SoC_Map     :: *;
@@ -63,8 +63,6 @@ import TV_Info :: *;
 import External_Control :: *;    // Control requests/responses from HSFE
 import Debug_Module     :: *;
 `endif
-
-import Axi4LRegFile ::*;
 
 // ================================================================
 // Local types and constants
@@ -135,7 +133,7 @@ module mkSoC_Top (SoC_Top_IFC);
    Core_IFC  core <- mkCore;
 
    // SoC Fabric
-   Fabric_IFC  fabric <- mkFabric;
+   Fabric_AXI4_IFC  fabric <- mkFabric_AXI4;
 
    // SoC Boot ROM
    Boot_ROM_IFC  boot_rom <- mkBoot_ROM;
@@ -165,7 +163,7 @@ module mkSoC_Top (SoC_Top_IFC);
    // Debug Module system buf interface (mem interface) to fabric
    mkConnection (core.dm_master,  fabric.v_from_masters [debug_module_master_num]);
 `else
-   AXI4_Lite_Master_IFC #(Wd_Addr, Wd_Data, Wd_User) dummy_dm_master = dummy_AXI4_Lite_Master_ifc;
+   AXI4_Master_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User) dummy_dm_master = dummy_AXI4_Master_ifc;
    mkConnection (dummy_dm_master,  fabric.v_from_masters [debug_module_master_num]);
 `endif
 
@@ -196,7 +194,7 @@ module mkSoC_Top (SoC_Top_IFC);
 `endif
 
 `ifdef HTIF_MEMORY
-   AXI4_Lite_Slave_IFC#(Wd_Addr, Wd_Data, Wd_User) htif <- mkAxi4LRegFile(bytes_per_htif);
+   AXI4_Slave_IFC#(Wd_Id, Wd_Addr, Wd_Data, Wd_User) htif <- mkAxi4LRegFile(bytes_per_htif);
 
    mkConnection (fabric.v_to_slaves [htif_slave_num], htif);
 `endif

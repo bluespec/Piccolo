@@ -9,9 +9,6 @@ package SoC_Fabric;
 // ================================================================
 // Project imports
 
-import AXI4_Lite_Types  :: *;
-import AXI4_Lite_Fabric :: *;
-
 import AXI4_Types  :: *;
 import AXI4_Fabric :: *;
 
@@ -25,13 +22,14 @@ import SoC_Map     :: *;    // for Num_Masters, Num_Slaves
 typedef Bit #(TLog #(Num_Slaves))  Slave_Num;
 
 // ================================================================
-// Specialization of parameterized AXI4_Lite fabric for this SoC.
+// Specialization of parameterized AXI4 fabric for this SoC.
 
-typedef AXI4_Lite_Fabric_IFC #(Num_Masters,
-			       Num_Slaves,
-			       Wd_Addr,
-			       Wd_Data,
-			       Wd_User)  Fabric_IFC;
+typedef AXI4_Fabric_IFC #(Num_Masters,
+			  Num_Slaves,
+			  Wd_Id,
+			  Wd_Addr,
+			  Wd_Data,
+			  Wd_User)  Fabric_IFC;
 
 // ----------------
 
@@ -81,8 +79,8 @@ module mkFabric (Fabric_IFC);
 	 return tuple2 (False, ?);
    endfunction
 
-   AXI4_Lite_Fabric_IFC #(Num_Masters, Num_Slaves, Wd_Addr, Wd_Data, Wd_User)
-       fabric <- mkAXI4_Lite_Fabric (fn_addr_to_slave_num);
+   AXI4_Fabric_IFC #(Num_Masters, Num_Slaves, Wd_Id, Wd_Addr, Wd_Data, Wd_User)
+       fabric <- mkAXI4_Fabric (fn_addr_to_slave_num);
 
    return fabric;
 endmodule
