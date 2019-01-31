@@ -134,7 +134,7 @@ interface AXI4_Master_IFC #(numeric type wd_id,
    (* always_ready, result="awid" *)      method Bit #(wd_id)   m_awid;        // out
    (* always_ready, result="awaddr" *)    method Bit #(wd_addr) m_awaddr;      // out
    (* always_ready, result="awlen" *)     method Bit #(8)       m_awlen;       // out
-   (* always_ready, result="awsize" *)    method Bit #(3)       m_awsize;      // out
+   (* always_ready, result="awsize" *)    method AXI4_Size      m_awsize;      // out
    (* always_ready, result="awburst" *)   method Bit #(2)       m_awburst;     // out
    (* always_ready, result="awlock" *)    method Bit #(1)       m_awlock;      // out
    (* always_ready, result="awcache" *)   method Bit #(4)       m_awcache;     // out
@@ -177,7 +177,7 @@ interface AXI4_Master_IFC #(numeric type wd_id,
    (* always_ready, result="arid" *)      method Bit #(wd_id)    m_arid;        // out
    (* always_ready, result="araddr" *)    method Bit #(wd_addr)  m_araddr;      // out
    (* always_ready, result="arlen" *)     method Bit #(8)        m_arlen;       // out
-   (* always_ready, result="arsize" *)    method Bit #(3)        m_arsize;      // out
+   (* always_ready, result="arsize" *)    method AXI4_Size       m_arsize;      // out
    (* always_ready, result="arburst" *)   method Bit #(2)        m_arburst;     // out
    (* always_ready, result="arlock" *)    method Bit #(1)        m_arlock;      // out
    (* always_ready, result="arcache" *)   method Bit #(4)        m_arcache;     // out
@@ -218,7 +218,7 @@ interface AXI4_Slave_IFC #(numeric type wd_id,
 			    (* port="awid" *)      Bit #(wd_id)    awid,        // in
 			    (* port="awaddr" *)    Bit #(wd_addr)  awaddr,      // in
 			    (* port="awlen" *)     Bit #(8)        awlen,       // in
-			    (* port="awsize" *)    Bit #(3)        awsize,      // in
+			    (* port="awsize" *)    AXI4_Size       awsize,      // in
 			    (* port="awburst" *)   Bit #(2)        awburst,     // in
 			    (* port="awlock" *)    Bit #(1)        awlock,      // in
 			    (* port="awcache" *)   Bit #(4)        awcache,     // in
@@ -254,7 +254,7 @@ interface AXI4_Slave_IFC #(numeric type wd_id,
 			    (* port="arid" *)      Bit #(wd_id)    arid,        // in
 			    (* port="araddr" *)    Bit #(wd_addr)  araddr,      // in
 			    (* port="arlen" *)     Bit #(8)        arlen,       // in
-			    (* port="arsize" *)    Bit #(3)        arsize,      // in
+			    (* port="arsize" *)    AXI4_Size       arsize,      // in
 			    (* port="arburst" *)   Bit #(2)        arburst,     // in
 			    (* port="arlock" *)    Bit #(1)        arlock,      // in
 			    (* port="arcache" *)   Bit #(4)        arcache,     // in
@@ -363,7 +363,7 @@ AXI4_Master_IFC #(wd_id, wd_addr, wd_data, wd_user)
 			       method Bit #(wd_id)    m_awid     = ?;                  // out
 			       method Bit #(wd_addr)  m_awaddr   = ?;                  // out
 			       method Bit #(8)        m_awlen    = ?;                  // out
-			       method Bit #(3)        m_awsize   = ?;                  // out
+			       method AXI4_Size       m_awsize   = ?;                  // out
 			       method Bit #(2)        m_awburst  = ?;                  // out
 			       method Bit #(1)        m_awlock   = ?;                  // out
 			       method Bit #(4)        m_awcache  = ?;                  // out
@@ -397,7 +397,7 @@ AXI4_Master_IFC #(wd_id, wd_addr, wd_data, wd_user)
 			       method Bit #(wd_id)    m_arid     = ?;                 // out
 			       method Bit #(wd_addr)  m_araddr   = ?;                 // out
 			       method Bit #(8)        m_arlen    = ?;                 // out
-			       method Bit #(3)        m_arsize   = ?;                 // out
+			       method AXI4_Size       m_arsize   = ?;                 // out
 			       method Bit #(2)        m_arburst  = ?;                 // out
 			       method Bit #(1)        m_arlock   = ?;                 // out
 			       method Bit #(4)        m_arcache  = ?;                 // out
@@ -429,7 +429,7 @@ AXI4_Slave_IFC #(wd_id, wd_addr, wd_data, wd_user)
 						      Bit #(wd_id)    awid,
 						      Bit #(wd_addr)  awaddr,
 						      Bit #(8)        awlen,
-						      Bit #(3)        awsize,
+						      AXI4_Size       awsize,
 						      Bit #(2)        awburst,
 						      Bit #(1)        awlock,
 						      Bit #(4)        awcache,
@@ -484,7 +484,7 @@ AXI4_Slave_IFC #(wd_id, wd_addr, wd_data, wd_user)
 						      Bit #(wd_id)    arid,
 						      Bit #(wd_addr)  araddr,
 						      Bit #(8)        arlen,
-						      Bit #(3)        arsize,
+						      AXI4_Size       arsize,
 						      Bit #(2)        arburst,
 						      Bit #(1)        arlock,
 						      Bit #(4)        arcache,
@@ -575,7 +575,7 @@ typedef struct {
    Bit #(wd_id)    awid;
    Bit #(wd_addr)  awaddr;
    Bit #(8)        awlen;
-   Bit #(3)        awsize;
+   AXI4_Size       awsize;
    Bit #(2)        awburst;
    Bit #(1)        awlock;
    Bit #(4)        awcache;
@@ -617,7 +617,7 @@ typedef struct {
    Bit #(wd_id)    arid;
    Bit #(wd_addr)  araddr;
    Bit #(8)        arlen;
-   Bit #(3)        arsize;
+   AXI4_Size       arsize;
    Bit #(2)        arburst;
    Bit #(1)        arlock;
    Bit #(4)        arcache;
@@ -822,7 +822,7 @@ module mkAXI4_Master_Xactor (AXI4_Master_Xactor_IFC #(wd_id, wd_addr, wd_data, w
 			   method Bit #(wd_id)    m_awid     = f_wr_addr.first.awid;
 			   method Bit #(wd_addr)  m_awaddr   = f_wr_addr.first.awaddr;
 			   method Bit #(8)        m_awlen    = f_wr_addr.first.awlen;
-			   method Bit #(3)        m_awsize   = f_wr_addr.first.awsize;
+			   method AXI4_Size       m_awsize   = f_wr_addr.first.awsize;
 			   method Bit #(2)        m_awburst  = f_wr_addr.first.awburst;
 			   method Bit #(1)        m_awlock   = f_wr_addr.first.awlock;
 			   method Bit #(4)        m_awcache  = f_wr_addr.first.awcache;
@@ -865,7 +865,7 @@ module mkAXI4_Master_Xactor (AXI4_Master_Xactor_IFC #(wd_id, wd_addr, wd_data, w
 			   method Bit #(wd_id)    m_arid     = f_rd_addr.first.arid;
 			   method Bit #(wd_addr)  m_araddr   = f_rd_addr.first.araddr;
 			   method Bit #(8)        m_arlen    = f_rd_addr.first.arlen;
-			   method Bit #(3)        m_arsize   = f_rd_addr.first.arsize;
+			   method AXI4_Size       m_arsize   = f_rd_addr.first.arsize;
 			   method Bit #(2)        m_arburst  = f_rd_addr.first.arburst;
 			   method Bit #(1)        m_arlock   = f_rd_addr.first.arlock;
 			   method Bit #(4)        m_arcache  = f_rd_addr.first.arcache;
@@ -960,7 +960,7 @@ module mkAXI4_Master_Xactor_2 (AXI4_Master_Xactor_IFC #(wd_id, wd_addr, wd_data,
 			   method Bit #(wd_id)   m_awid     = rg_wr_addr.awid;
 			   method Bit #(wd_addr) m_awaddr   = rg_wr_addr.awaddr;
 			   method Bit #(8)       m_awlen    = rg_wr_addr.awlen;
-			   method Bit #(3)       m_awsize   = rg_wr_addr.awsize;
+			   method AXI4_Size      m_awsize   = rg_wr_addr.awsize;
 			   method Bit #(2)       m_awburst  = rg_wr_addr.awburst;
 			   method Bit #(1)       m_awlock   = rg_wr_addr.awlock;
 			   method Bit #(4)       m_awcache  = rg_wr_addr.awcache;
@@ -1007,7 +1007,7 @@ module mkAXI4_Master_Xactor_2 (AXI4_Master_Xactor_IFC #(wd_id, wd_addr, wd_data,
 			   method Bit #(wd_id)    m_arid     = rg_rd_addr.arid;
 			   method Bit #(wd_addr)  m_araddr   = rg_rd_addr.araddr;
 			   method Bit #(8)        m_arlen    = rg_rd_addr.arlen;
-			   method Bit #(3)        m_arsize   = rg_rd_addr.arsize;
+			   method AXI4_Size       m_arsize   = rg_rd_addr.arsize;
 			   method Bit #(2)        m_arburst  = rg_rd_addr.arburst;
 			   method Bit #(1)        m_arlock   = rg_rd_addr.arlock;
 			   method Bit #(4)        m_arcache  = rg_rd_addr.arcache;
@@ -1107,7 +1107,7 @@ module mkAXI4_Slave_Xactor (AXI4_Slave_Xactor_IFC #(wd_id, wd_addr, wd_data, wd_
 						    Bit #(wd_id)    awid,
 						    Bit #(wd_addr)  awaddr,
 						    Bit #(8)        awlen,
-						    Bit #(3)        awsize,
+						    AXI4_Size       awsize,
 						    Bit #(2)        awburst,
 						    Bit #(1)        awlock,
 						    Bit #(4)        awcache,
@@ -1167,7 +1167,7 @@ module mkAXI4_Slave_Xactor (AXI4_Slave_Xactor_IFC #(wd_id, wd_addr, wd_data, wd_
 						    Bit #(wd_id)    arid,
 						    Bit #(wd_addr)  araddr,
 						    Bit #(8)        arlen,
-						    Bit #(3)        arsize,
+						    AXI4_Size       arsize,
 						    Bit #(2)        arburst,
 						    Bit #(1)        arlock,
 						    Bit #(4)        arcache,
@@ -1264,7 +1264,7 @@ module mkAXI4_Slave_Xactor_2 (AXI4_Slave_Xactor_IFC #(wd_id, wd_addr, wd_data, w
 						    Bit #(wd_id)    awid,
 						    Bit #(wd_addr)  awaddr,
 						    Bit #(8)        awlen,
-						    Bit #(3)        awsize,
+						    AXI4_Size       awsize,
 						    Bit #(2)        awburst,
 						    Bit #(1)        awlock,
 						    Bit #(4)        awcache,
@@ -1329,7 +1329,7 @@ module mkAXI4_Slave_Xactor_2 (AXI4_Slave_Xactor_IFC #(wd_id, wd_addr, wd_data, w
 			                            Bit #(wd_id)    arid,
 						    Bit #(wd_addr)  araddr,
 						    Bit #(8)        arlen,
-						    Bit #(3)        arsize,
+						    AXI4_Size       arsize,
 						    Bit #(2)        arburst,
 						    Bit #(1)        arlock,
 						    Bit #(4)        arcache,

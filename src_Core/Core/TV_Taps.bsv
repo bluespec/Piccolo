@@ -57,12 +57,6 @@ module mkDM_Mem_Tap (DM_Mem_Tap_IFC);
    // Tap output
    FIFOF #(Trace_Data)  f_trace_data <- mkFIFOF;
 
-`ifdef FABRIC64
-   staticAssert (valueOf (Wd_User) == 64, "mkDM_Mem_Tap only supports Wd_User of 64");
-`else
-   staticAssert (valueOf (Wd_User) == 32, "mkDM_Mem_Tap only supports Wd_User of 32");
-`endif
-
    // ----------------
    // AXI requests
 

@@ -88,7 +88,7 @@ typedef Bit #(Bits_per_Raw_Mem_Addr)  Raw_Mem_Addr;
 // ----------------
 // Views of raw mem word as bytes, word32s and word64s
 // Example values on the right based on 256b raw mem data width
-typedef TDiv #(Bits_per_Raw_Mem_Word,  8)              Bytes_per_Raw_Mem_Word;             // 32
+typedef TDiv #(Bits_per_Raw_Mem_Word,  8)              Bytes_per_Raw_Mem_Word;             // 32 bytes
 Integer bytes_per_raw_mem_word = valueOf (Bytes_per_Raw_Mem_Word);
 
 // # of addr lsbs to index a byte in a Raw_Mem_Word
@@ -96,28 +96,42 @@ typedef TLog #(Bytes_per_Raw_Mem_Word)                 Bits_per_Byte_in_Raw_Mem_
 Integer bits_per_byte_in_raw_mem_word = valueOf (Bits_per_Byte_in_Raw_Mem_Word);
 Integer hi_byte_in_raw_mem_word = bits_per_byte_in_raw_mem_word - 1;                       //  4
 
-typedef TDiv #(Bits_per_Raw_Mem_Word, 32)              Word32s_per_Raw_Mem_Word;           //  8
+typedef TDiv #(Bits_per_Raw_Mem_Word, 32)              Word32s_per_Raw_Mem_Word;           //  8 x 32b words
 Integer word32s_per_raw_mem_word = valueOf (Word32s_per_Raw_Mem_Word);
 // # of addr lsbs to index a Word32 in a Raw_Mem_Word seen as a vector of Word32s
 typedef TLog #(Word32s_per_Raw_Mem_Word)               Bits_per_Word32_in_Raw_Mem_Word;    //  3
 // Type of index of a Word32 in a Raw_Mem_Word seen as a vector of Word32s
 typedef Bit #(Bits_per_Word32_in_Raw_Mem_Word)         Word32_in_Raw_Mem_Word;
 
-typedef TDiv #(Bits_per_Raw_Mem_Word, 64)              Word64s_per_Raw_Mem_Word;           //  4
+typedef TDiv #(Bits_per_Raw_Mem_Word, 64)              Word64s_per_Raw_Mem_Word;           //  4 x 64b words
 Integer word64s_per_raw_mem_word = valueOf (Word64s_per_Raw_Mem_Word);
 // # of addr lsbs to index a Word64 in a Raw_Mem_Word seen as a vector of Word64s
 typedef TLog #(Word64s_per_Raw_Mem_Word)               Bits_per_Word64_in_Raw_Mem_Word;    //  2
 // Type of index of a Word64 in a Raw_Mem_Word seen as a vector of Word64s
 typedef Bit #(Bits_per_Word64_in_Raw_Mem_Word)         Word64_in_Raw_Mem_Word;
 
+typedef TDiv #(Bytes_per_Raw_Mem_Word, Bytes_per_Fabric_Data)  Fabric_Data_per_Raw_Mem_Word;
+
+// Index of bit that selects a fabric data word in an address
+`ifdef FABRIC32
+Integer  lo_fabric_data = 2;
+`endif
+
+`ifdef FABRIC64
+Integer  lo_fabric_data = 3;
+`endif
+
 // ================================================================
 
-function Bool fn_addr_is_aligned (Fabric_Addr addr);
-   Bool is_aligned = (  (valueOf (Wd_Data) == 32)
-		      ? (addr [1:0] == 2'b00)
-		      : (  (valueOf (Wd_Data) == 64)
-			 ? (addr [2:0] == 3'b000)
-			 : False));
+function Bool fn_addr_is_aligned (Fabric_Addr  addr, AXI4_Size  size);
+   Bool is_aligned = (   (size == axsize_1)
+		      || ((size == axsize_2)    && (addr [0]   == 1'h0))
+		      || ((size == axsize_4)    && (addr [1:0] == 2'h0))
+		      || ((size == axsize_8)    && (addr [2:0] == 3'h0))
+		      || ((size == axsize_16)   && (addr [3:0] == 4'h0))
+		      || ((size == axsize_32)   && (addr [4:0] == 5'h0))
+		      || ((size == axsize_64)   && (addr [5:0] == 6'h0))
+		      || ((size == axsize_128)  && (addr [6:0] == 7'h0)));
    return is_aligned;
 endfunction
 
@@ -129,8 +143,9 @@ function Bool fn_addr_is_in_range (Fabric_Addr addr_base, Fabric_Addr addr, Fabr
    return ((addr_base <= addr) && (addr < addr_lim));
 endfunction
 
-function Bool fn_addr_is_ok (Fabric_Addr addr_base, Fabric_Addr addr, Fabric_Addr addr_lim);
-   return fn_addr_is_aligned (addr) && fn_addr_is_in_range (addr_base, addr, addr_lim);
+function Bool fn_addr_is_ok (Fabric_Addr addr_base, Fabric_Addr addr, Fabric_Addr addr_lim, AXI4_Size  size);
+   return (   fn_addr_is_aligned (addr, size)
+	   && fn_addr_is_in_range (addr_base, addr, addr_lim));
 endfunction
 
 // Compute raw mem addr that holds a given fabric addr
@@ -376,7 +391,7 @@ module mkMem_Controller (Mem_Controller_IFC);
    // it writes back the dirty raw_mem_word; the cached raw_mem_word becomes clean
 
    rule rl_writeback_dirty (   (rg_state == STATE_READY)
-			    && fn_addr_is_ok (rg_addr_base, f_reqs.first.addr, rg_addr_lim)
+			    && fn_addr_is_ok (rg_addr_base, f_reqs.first.addr, rg_addr_lim, f_reqs.first.size)
 			    && (rg_cached_raw_mem_addr != req_raw_mem_addr)
 			    && (! rg_cached_clean));
       let raw_mem_req = MemoryRequest {write:   True,
@@ -396,7 +411,7 @@ module mkMem_Controller (Mem_Controller_IFC);
    // by reloading from memory; the new cached raw_mem_word is clean.
 
    rule rl_miss_clean_req (   (rg_state == STATE_READY)
-			   && fn_addr_is_ok (rg_addr_base, f_reqs.first.addr, rg_addr_lim)
+			   && fn_addr_is_ok (rg_addr_base, f_reqs.first.addr, rg_addr_lim, f_reqs.first.size)
 			   && (rg_cached_raw_mem_addr != req_raw_mem_addr)
 			   && rg_cached_clean);
       let raw_mem_req = MemoryRequest {write:   False,
@@ -432,24 +447,24 @@ module mkMem_Controller (Mem_Controller_IFC);
    // i.e., we do not extract relevant bytes here, leaving that to the requestor.
 
    rule rl_process_rd_req  (   (rg_state == STATE_READY)
-			    && fn_addr_is_ok (rg_addr_base, f_reqs.first.addr, rg_addr_lim)
+			    && fn_addr_is_ok (rg_addr_base, f_reqs.first.addr, rg_addr_lim, f_reqs.first.size)
 			    && (rg_cached_raw_mem_addr == req_raw_mem_addr)
 			    && (f_reqs.first.req_op == REQ_OP_RD));
 
       // ----------------
-      // Use lib 'rotateBy' function to rotate the raw_mem_word by requisite # of word32s
-      Bit #(Bits_per_Word32_in_Raw_Mem_Word) n1 = f_reqs.first.addr [hi_byte_in_raw_mem_word : 2];
-      // Use wider (here, 16b) representation to be able to express 'word32s_per_raw_mem_word'
-      Bit #(16) n2 = zeroExtend (n1);
-      n2 = fromInteger (word32s_per_raw_mem_word) - n2;
-      // Truncate and convert to UInt, as required by 'rotateBy'
-      UInt #(Bits_per_Word32_in_Raw_Mem_Word) rot_amount = unpack (truncate (n2));
-      // View raw mem word as vector of word32s
-      Vector #(Word32s_per_Raw_Mem_Word, Bit #(32)) raw_mem_word_V_Word32 = unpack (rg_cached_raw_mem_word);
-      // Rotate the target word into place
-      raw_mem_word_V_Word32 = rotateBy (raw_mem_word_V_Word32, rot_amount);
-      // Extract the response data
-      Bit #(Wd_Data) rdata = truncate (pack (raw_mem_word_V_Word32));
+      // We need to select the fabric data word from the raw mem word that contains the target address.
+
+      // View the raw mem word as a vector of fabric data words (Wd_Data width words)
+      Vector #(Fabric_Data_per_Raw_Mem_Word, Bit #(Wd_Data)) raw_mem_word_V_fabric_data = unpack (rg_cached_raw_mem_word);
+
+      // Get the index into this vector of the fabric word containing the target address.
+      // For this index, use a generous size (here Bit #(16)), and let zeroExtend pad it automaticallly.
+      Fabric_Addr addr = f_reqs.first.addr;
+      Bit #(Bits_per_Byte_in_Raw_Mem_Word) n = addr [hi_byte_in_raw_mem_word : 0];
+      n = (n >> lo_fabric_data);
+
+      // Select the fabric data word of interest
+      Bit #(Wd_Data) rdata = raw_mem_word_V_fabric_data [n];
 
       let rdr = AXI4_Rd_Data {rid:   f_reqs.first.id,
 			      rdata: rdata,
@@ -471,7 +486,7 @@ module mkMem_Controller (Mem_Controller_IFC);
    // same addr ('hit'), whether clean or dirty.
 
    rule rl_process_wr_req  (   (rg_state == STATE_READY)
-			    && fn_addr_is_ok (rg_addr_base, f_reqs.first.addr, rg_addr_lim)
+			    && fn_addr_is_ok (rg_addr_base, f_reqs.first.addr, rg_addr_lim, f_reqs.first.size)
 			    && (rg_cached_raw_mem_addr == req_raw_mem_addr)
 			    && (f_reqs.first.req_op == REQ_OP_WR));
       // Get the old (cached) value of the word64
@@ -560,7 +575,7 @@ module mkMem_Controller (Mem_Controller_IFC);
    // Invalid address
 
    rule rl_invalid_rd_address (   (rg_state == STATE_READY)
-			       && (! fn_addr_is_ok (rg_addr_base, f_reqs.first.addr, rg_addr_lim))
+			       && (! fn_addr_is_ok (rg_addr_base, f_reqs.first.addr, rg_addr_lim, f_reqs.first.size))
 			       && (f_reqs.first.req_op == REQ_OP_RD));
       Fabric_Data rdata = zeroExtend (f_reqs.first.addr);
       let rdr = AXI4_Rd_Data {rid:   f_reqs.first.id,
@@ -572,7 +587,7 @@ module mkMem_Controller (Mem_Controller_IFC);
       f_reqs.deq;
 
       $write ("%0d: ERROR: Mem_Controller:", cur_cycle);
-      if (! fn_addr_is_aligned (f_reqs.first.addr))
+      if (! fn_addr_is_aligned (f_reqs.first.addr, f_reqs.first.size))
 	 $display (" read-addr is misaligned");
       else
 	 $display (" read-addr is out of bounds");
@@ -582,7 +597,7 @@ module mkMem_Controller (Mem_Controller_IFC);
    endrule
 
    rule rl_invalid_wr_address (   (rg_state == STATE_READY)
-			       && (! fn_addr_is_ok (rg_addr_base, f_reqs.first.addr, rg_addr_lim))
+			       && (! fn_addr_is_ok (rg_addr_base, f_reqs.first.addr, rg_addr_lim, f_reqs.first.size))
 			       && (f_reqs.first.req_op == REQ_OP_WR));
       let wrr = AXI4_Wr_Resp {bid:   f_reqs.first.id,
 			      bresp: axi4_resp_slverr,
@@ -591,7 +606,7 @@ module mkMem_Controller (Mem_Controller_IFC);
       f_reqs.deq;
 
       $write ("%0d: ERROR: Mem_Controller:", cur_cycle);
-      if (! fn_addr_is_aligned (f_reqs.first.addr))
+      if (! fn_addr_is_aligned (f_reqs.first.addr, f_reqs.first.size))
 	 $display (" write-addr is misaligned");
       else
 	 $display (" write-addr is out of bounds");

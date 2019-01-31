@@ -692,7 +692,7 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 	 let mem_req_wr_addr = AXI4_Wr_Addr {awid:     fabric_default_id,
 					     awaddr:   addr,
 					     awlen:    1,
-					     awsize:   6,    // 64b TODO: CHANGE TO ACTUAL SIZE OF REQ
+					     awsize:   axsize_8,    // 64b TODO: CHANGE TO ACTUAL SIZE OF REQ?
 					     awburst:  fabric_default_burst,
 					     awlock:   fabric_default_lock,
 					     awcache:  fabric_default_awcache,
