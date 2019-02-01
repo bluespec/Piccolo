@@ -121,21 +121,23 @@ function Tuple4 #(Fabric_Addr,    // addr is 32b- or 64b-aligned
    Bit #(8)   strobe64    = 0;
    Bit #(3)   shift_bytes = addr [2:0];
    Bit #(6)   shift_bits  = { shift_bytes, 3'b0 };
-   Bit #(64)  addr64      = (addr & (~ 'b111));      // 64b align
-   AXI4_Size  axsize      = axsize_4;
+   AXI4_Size  axsize      = axsize_128;    // Will be updated in 'case' below
 
    case (sbaccess)
       DM_SBACCESS_8_BIT:  begin
 			     word64   = (word64 << shift_bits);
 			     strobe64 = ('b_1   << shift_bytes);
+			     axsize   = axsize_1;
 			  end
       DM_SBACCESS_16_BIT: begin
 			     word64   = (word64 << shift_bits);
 			     strobe64 = ('b_11  << shift_bytes);
+			     axsize   = axsize_2;
 			  end
       DM_SBACCESS_32_BIT: begin
 			     word64   = (word64  << shift_bits);
 			     strobe64 = ('b_1111 << shift_bytes);
+			     axsize   = axsize_4;
 			  end
       DM_SBACCESS_64_BIT: begin
 			     strobe64 = 'b_1111_1111;
@@ -145,13 +147,12 @@ function Tuple4 #(Fabric_Addr,    // addr is 32b- or 64b-aligned
 
    // Adjust for 32b fabrics
    if ((valueOf (Wd_Data) == 32) && (addr [2] == 1'b1)) begin
-      addr64   = (addr64 | 'b_100);
       word64   = { 32'h0, word64 [63:32] };
       strobe64 = { 4'h0, strobe64 [7:4] };
    end
 
    // Finally, create fabric addr/data/strobe
-   Fabric_Addr  fabric_addr   = truncate (addr64);
+   Fabric_Addr  fabric_addr   = truncate (addr);
    Fabric_Data  fabric_data   = truncate (word64);
    Fabric_Strb  fabric_strobe = truncate (strobe64);
 
@@ -303,10 +304,6 @@ module mkDM_System_Bus (DM_System_Bus_IFC);
 	 // fabric_data is properly lane-adjusted
 	 // fabric_strb identifies the lanes to be written
 	 // awsize is always the fabric width
-
-	 AXI4_Size axsize_fabric_width = (  (valueOf (Wd_Data) == 32)    // fabric width
-					  ? axsize_4
-					  : axsize_8);
 
 	 let wra = AXI4_Wr_Addr {awid:     fabric_default_id,
 				 awaddr:   fabric_addr,

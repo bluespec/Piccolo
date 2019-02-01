@@ -249,21 +249,24 @@ function Tuple4 #(Fabric_Addr,    // addr is 32b- or 64b-aligned
    Bit #(8)   strobe64    = 0;
    Bit #(3)   shift_bytes = addr [2:0];
    Bit #(6)   shift_bits  = { shift_bytes, 3'b0 };
-   Bit #(64)  addr64      = extend (addr & (~ 'b111));    // 64b align
-   AXI4_Size  axsize      = axsize_4;
+   Bit #(64)  addr64      = zeroExtend (addr);
+   AXI4_Size  axsize      = axsize_128;    // Will be updated in 'case' below
 
    case (f3 [1:0])
       f3_SIZE_B: begin
 		    word64   = (word64 << shift_bits);
 		    strobe64 = ('b_1   << shift_bytes);
+		    axsize   = axsize_1;
 		 end
       f3_SIZE_H: begin
 		    word64   = (word64 << shift_bits);
 		    strobe64 = ('b_11  << shift_bytes);
+		    axsize   = axsize_2;
 		 end
       f3_SIZE_W: begin
 		    word64   = (word64  << shift_bits);
 		    strobe64 = ('b_1111 << shift_bytes);
+		    axsize   = axsize_4;
 		 end
       f3_SIZE_D: begin
 		    strobe64 = 'b_1111_1111;
@@ -273,7 +276,6 @@ function Tuple4 #(Fabric_Addr,    // addr is 32b- or 64b-aligned
 
    // Adjust for 32b fabrics
    if ((valueOf (Wd_Data) == 32) && (addr [2] == 1'b1)) begin
-      addr64   = (addr64 | 'b100);
       word64   = { 32'h0, word64 [63:32] };
       strobe64 = { 4'h0, strobe64 [7:4] };
    end
@@ -690,15 +692,17 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
    endfunction
 
    // Send a write-request into the fabric
-   function Action fa_fabric_send_write_req (Fabric_Addr  addr,
-					     Fabric_Data  data,
-					     Fabric_Strb  strb,
-					     AXI4_Size    size);
+   function Action fa_fabric_send_write_req (Bit #(3)  f3, PA  pa, Bit #(64)  st_val);
       action
+	 match {.fabric_addr,
+		.fabric_data,
+		.fabric_strb,
+		.fabric_size} = fn_to_fabric_write_fields (f3, pa, st_val);
+
 	 let mem_req_wr_addr = AXI4_Wr_Addr {awid:     fabric_default_id,
-					     awaddr:   addr,
+					     awaddr:   fabric_addr,
 					     awlen:    0,           // burst len = awlen+1
-					     awsize:   size,
+					     awsize:   fabric_size,
 					     awburst:  fabric_default_burst,
 					     awlock:   fabric_default_lock,
 					     awcache:  fabric_default_awcache,
@@ -708,8 +712,8 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 					     awuser:   fabric_default_user};
 
 	 let mem_req_wr_data = AXI4_Wr_Data {wid:    fabric_default_id,
-					     wdata:  data,
-					     wstrb:  strb,
+					     wdata:  fabric_data,
+					     wstrb:  fabric_strb,
 					     wlast:  True,
 					     wuser:  fabric_default_user};
 
@@ -954,11 +958,7 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 		     $display ("        Write-Cache-Hit/Miss: eaddr 0x%0h word64 0x%0h", rg_addr, rg_st_amo_val);
 
 		  // For write-hits and write-misses, writeback data to memory (so cache remains clean)
-		  match {.fabric_addr,
-			 .fabric_data,
-			 .fabric_strb,
-			 .fabric_size} = fn_to_fabric_write_fields (rg_f3, vm_xlate_result.pa, rg_st_amo_val);
-		  fa_fabric_send_write_req (fabric_addr, fabric_data, fabric_strb, fabric_size);
+		  fa_fabric_send_write_req (rg_f3, vm_xlate_result.pa, rg_st_amo_val);
 
 		  // TODO: mark the pte A and D bits, writeback PTE if changed
 
@@ -1010,11 +1010,7 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 		  end
 
 		  // Writeback data to memory (so cache remains clean)
-		  match {.fabric_addr,
-			 .fabric_data,
-			 .fabric_strb,
-			 .fabric_size} = fn_to_fabric_write_fields (rg_f3, vm_xlate_result.pa, new_st_val);
-		  fa_fabric_send_write_req (fabric_addr, fabric_data, fabric_strb, fabric_size);
+		  fa_fabric_send_write_req (rg_f3, vm_xlate_result.pa, new_st_val);
 
 		  // If this is to the LR/SC reserved address, invalidate the reservation
 		  // TODO: should we invalidate even if to a different
@@ -1662,11 +1658,7 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 	 $display ("%0d: %s: rl_io_write_req; f3 0x%0h  vaddr %0h  paddr %0h  word64 0x%0h",
 		   cur_cycle, d_or_i, rg_f3, rg_addr, rg_pa, rg_st_amo_val);
 
-      match {.fabric_addr,
-	     .fabric_data,
-	     .fabric_strb,
-	     .fabric_size} = fn_to_fabric_write_fields (rg_f3, rg_pa, rg_st_amo_val);
-      fa_fabric_send_write_req (fabric_addr, fabric_data, fabric_strb, fabric_size);
+      fa_fabric_send_write_req (rg_f3, rg_pa, rg_st_amo_val);
 
       rg_state <= CACHE_ST_AMO_RSP;
 
@@ -1786,11 +1778,7 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 		.new_st_val} = fn_amo_op (rg_f3, rg_amo_funct7, rg_addr, ld_val, rg_st_amo_val);
 
 	 // Write back new st_val to fabric
-	 match {.fabric_addr,
-		.fabric_data,
-		.fabric_strb,
-		.fabric_size} = fn_to_fabric_write_fields (rg_f3, rg_pa, new_st_val);
-	 fa_fabric_send_write_req (fabric_addr, fabric_data, fabric_strb, fabric_size);
+	 fa_fabric_send_write_req (rg_f3, rg_pa, new_st_val);
 
 	 fa_drive_IO_read_rsp (rg_f3, rg_addr, new_ld_val);
 	 rg_ld_val <= new_ld_val;
