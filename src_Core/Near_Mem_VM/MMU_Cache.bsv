@@ -235,20 +235,22 @@ endfunction
 // ================================================================
 // Compute address, data and strobe (byte-enables) for writes to fabric
 
-function Tuple3 #(Bit #(Wd_Addr),               // addr is 32b- or 64b-aligned
-		  Bit #(Wd_Data),               // data is lane-aligned
-		  Bit #(TDiv #(Wd_Data, 8)))    // strobep
-   fn_to_fabric_addr_data_strobe (Bit #(3) f3,
-				  Bit #(n) addr,
-				  Bit #(64) word64)    // data is in lsbs
+function Tuple4 #(Fabric_Addr,    // addr is 32b- or 64b-aligned
+		  Fabric_Data,    // data is lane-aligned
+		  Fabric_Strb,    // strobe
+		  AXI4_Size)      // 8 for 8-byte writes, else 4
+
+   fn_to_fabric_write_fields (Bit #(3)  f3,      // RISC-V size code: B/H/W/D
+			      Bit #(n)  addr,    // actual byte addr
+			      Bit #(64) word64)  // data is in lsbs
    provisos (Add #(_, n, 64));
 
    // First compute addr, data and strobe for a 64b-wide fabric
-   Bit #(8)  strobe64    = 0;
-   Bit #(3)  shift_bytes = addr [2:0];
-   Bit #(6)  shift_bits  = { shift_bytes, 3'b0 };
-   // Bit #(64) addr64      = extend (addr);    TODO: DELETE
-   Bit #(64) addr64      = extend (addr & (~ 'b111));    // 64b align
+   Bit #(8)   strobe64    = 0;
+   Bit #(3)   shift_bytes = addr [2:0];
+   Bit #(6)   shift_bits  = { shift_bytes, 3'b0 };
+   Bit #(64)  addr64      = extend (addr & (~ 'b111));    // 64b align
+   AXI4_Size  axsize      = axsize_4;
 
    case (f3 [1:0])
       f3_SIZE_B: begin
@@ -265,6 +267,7 @@ function Tuple3 #(Bit #(Wd_Addr),               // addr is 32b- or 64b-aligned
 		 end
       f3_SIZE_D: begin
 		    strobe64 = 'b_1111_1111;
+		    axsize   = axsize_8;
 		 end
    endcase
 
@@ -276,12 +279,12 @@ function Tuple3 #(Bit #(Wd_Addr),               // addr is 32b- or 64b-aligned
    end
 
    // Finally, create fabric addr/data/strobe
-   Bit #(Wd_Addr)            fabric_addr   = truncate (addr64);
-   Bit #(Wd_Data)            fabric_data   = truncate (word64);
-   Bit #(TDiv #(Wd_Data, 8)) fabric_strobe = truncate (strobe64);
+   Fabric_Addr  fabric_addr   = truncate (addr64);
+   Fabric_Data  fabric_data   = truncate (word64);
+   Fabric_Strb  fabric_strobe = truncate (strobe64);
 
-   return tuple3 (fabric_addr, fabric_data, fabric_strobe);
-endfunction: fn_to_fabric_addr_data_strobe
+   return tuple4 (fabric_addr, fabric_data, fabric_strobe, axsize);
+endfunction: fn_to_fabric_write_fields
 
 // ================================================================
 // Update a byte, halfword, word or doubleword in a Word64 at Way in a Word64_Set
@@ -687,12 +690,15 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
    endfunction
 
    // Send a write-request into the fabric
-   function Action fa_fabric_send_write_req (Fabric_Addr  addr, Fabric_Data  data, Fabric_Strb  strb);
+   function Action fa_fabric_send_write_req (Fabric_Addr  addr,
+					     Fabric_Data  data,
+					     Fabric_Strb  strb,
+					     AXI4_Size    size);
       action
 	 let mem_req_wr_addr = AXI4_Wr_Addr {awid:     fabric_default_id,
 					     awaddr:   addr,
 					     awlen:    0,           // burst len = awlen+1
-					     awsize:   axsize_8,
+					     awsize:   size,
 					     awburst:  fabric_default_burst,
 					     awlock:   fabric_default_lock,
 					     awcache:  fabric_default_awcache,
@@ -950,8 +956,9 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 		  // For write-hits and write-misses, writeback data to memory (so cache remains clean)
 		  match {.fabric_addr,
 			 .fabric_data,
-			 .fabric_strb } = fn_to_fabric_addr_data_strobe (rg_f3, vm_xlate_result.pa, rg_st_amo_val);
-		  fa_fabric_send_write_req (fabric_addr, fabric_data, fabric_strb);
+			 .fabric_strb,
+			 .fabric_size} = fn_to_fabric_write_fields (rg_f3, vm_xlate_result.pa, rg_st_amo_val);
+		  fa_fabric_send_write_req (fabric_addr, fabric_data, fabric_strb, fabric_size);
 
 		  // TODO: mark the pte A and D bits, writeback PTE if changed
 
@@ -1005,8 +1012,9 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 		  // Writeback data to memory (so cache remains clean)
 		  match {.fabric_addr,
 			 .fabric_data,
-			 .fabric_strb } = fn_to_fabric_addr_data_strobe (rg_f3, vm_xlate_result.pa, new_st_val);
-		  fa_fabric_send_write_req (fabric_addr, fabric_data, fabric_strb);
+			 .fabric_strb,
+			 .fabric_size} = fn_to_fabric_write_fields (rg_f3, vm_xlate_result.pa, new_st_val);
+		  fa_fabric_send_write_req (fabric_addr, fabric_data, fabric_strb, fabric_size);
 
 		  // If this is to the LR/SC reserved address, invalidate the reservation
 		  // TODO: should we invalidate even if to a different
@@ -1656,8 +1664,9 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 
       match {.fabric_addr,
 	     .fabric_data,
-	     .fabric_strb } = fn_to_fabric_addr_data_strobe (rg_f3, rg_pa, rg_st_amo_val);
-      fa_fabric_send_write_req (fabric_addr, fabric_data, fabric_strb);
+	     .fabric_strb,
+	     .fabric_size} = fn_to_fabric_write_fields (rg_f3, rg_pa, rg_st_amo_val);
+      fa_fabric_send_write_req (fabric_addr, fabric_data, fabric_strb, fabric_size);
 
       rg_state <= CACHE_ST_AMO_RSP;
 
@@ -1675,12 +1684,13 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 
       match {.fabric_addr,
 	     .fabric_data,
-	     .fabric_strb } = fn_to_fabric_addr_data_strobe (rg_f3, rg_pa, rg_st_amo_val);
+	     .fabric_strb,
+	     .fabric_size} = fn_to_fabric_write_fields (rg_f3, rg_pa, rg_st_amo_val);
 
       let req = Near_Mem_IO_Req {read_not_write: False,
 				 addr: zeroExtend (rg_pa),
 				 wdata: fabric_data,
-				 wstrb: fabric_strb};
+				 wstrb: fabric_strb};    // NOTE: not using size
       f_near_mem_io_reqs.enq (req);
 
       rg_state <= CACHE_ST_AMO_RSP;
@@ -1778,8 +1788,9 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 	 // Write back new st_val to fabric
 	 match {.fabric_addr,
 		.fabric_data,
-		.fabric_strb } = fn_to_fabric_addr_data_strobe (rg_f3, rg_pa, new_st_val);
-	 fa_fabric_send_write_req (fabric_addr, fabric_data, fabric_strb);
+		.fabric_strb,
+		.fabric_size} = fn_to_fabric_write_fields (rg_f3, rg_pa, new_st_val);
+	 fa_fabric_send_write_req (fabric_addr, fabric_data, fabric_strb, fabric_size);
 
 	 fa_drive_IO_read_rsp (rg_f3, rg_addr, new_ld_val);
 	 rg_ld_val <= new_ld_val;

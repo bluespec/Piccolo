@@ -109,18 +109,20 @@ endfunction
 // ----------------
 // Compute address, data and strobe (byte-enables) for writes to fabric
 
-function Tuple3 #(Fabric_Addr,    // addr is 32b- or 64b-aligned
+function Tuple4 #(Fabric_Addr,    // addr is 32b- or 64b-aligned
 		  Fabric_Data,    // data is lane-aligned
-		  Fabric_Strb)    // strobep
-   fn_to_fabric_addr_data_strb (DM_sbaccess  sbaccess,
-				Bit #(64)    addr,
-				Bit #(64)    word64);    // data is in lsbs
+		  Fabric_Strb,    // strobe
+		  AXI4_Size)      // 8 for 8-byte writes, else 4
+   fn_to_fabric_write_fields (DM_sbaccess  sbaccess,    // size of access
+			      Bit #(64)    addr,
+			      Bit #(64)    word64);     // data is in lsbs
 
    // First compute addr, data and strobe for a 64b-wide fabric
-   Bit #(8)  strobe64    = 0;
-   Bit #(3)  shift_bytes = addr [2:0];
-   Bit #(6)  shift_bits  = { shift_bytes, 3'b0 };
-   Bit #(64) addr64      = (addr & (~ 'b111));      // 64b align
+   Bit #(8)   strobe64    = 0;
+   Bit #(3)   shift_bytes = addr [2:0];
+   Bit #(6)   shift_bits  = { shift_bytes, 3'b0 };
+   Bit #(64)  addr64      = (addr & (~ 'b111));      // 64b align
+   AXI4_Size  axsize      = axsize_4;
 
    case (sbaccess)
       DM_SBACCESS_8_BIT:  begin
@@ -137,6 +139,7 @@ function Tuple3 #(Fabric_Addr,    // addr is 32b- or 64b-aligned
 			  end
       DM_SBACCESS_64_BIT: begin
 			     strobe64 = 'b_1111_1111;
+			     axsize   = axsize_8;
 			  end
    endcase
 
@@ -152,8 +155,8 @@ function Tuple3 #(Fabric_Addr,    // addr is 32b- or 64b-aligned
    Fabric_Data  fabric_data   = truncate (word64);
    Fabric_Strb  fabric_strobe = truncate (strobe64);
 
-   return tuple3 (fabric_addr, fabric_data, fabric_strobe);
-endfunction: fn_to_fabric_addr_data_strb
+   return tuple4 (fabric_addr, fabric_data, fabric_strobe, axsize);
+endfunction: fn_to_fabric_write_fields
 
 // ----------------
 // System Bus access states
@@ -170,7 +173,7 @@ deriving (Bits, Eq, FShow);
 (* synthesize *)
 module mkDM_System_Bus (DM_System_Bus_IFC);
 
-   Integer verbosity = 0;    // Normally 0; non-zero for debugging
+   Integer verbosity = 1;    // Normally 0; non-zero for debugging
 
    // ----------------------------------------------------------------
 
@@ -293,7 +296,8 @@ module mkDM_System_Bus (DM_System_Bus_IFC);
       action
 	 match {.fabric_addr,
 		.fabric_data,
-		.fabric_strb } = fn_to_fabric_addr_data_strb (rg_sbcs_sbaccess, sbaddress, data64);
+		.fabric_strb,
+		.fabric_size} = fn_to_fabric_write_fields (rg_sbcs_sbaccess, sbaddress, data64);
 	 
 	 // fabric_addr is always fabric-data-width aligned
 	 // fabric_data is properly lane-adjusted
@@ -307,7 +311,7 @@ module mkDM_System_Bus (DM_System_Bus_IFC);
 	 let wra = AXI4_Wr_Addr {awid:     fabric_default_id,
 				 awaddr:   fabric_addr,
 				 awlen:    0,                      // burst len = awlen+1
-				 awsize:   axsize_fabric_width,    // Note: always fabric width
+				 awsize:   fabric_size,
 				 awburst:  fabric_default_burst,
 				 awlock:   fabric_default_lock,
 				 awcache:  fabric_default_awcache,
