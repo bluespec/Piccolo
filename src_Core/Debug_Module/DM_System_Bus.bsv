@@ -174,7 +174,7 @@ deriving (Bits, Eq, FShow);
 (* synthesize *)
 module mkDM_System_Bus (DM_System_Bus_IFC);
 
-   Integer verbosity = 1;    // Normally 0; non-zero for debugging
+   Integer verbosity = 0;    // Normally 0; non-zero for debugging
 
    // ----------------------------------------------------------------
 
@@ -345,18 +345,19 @@ module mkDM_System_Bus (DM_System_Bus_IFC);
 	 Bool        sbreadondata    = unpack (dm_word [15]);
 	 DM_sberror  sberror         = unpack (dm_word [14:12]);
 
-	 // No-op if not clearing existing error
+	 // No-op if not clearing existing sberror
 	 if ((rg_sbcs_sberror != DM_SBERROR_NONE) && (sberror == DM_SBERROR_NONE)) begin
 	    // Existing error is not being cleared
-	    noAction;
 	    $display ("DM_System_Bus.sbcs_write <= 0x%08h: ERROR", dm_word);
-	    $display ("    ERROR: existing error (0x%0h) not being cleared", rg_sbcs_sberror);
+	    $display ("    ERROR: existing sberror (0x%0h) is not being cleared.", rg_sbcs_sberror);
+	    $display ("    Must be cleared to re-enable system bus access.");
 	 end
 
-	 else if (rg_sbcs_sbbusyerror && sbbusyerror) begin
-	    if (verbosity != 0)
-	       $display ("    DM_System_Bus.sbcs_write <= 0x%08h: clear sbbusyerror", dm_word);
-	    rg_sbcs_sbbusyerror <= False;
+	 // No-op if not clearing existing sbbusyerror
+	 else if (rg_sbcs_sbbusyerror && (! sbbusyerror)) begin
+	    $display ("DM_System_Bus.sbcs_write <= 0x%08h: ERROR", dm_word);
+	    $display ("    ERROR: existing sbbusyerror (%0d) is not being cleared.", rg_sbcs_sbbusyerror);
+	    $display ("    Must be cleared to re-enable system bus access.");
 	 end
 
 	 // Check that requested access size is supported
@@ -370,16 +371,79 @@ module mkDM_System_Bus (DM_System_Bus_IFC);
 
 	 // Ok
 	 else begin
-	    if (verbosity != 0)
-	       $display ("DM_System_Bus.sbcs_write: ", fshow_sbcs (dm_word));
+	    if (verbosity != 0) begin
+	       $display ("    DM_System_Bus.sbcs_write: ", fshow_sbcs (dm_word));
+	       if (rg_sbcs_sberror != DM_SBERROR_NONE)
+		  $display ("        Clearing sbcs.sberror");
+	       if (rg_sbcs_sbbusyerror)
+		  $display ("        Clearing sbcs.sbbusyerror");
+	    end
 
+	    rg_sbcs_sbbusyerror     <= False;
 	    rg_sbcs_sbreadonaddr    <= sbreadonaddr;
 	    rg_sbcs_sbaccess        <= sbaccess;
 	    rg_sbcs_sbautoincrement <= sbautoincrement;
 	    rg_sbcs_sbreadondata    <= sbreadondata;
+	    rg_sbcs_sberror         <= DM_SBERROR_NONE;
 	 end
       endaction
    endfunction: fa_rg_sbcs_write
+
+   // ================================================================
+   // rg_sbaddress0, rg_sbaddress1 writes
+
+   function Action fa_rg_sbaddress_write (DM_Addr dm_addr, DM_Word dm_word);
+      action
+	 // Debug announce
+	 if (verbosity != 0) begin
+	    $write ("DM_System_Bus.sbaddress.write: [0x%08h] <= 0x%08h", dm_addr, dm_word);
+	    if (rg_sbcs_sbreadonaddr) begin
+	       $write ("; readonaddr");
+	       if (rg_sbcs_sbautoincrement)
+		  $write ("; autoincrement");
+	    end
+	    $display ("");
+	 end
+
+	 if (sbbusy) begin
+	    $display ("DM_System_Bus.sbaddress.write: busy, setting sbbusyerror");
+	    rg_sbcs_sbbusyerror <= True;
+	 end
+
+	 else if (rg_sbcs_sbbusyerror)
+	    $display ("DM_System_Bus.sbaddress.write: ignoring due to sbbusyerror");
+
+	 else if (rg_sbcs_sberror != DM_SBERROR_NONE)
+	    $display ("DM_System_Bus.sbaddress.write: ignoring due to sberror = 0x%0h",
+		      rg_sbcs_sberror);
+
+	 else if (dm_addr == dm_addr_sbaddress0) begin
+	    Bit #(64) addr64 = { rg_sbaddress1, dm_word };
+	    if (rg_sbcs_sbreadonaddr) begin
+	       fa_fabric_send_read_req  (addr64);
+	       if (rg_sbcs_sbautoincrement)
+		  fa_sbaddress_incr (addr64);
+	       else
+		  rg_sbaddress0 <= dm_word;
+	    end
+	    else
+	       rg_sbaddress0 <= dm_word;
+	 end
+
+	 else begin // (dm_addr == dm_addr_sbaddress1)
+`ifdef RV32
+	    rg_sbaddress1 <= 0;
+	    if (verbosity != 0)
+	       $display ("DM_System_Bus.write: [sbaddress1] <= 0 (RV32: ignoring arg value 0x%08h)",
+			 dm_word);
+`else
+	    rg_sbaddress1 <= dm_word;
+	    if (verbosity != 0)
+	       $display ("DM_System_Bus.write: [sbaddress1] <= 0x%08h", dm_word);
+`endif
+	 end
+      endaction
+   endfunction
 
    // ================================================================
    // rg_sbdata0, rg_sbdata1 reads
@@ -388,14 +452,15 @@ module mkDM_System_Bus (DM_System_Bus_IFC);
       actionvalue
 	 DM_Word result = 0;
 	 if (sbbusy) begin
-	    noAction;
-	    $display ("DM_System_Bus.sbdata0_read: busy, setting sbbusyerror");
+	    $display ("DM_System_Bus.sbdata.read: busy, setting sbbusyerror");
 	    rg_sbcs_sbbusyerror <= True;
 	 end
 
-	 else if (rg_sbcs_sbbusyerror || rg_sbcs_sberror != DM_SBERROR_NONE) begin
-	    $display ("DM_System_Bus.sbdata0.read: ignoring due to error");
-	 end
+	 else if (rg_sbcs_sbbusyerror)
+	    $display ("DM_System_Bus.sbdata.read: ignoring due to sbbusyerror");
+
+	 else if (rg_sbcs_sberror != DM_SBERROR_NONE)
+	    $display ("DM_System_Bus.sbdata.read: ignoring due to sberror = 0x%0h", rg_sbcs_sberror);
 
 	 else begin
 	    if (dm_addr == dm_addr_sbdata0)
@@ -459,13 +524,17 @@ module mkDM_System_Bus (DM_System_Bus_IFC);
    function Action fa_rg_sbdata_write (DM_Addr dm_addr, DM_Word dm_word);
       action
 	 if (sbbusy) begin
-	    noAction;
-	    $display ("DM_System_Bus.fa_rg_sbdata_write: busy, setting sbbusyerror");
+	    $display ("DM_System_Bus.sbdata.write: busy, setting sbbusyerror");
 	    rg_sbcs_sbbusyerror <= True;
 	 end
 
-	 else if (rg_sbcs_sbbusyerror || rg_sbcs_sberror != DM_SBERROR_NONE) begin
-	    $display ("DM_System_Bus.fa_rg_sbdata_write: ignoring due to error");
+	 else if (rg_sbcs_sbbusyerror) begin
+	    $display ("DM_System_Bus.sbdata.write: ignoring due to sbbusyerror");
+	 end
+
+	 else if (rg_sbcs_sberror != DM_SBERROR_NONE) begin
+	    $display ("DM_System_Bus.sbdata.write: ignoring due to sberror = 0x%0h",
+		      rg_sbcs_sberror);
 	 end
 
 	 else begin
@@ -570,44 +639,11 @@ module mkDM_System_Bus (DM_System_Bus_IFC);
 	 if (dm_addr == dm_addr_sbcs)
             fa_rg_sbcs_write (dm_word);
 
-	 else if (dm_addr == dm_addr_sbaddress0) begin
-	    if (verbosity != 0) begin
-	       $write ("DM_System_Bus.write: [sbaddress0] <= 0x%08h", dm_word);
-	       if (rg_sbcs_sbreadonaddr) begin
-		  $write ("; readonaddr");
-		  if (rg_sbcs_sbautoincrement)
-		     $write ("; autoincrement");
-	       end
-	       $display ("");
-	    end
-
-	    Bit #(64) addr64 = { rg_sbaddress1, dm_word };
-	    if (rg_sbcs_sbreadonaddr) begin
-	       fa_fabric_send_read_req  (addr64);
-	       if (rg_sbcs_sbautoincrement)
-		  fa_sbaddress_incr (addr64);
-	       else
-		  rg_sbaddress0 <= dm_word;
-	    end
-	    else
-	       rg_sbaddress0 <= dm_word;
-	 end
+	 else if ((dm_addr == dm_addr_sbaddress0) || (dm_addr == dm_addr_sbaddress1))
+	    fa_rg_sbaddress_write (dm_addr, dm_word);
 
 	 else if (dm_addr == dm_addr_sbdata0) // FUTURE: || (dm_addr == dm_addr_sbdata1)
 	    fa_rg_sbdata_write (dm_addr, dm_word);
-
-	 else if (dm_addr == dm_addr_sbaddress1) begin
-`ifdef RV32
-	    rg_sbaddress1 <= 0;
-	    if (verbosity != 0)
-	       $display ("DM_System_Bus.write: [sbaddress1] <= 0 (RV32: ignoring arg value 0x%08h)",
-			 dm_word);
-`else
-	    rg_sbaddress1 <= dm_word;
-	    if (verbosity != 0)
-	       $display ("DM_System_Bus.write: [sbaddress1] <= 0x%08h", dm_word);
-`endif
-	 end
 
 	 else begin
 	    // Unsupported dm_addr
