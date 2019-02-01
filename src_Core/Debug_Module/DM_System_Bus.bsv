@@ -262,7 +262,7 @@ module mkDM_System_Bus (DM_System_Bus_IFC);
 	 Fabric_Addr fabric_addr = truncate (addr64);
 	 let rda = AXI4_Rd_Addr {arid:     fabric_default_id,
 				 araddr:   fabric_addr,
-				 arlen:    1,
+				 arlen:    0,                      // burst len = arlen+1
 				 arsize:   fn_DM_sbaccess_to_AXI4_Size (rg_sbcs_sbaccess),
 				 arburst:  fabric_default_burst,
 				 arlock:   fabric_default_lock,
@@ -306,7 +306,7 @@ module mkDM_System_Bus (DM_System_Bus_IFC);
 
 	 let wra = AXI4_Wr_Addr {awid:     fabric_default_id,
 				 awaddr:   fabric_addr,
-				 awlen:    1,
+				 awlen:    0,                      // burst len = awlen+1
 				 awsize:   axsize_fabric_width,    // Note: always fabric width
 				 awburst:  fabric_default_burst,
 				 awlock:   fabric_default_lock,

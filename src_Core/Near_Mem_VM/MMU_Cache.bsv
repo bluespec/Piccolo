@@ -667,7 +667,7 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
       action
 	 let mem_req_rd_addr = AXI4_Rd_Addr {arid:     fabric_default_id,
 					     araddr:   addr,
-					     arlen:    1,
+					     arlen:    0,           // burst len = arlen+1
 					     arsize:   size,
 					     arburst:  fabric_default_burst,
 					     arlock:   fabric_default_lock,
@@ -691,8 +691,8 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
       action
 	 let mem_req_wr_addr = AXI4_Wr_Addr {awid:     fabric_default_id,
 					     awaddr:   addr,
-					     awlen:    1,
-					     awsize:   axsize_8,    // 64b TODO: CHANGE TO ACTUAL SIZE OF REQ?
+					     awlen:    0,           // burst len = awlen+1
+					     awsize:   axsize_8,
 					     awburst:  fabric_default_burst,
 					     awlock:   fabric_default_lock,
 					     awcache:  fabric_default_awcache,
