@@ -95,27 +95,8 @@ interface SoC_Top_IFC;
    interface Put #(Bit #(8)) put_from_console;
 
    // For ISA tests: watch memory writes to <tohost> addr
-   method Action set_watch_tohost (Bool watch_tohost, Bit #(64) tohost_addr);
+   method Action set_watch_tohost (Bool  watch_tohost, Fabric_Addr  tohost_addr);
 endinterface
-
-// ================================================================
-// Constant addresses of interest
-
-// ----------------
-// PC reset value
-
-// Entry point for Boot ROM used in Spike/Rocket
-// (boot code jumps later to 'h_8000_0000)
-Bit #(64)  pc_reset_value    = 'h_0000_1000;
-
-// Entry point for code generated for Spike/Rocket
-// Bit #(64)  pc_reset_value    = 'h_8000_0000;
-
-// ----------------
-// Near-mem-IO (timer, SIP, ... memory-mapped locations)
-
-Bit #(64)  near_mem_io_addr_base = 'h_0200_0000;
-Bit #(64)  near_mem_io_addr_lim  = 'h_0200_c000;
 
 // ================================================================
 // The module
@@ -369,7 +350,7 @@ module mkSoC_Top (SoC_Top_IFC);
    interface put_from_console = uart0.put_from_console;
 
    // For ISA tests: watch memory writes to <tohost> addr
-   method Action set_watch_tohost (Bool watch_tohost, Bit #(64) tohost_addr);
+   method Action set_watch_tohost (Bool  watch_tohost, Fabric_Addr  tohost_addr);
       mem0_controller.set_watch_tohost (watch_tohost, tohost_addr);
    endmethod
 endmodule: mkSoC_Top
