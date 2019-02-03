@@ -740,7 +740,7 @@
         <spirit:parameters>
           <spirit:parameter>
             <spirit:name>viewChecksum</spirit:name>
-            <spirit:value>ac7deda7</spirit:value>
+            <spirit:value>810ae162</spirit:value>
           </spirit:parameter>
         </spirit:parameters>
       </spirit:view>
@@ -756,7 +756,7 @@
         <spirit:parameters>
           <spirit:parameter>
             <spirit:name>viewChecksum</spirit:name>
-            <spirit:value>ac7deda7</spirit:value>
+            <spirit:value>c7a023c1</spirit:value>
           </spirit:parameter>
         </spirit:parameters>
       </spirit:view>
@@ -2220,6 +2220,10 @@
     <spirit:fileSet>
       <spirit:name>xilinx_anylanguagesynthesis_view_fileset</spirit:name>
       <spirit:file>
+        <spirit:name>src/p1_constraints.xdc</spirit:name>
+        <spirit:userFileType>xdc</spirit:userFileType>
+      </spirit:file>
+      <spirit:file>
         <spirit:name>hdl/BRAM2.v</spirit:name>
         <spirit:fileType>verilogSource</spirit:fileType>
       </spirit:file>
@@ -2334,7 +2338,7 @@
       <spirit:file>
         <spirit:name>hdl/mkP1_Core.v</spirit:name>
         <spirit:fileType>verilogSource</spirit:fileType>
-        <spirit:userFileType>CHECKSUM_366483b8</spirit:userFileType>
+        <spirit:userFileType>CHECKSUM_ca33324f</spirit:userFileType>
       </spirit:file>
     </spirit:fileSet>
     <spirit:fileSet>
@@ -2502,8 +2506,8 @@
       </xilinx:taxonomies>
       <xilinx:displayName>mkP1_Core_v1_0</xilinx:displayName>
       <xilinx:definitionSource>package_project</xilinx:definitionSource>
-      <xilinx:coreRevision>4</xilinx:coreRevision>
-      <xilinx:coreCreationDateTime>2019-02-01T02:49:10Z</xilinx:coreCreationDateTime>
+      <xilinx:coreRevision>5</xilinx:coreRevision>
+      <xilinx:coreCreationDateTime>2019-02-02T20:29:42Z</xilinx:coreCreationDateTime>
       <xilinx:tags>
         <xilinx:tag xilinx:name="nopcore"/>
         <xilinx:tag xilinx:name="bluespec:user:mkP1_Core:1.0_ARCHIVE_LOCATION">src_SSITH_P1/xilinx_ip</xilinx:tag>
@@ -2513,8 +2517,8 @@
       <xilinx:xilinxVersion>2017.4</xilinx:xilinxVersion>
       <xilinx:checksum xilinx:scope="busInterfaces" xilinx:value="accec86e"/>
       <xilinx:checksum xilinx:scope="addressSpaces" xilinx:value="3315be85"/>
-      <xilinx:checksum xilinx:scope="fileGroups" xilinx:value="ac4d8e7c"/>
-      <xilinx:checksum xilinx:scope="ports" xilinx:value="c3587fc8"/>
+      <xilinx:checksum xilinx:scope="fileGroups" xilinx:value="d23b7a85"/>
+      <xilinx:checksum xilinx:scope="ports" xilinx:value="11f24e4a"/>
       <xilinx:checksum xilinx:scope="parameters" xilinx:value="781af562"/>
     </xilinx:packagingInfo>
   </spirit:vendorExtensions>
