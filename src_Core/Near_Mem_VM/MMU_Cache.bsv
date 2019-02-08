@@ -26,26 +26,20 @@
 // For RV32, a cache line is 8 x 32b words.
 // For RV64, a cache line is 8 x 64b words.
 
-// Fabric-facing interface: The data width can be 32b or 64b (type Wd_Data).
-// When Wd_Data = 32:
-//   - Load/store addresses are 32b-aligned
-//   - Load response data is always the full 32b word
-//   - Store data is the full 32b word plus a 4b 'byte-strobe'
-//       indicating which bytes to store.  The byte-strobe must be for
-//       contiguous, aligned, 1B, 2B or 4B values.
-// When Wd_Data = 64:
-//   - Load/store addresses are 64b-aligned
-//   - Load response data is always the full 64b word
-//   - Store data is the full 64b word plus an 8b 'byte-strobe'
-//       indicating which bytes to store.  The byte-strobe must be for
-//       contiguous, aligned, 1B, 2B, 4B or 8B values.
+// Fabric-facing interface: AXI4, with data width 32b or 64b (type Wd_Data).
 
 // Internally, the data RAM width is fixed at 64b.
 
-// VM-SYNTH-OPT: Comments beginning with this indicates that the following state
+// After MMU translation, there is a 3-way triage based on physical addr:
+//  - Memory addrs: request goes to the cache logic
+//                      (back end of cache logic talks to fabric interface)
+//  - Near_Mem_IO:  request goes directly to 'near_mem_io_client' interface (no cacheing)
+//  - IO:           request does directly to fabric interface (no cacheing)
+
+// VM-SYNTH-OPT: Comments beginning with this indicate that the following state
 // elements are unused in non-VM mode, and ought to be optimized away by
-// gate-level synthesis tools. If this is not happening, we might need to encase
-// them using ifdefs
+// gate-level synthesis tools. If those tools are unable to do this,
+// we might need to enclose them in ifdefs.
 
 package MMU_Cache;
 
@@ -849,15 +843,18 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
       else begin
 	 // (vm_xlate_result.outcome == VM_XLATE_OK)
 	 rg_pa <= vm_xlate_result.pa;
+	 let is_mem_addr = soc_map.m_is_mem_addr (fn_PA_to_Fabric_Addr (vm_xlate_result.pa));
 
-	 // IO requests
-	 if (soc_map.m_is_IO_addr (fn_PA_to_Fabric_Addr (vm_xlate_result.pa))) begin
+	 // Access to non-memory
+	 if (dmem_not_imem && (! is_mem_addr)) begin
+	    // IO requests
 	    rg_state <= IO_REQ;
 	    // TODO: mark the pte A and D bits, writeback PTE if changed
 	    if (cfg_verbosity > 1)
 	       $display ("    => IO_REQ");
 	 end
-	 // Memory requests
+
+	 // Memory requests. Note: it's ok that this can go to non-memory space.
 	 else begin
 	    // Compute cache hit/miss. If hit, also compute Way_in_CSet and Word64
 	    let pa_ctag = fn_PA_to_CTag (vm_xlate_result.pa);
