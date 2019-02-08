@@ -93,6 +93,8 @@ interface SoC_Map_IFC;
    method  Bool  m_is_near_mem_IO_addr (Fabric_Addr addr);
 
    (* always_ready *)   method  Bit #(64)  m_pc_reset_value;
+
+   (* always_ready *)   method  Bit #(64)  m_nmi_vector;
 endinterface
 
 // ================================================================
@@ -245,6 +247,11 @@ module mkSoC_Map (SoC_Map_IFC);
 
    Bit #(64) pc_reset_value = boot_rom_addr_base;
 
+   // ----------------------------------------------------------------
+   // Non-maskable Interrupt vector
+
+   Bit #(64) nmi_vector = ?;    // TODO
+
    // ================================================================
    // INTERFACE
 
@@ -295,6 +302,8 @@ module mkSoC_Map (SoC_Map_IFC);
    method  Bool  m_is_near_mem_IO_addr (Fabric_Addr addr) = fn_is_near_mem_io_addr (addr);
 
    method  Bit #(64)  m_pc_reset_value = pc_reset_value;
+
+   method  Bit #(64)  m_nmi_vector     = nmi_vector;
 endmodule
 
 // ================================================================

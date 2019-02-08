@@ -60,7 +60,8 @@ import RISCV_MBox  :: *;
 `endif
 
 `ifdef ISA_F
-import RISCV_FBox  :: *;
+import FBox_Top    :: *;
+import FBox_Core   :: *;   // For fv_nanbox function
 `endif
 
 // ================================================================
@@ -96,8 +97,9 @@ module mkCPU_Stage2 #(Bit #(4)         verbosity,
    FIFOF #(Token) f_reset_reqs <- mkFIFOF;
    FIFOF #(Token) f_reset_rsps <- mkFIFOF;
 
-   Reg #(Bool)                  rg_full   <- mkReg (False);
-   Reg #(Data_Stage1_to_Stage2) rg_stage2 <- mkRegU;    // From Stage 1
+   Reg #(Bool)                  rg_resetting  <- mkReg (False);
+   Reg #(Bool)                  rg_full       <- mkReg (False);
+   Reg #(Data_Stage1_to_Stage2) rg_stage2     <- mkRegU;    // From Stage 1
 
    // ----------------
    // Serial shifter box
@@ -117,7 +119,7 @@ module mkCPU_Stage2 #(Bit #(4)         verbosity,
    // Floating point box
 
 `ifdef ISA_F
-   RISCV_FBox_IFC fbox <- mkRISCV_FBox;
+   FBox_Top_IFC fbox <- mkFBox_Top;
 `endif
 
    // ----------------
@@ -173,9 +175,22 @@ module mkCPU_Stage2 #(Bit #(4)         verbosity,
    // ----------------------------------------------------------------
    // BEHAVIOR
 
-   rule rl_reset;
+   rule rl_reset_begin;
       f_reset_reqs.deq;
       rg_full <= False;
+      rg_resetting <= True;
+`ifdef ISA_F
+      fbox.server_reset.request.put (?);
+`endif
+   endrule
+
+   rule rl_reset_end (rg_resetting);
+      rg_resetting <= False;
+
+`ifdef ISA_F
+      let res <- fbox.server_reset.response.get;
+`endif
+
       f_reset_rsps.enq (?);
    endrule
 

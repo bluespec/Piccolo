@@ -280,7 +280,8 @@ instance FShow #(Data_Stage1_to_Stage2);
       fmt = fmt + $format ("            addr:%h  val1:%h  val2:%h  val3:%h}",
 			   x.addr, x.val1, x.val2, x.val3);
 `else
-      fmt = fmt + $format ("            addr:%h  val1:%h  val2:%h}", x.addr, x.val1, x.val2);
+      fmt = fmt + $format ("            addr:%h  val1:%h  val2:%h}",
+			   x.addr, x.val1, x.val2);
 `endif
       return fmt;
    endfunction

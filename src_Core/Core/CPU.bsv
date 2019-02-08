@@ -174,15 +174,15 @@ module mkCPU (CPU_IFC);
 
    CPU_Stage1_IFC  stage1 <- mkCPU_Stage1 (cur_verbosity,
 					   gpr_regfile,
-					   csr_regfile,
-					   imem,
+					   stage2.out.bypass,
+					   stage3.out.bypass,
 `ifdef ISA_F
 					   fpr_regfile,
 					   stage2.out.fbypass,
 					   stage3.out.fbypass,
 `endif
-					   stage2.out.bypass,
-					   stage3.out.bypass,
+					   csr_regfile,
+					   imem,
 					   rg_cur_priv);
 
    // ----------------
@@ -287,8 +287,7 @@ module mkCPU (CPU_IFC);
    endfunction
 
    // ================================================================
-   // Feed a new PC into Stage1
-   // Feed a new PC into IMem (to do an instruction fetch).
+   // Feed a new PC into IMem (instruction fetch).
    // Set rg_halt on debugger stop request or dcsr.step step request
 
    function Action fa_start_ifetch (Word next_pc, Priv_Mode priv);
@@ -300,7 +299,8 @@ module mkCPU (CPU_IFC);
 	 Bit #(1) sstatus_SUM = 0;
 `endif
 	 Bit #(1) mstatus_MXR = mstatus [19];
-	 stage1.enq (next_pc, priv,
+	 stage1.enq (next_pc,
+		     priv,
 		     sstatus_SUM,
 		     mstatus_MXR,
 		     csr_regfile.read_satp);
@@ -1056,7 +1056,8 @@ module mkCPU (CPU_IFC);
 
    // ----------------
 
-   rule rl_WFI_resume ((rg_state == CPU_WFI_PAUSED) && csr_regfile.wfi_resume);
+   rule rl_WFI_resume (   (rg_state == CPU_WFI_PAUSED)
+		       && csr_regfile.wfi_resume);
       if (cur_verbosity > 1) $display ("%0d:  CPU.rl_WFI_resume", mcycle);
 
       // Debug

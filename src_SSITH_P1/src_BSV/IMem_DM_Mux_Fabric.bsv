@@ -3,10 +3,10 @@
 package IMem_DM_Mux_Fabric;
 
 // ================================================================
-// Defines a 2x1 Fabric that is a specialization of AXI4_Lite_Fabric
-// that is used only within mkP1_Core to multiplex two AXI4-Lite
-// master interfaces (from the IMem and Debug Module) into a single
-// AXI4-Lite master interface.
+// Defines a 2x1 Fabric that is a specialization of AXI4_Fabric that
+// is used only within the Core to multiplex two AXI4 master
+// interfaces (from the IMem and Debug Module) into a single AXI4
+// master interface.
 
 // ================================================================
 

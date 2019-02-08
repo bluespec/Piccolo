@@ -8,7 +8,7 @@ help:
 	@echo '                           NOTE: needs Bluespec bsc compiler'
 	@echo ''
 	@echo '    make  clean        Remove intermediate build-files'
-	@echo '    make  full_clean   Restore to pristine state (pre-building anything)'
+	@echo '    make  full_clean   Restore this directory to pristine state'
 
 .PHONY: all
 all: compile
@@ -51,7 +51,7 @@ TOPMODULE = mkP1_Core
 # bsc compilation flags
 
 BSC_COMPILATION_FLAGS += \
-	-keep-fires -aggressive-conditions -no-warn-action-shadowing    \
+	-keep-fires -aggressive-conditions -no-warn-action-shadowing -no-show-timestamps \
 	-suppress-warnings G0020    \
 	+RTS -K128M -RTS  -show-range-conflict
 
