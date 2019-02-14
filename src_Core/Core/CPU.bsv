@@ -461,7 +461,7 @@ module mkCPU (CPU_IFC);
 	 $display ("%0d: CPU.reset_complete", mcycle);
 
 `ifdef INCLUDE_GDB_CONTROL
-      csr_regfile.write_dcsr_cause (DCSR_CAUSE_HALTREQ);
+      csr_regfile.write_dcsr_cause_priv (DCSR_CAUSE_HALTREQ, m_Priv_Mode);
       rg_state <= CPU_DEBUG_MODE;
 
       if (cur_verbosity != 0)
@@ -1172,7 +1172,7 @@ module mkCPU (CPU_IFC);
       if (cur_verbosity > 1)
 	 $display ("    Flushing caches");
 
-      csr_regfile.write_dcsr_cause (DCSR_CAUSE_EBREAK);
+      csr_regfile.write_dcsr_cause (DCSR_CAUSE_EBREAK, rg_cur_priv);
       csr_regfile.write_dpc (pc);    // Where we'll resume on 'continue'
       rg_state <= CPU_GDB_PAUSING;
 
@@ -1282,7 +1282,7 @@ module mkCPU (CPU_IFC);
       end
 
       DCSR_Cause cause= (rg_stop_req ? DCSR_CAUSE_HALTREQ : DCSR_CAUSE_STEP);
-      csr_regfile.write_dcsr_cause (cause);
+      csr_regfile.write_dcsr_cause (cause, rg_cur_priv);
       csr_regfile.write_dpc (pc);    // We'll retry this instruction on 'continue'
       rg_state    <= CPU_GDB_PAUSING;
       rg_halt     <= False;
