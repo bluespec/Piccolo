@@ -608,14 +608,18 @@ module mkCPU (CPU_IFC);
       let instr    = stage2.out.data_to_stage3.instr;
 
       // Take trap
-      match {.next_pc,
-	     .new_mstatus,
-	     .mcause,
-	     .new_priv}    <- csr_regfile.csr_trap_actions (rg_cur_priv,    // from priv
-							    epc,
-							    False,          // interrupt_req
-							    exc_code,
-							    tval);
+      let trap_info <- csr_regfile.csr_trap_actions (rg_cur_priv,    // from priv
+						     epc,
+						     False,          // interrupt_req
+						     exc_code,
+						     tval);
+
+      let next_pc    = trap_info.pc;
+      let new_mstatus= trap_info.mstatus;
+      let mcause     = trap_info.mcause;
+      let new_priv   = trap_info.priv;
+
+      // Save new privilege and pc for ifetch
       rg_cur_priv <= new_priv;
 
       fa_start_ifetch (next_pc, new_priv);
@@ -1103,15 +1107,19 @@ module mkCPU (CPU_IFC);
       let tval     = stage1.out.trap_info.tval;
       let instr    = stage1.out.data_to_stage2.instr;
 
-      // Take trap
-      match {.next_pc,
-	     .new_mstatus,
-	     .mcause,
-	     .new_priv}    <- csr_regfile.csr_trap_actions (rg_cur_priv,    // from priv
-							    epc,
-							    False,          // interrupt_req,
-							    exc_code,
-							    tval);
+      // Take trap, save trap information for next phase
+      let trap_info <- csr_regfile.csr_trap_actions (rg_cur_priv, // from priv
+						     epc,
+						     False,       // interrupt_req
+						     exc_code,
+						     tval);
+
+      let next_pc    = trap_info.pc;
+      let new_mstatus= trap_info.mstatus;
+      let mcause     = trap_info.mcause;
+      let new_priv   = trap_info.priv;
+
+      // Save new privilege and pc for ifetch
       rg_cur_priv <= new_priv;
       fa_start_ifetch (next_pc, new_priv);
       stage1.set_full (True);
@@ -1220,14 +1228,17 @@ module mkCPU (CPU_IFC);
       let instr = stage1.out.data_to_stage2.instr;
 
       // Take trap
-      match {.next_pc,
-	     .new_mstatus,
-	     .mcause,
-	     .new_priv}    <- csr_regfile.csr_trap_actions (rg_cur_priv,    // from priv
-							    epc,
-							    True,           // interrupt_req,
-							    exc_code,
-							    0);             // tval
+      let trap_info <- csr_regfile.csr_trap_actions (rg_cur_priv,    // from priv
+						     epc,
+						     True,           // interrupt_req,
+						     exc_code,
+						     0);             // tval
+      let next_pc       = trap_info.pc;
+      let new_mstatus   = trap_info.mstatus;
+      let mcause        = trap_info.mcause;
+      let new_priv      = trap_info.priv;
+
+      // Save new privilege
       rg_cur_priv <= new_priv;
 
       // Just enq the next_pc into stage1,
