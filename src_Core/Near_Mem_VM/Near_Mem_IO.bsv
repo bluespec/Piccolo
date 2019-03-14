@@ -59,7 +59,7 @@ import ByteLane   :: *;
 // ================================================================
 // Project imports
 
-// None
+import Fabric_Defs  :: *;
 
 // ================================================================
 // Local constants and types
@@ -310,13 +310,22 @@ module mkNear_Mem_IO (Near_Mem_IO_IFC);
 		     end
 		  end
 
-	 // The following ALIGN4B writes are only needed for 32b fabrics
 	 'h_0004: noAction;
 	 'h_4004: begin
 		     Bit #(64) old_timecmp = crg_timecmp [1];
-		     Bit #(64) new_timecmp = fn_update_strobed_bytes (old_timecmp,
-								      { req.wdata [31:0], 32'h0 },
-								      { req.wstrb [3:0], 4'h0 });
+		     Bit #(64) new_timecmp;
+
+		     // The following ALIGN4B writes are only needed for 32b fabrics
+		     if (valueOf (Wd_Data) == 32)
+			        new_timecmp = fn_update_strobed_bytes (old_timecmp,
+								      { req.wdata [31:0], 32'h0},
+								      { req.wstrb [3:0], 4'h0});
+		     // The following writes are needed on 64b fabrics
+		     else
+			        new_timecmp = fn_update_strobed_bytes (old_timecmp,
+								      { req.wdata [63:0]},
+								      { req.wstrb [7:4], 4'h0});
+
 		     crg_timecmp [1] <= new_timecmp;
 
 		     if (cfg_verbosity > 1) begin
@@ -329,9 +338,19 @@ module mkNear_Mem_IO (Near_Mem_IO_IFC);
 		  end
 	 'h_BFFC: begin
 		     Bit #(64) old_time = crg_time [1];
-		     Bit #(64) new_time = fn_update_strobed_bytes (old_time,
-								   { req.wdata [31:0], 32'h0 },
-								   { req.wstrb [3:0], 4'h0 });
+		     Bit #(64) new_time;
+
+		     // The following ALIGN4B writes are only needed for 32b fabrics
+		     if (valueOf (Wd_Data) == 32)
+			        new_time = fn_update_strobed_bytes (old_time,
+								      { req.wdata [31:0], 32'h0},
+								      { req.wstrb [3:0], 4'h0});
+		     // The following writes are needed on 64b fabrics
+		     else
+			        new_time = fn_update_strobed_bytes (old_time,
+								      { req.wdata [63:0]},
+								      { req.wstrb [7:4], 4'h0});
+
 		     crg_time [1] <= new_time;
 
 		     if (cfg_verbosity > 1) begin
