@@ -226,8 +226,19 @@ module mkNear_Mem_IO (Near_Mem_IO_IFC);
 
 	 // The following ALIGN4B reads are only needed for 32b fabrics
 	 'h_0004: rdata = 0;
-	 'h_4004: rdata = zeroExtend (crg_timecmp [0] [63:32]);    // extends for 64b fabrics
-	 'h_BFFC: rdata = zeroExtend (crg_time    [0] [63:32]);    // extends for 64b fabrics
+	 'h_4004: begin
+		     if (valueOf (Wd_Data) == 32)
+			             rdata = zeroExtend (crg_timecmp [0] [63:32]);   // 32b fabrics
+		     else
+			             rdata = zeroExtend (crg_timecmp [0] [63:0]);    // 64b fabrics
+	  end
+	 'h_BFFC: begin
+		     if (valueOf (Wd_Data) == 32)
+			             rdata = zeroExtend (crg_time [0] [63:32]);   // 32b fabrics
+		     else
+			             rdata = zeroExtend (crg_time [0] [63:0]);    // 64b fabrics
+		     end
+
 	 default: begin
 		     rok = False;
 
