@@ -30,6 +30,7 @@ import GetPut_Aux :: *;
 // Project imports
 
 import ISA_Decls :: *;
+import SoC_Map   :: *;
 
 `ifdef INCLUDE_GDB_CONTROL
 import DM_Common :: *;    // Debug Module defs
@@ -140,9 +141,15 @@ interface CSR_RegFile_IFC;
 
    // Interrupts
    (* always_ready, always_enabled *)
-   method Action external_interrupt_req (Bool set_not_clear);
+   method Action m_external_interrupt_req (Bool set_not_clear);
 
+   (* always_ready, always_enabled *)
+   method Action s_external_interrupt_req (Bool set_not_clear);
+
+   (* always_ready, always_enabled *)
    method Action timer_interrupt_req    (Bool set_not_clear);
+
+   (* always_ready, always_enabled *)
    method Action software_interrupt_req (Bool set_not_clear);
 
    (* always_ready *)
@@ -241,11 +248,6 @@ function MISA misa_reset_value;
 endfunction
 
 // ================================================================
-// MTVEC reset value (our choice; not part of the spec)
-
-Word mtvec_reset_value = 'h1000;
-
-// ================================================================
 // Major states of mkCSR_RegFile module
 
 typedef enum { RF_RESET_START, RF_RUNNING } RF_State
@@ -258,6 +260,8 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
 
    Reg #(Bit #(4)) cfg_verbosity <- mkConfigReg (0);
    Reg #(RF_State) rg_state      <- mkReg (RF_RESET_START);
+
+   SoC_Map_IFC soc_map <- mkSoC_Map;
 
    // Reset
    FIFOF #(Token) f_reset_rsps <- mkFIFOF;
@@ -336,7 +340,7 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
 
    // Debug
    Reg #(Bit #(32)) rg_dcsr      <- mkRegU;    // Is 32b even in RV64
-   Reg #(WordXL)    rg_dpc       <- mkReg(mtvec_reset_value);
+   Reg #(WordXL)    rg_dpc       <- mkRegU;
    Reg #(WordXL)    rg_dscratch0 <- mkRegU;
    Reg #(WordXL)    rg_dscratch1 <- mkRegU;
 
@@ -353,7 +357,7 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
 
       // Supervisor-level CSRs
 `ifdef ISA_PRIV_S
-      rg_stvec    <= word_to_mtvec (mtvec_reset_value);
+      rg_stvec    <= word_to_mtvec (truncate (soc_map.m_mtvec_reset_value));
       rg_scause   <= word_to_mcause (0);    // Supposed to be the cause of the reset.
       rg_satp     <= 0;
       //rg_scounteren <= mcounteren_reset_value;
@@ -364,7 +368,7 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
       csr_mie.reset;
       csr_mip.reset;
 
-      rg_mtvec      <= word_to_mtvec (mtvec_reset_value);
+      rg_mtvec      <= word_to_mtvec (truncate (soc_map.m_mtvec_reset_value));
       rg_mcause     <= word_to_mcause (0);    // Supposed to be the cause of the reset.
 `ifdef ISA_PRIV_S
       rg_medeleg    <= 0;
@@ -376,13 +380,13 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
       rw_minstret.wset (0);
 
 `ifdef INCLUDE_GDB_CONTROL
-      // rg_dpc  <= pc_reset_value;    // Should be set by GDB
+      rg_dpc  <= truncate (soc_map.m_pc_reset_value);
       rg_dcsr <= zeroExtend ({4'h4,    // [31:28]  xdebugver
 			      12'h0,   // [27:16]  reserved
-			      1'h1,    // [15]     ebreakm
+			      1'h0,    // [15]     ebreakm
 			      1'h0,    // [14]     reserved
-			      1'h1,    // [13]     ebreaks
-			      1'h1,    // [12]     ebreaku
+			      1'h0,    // [13]     ebreaks
+			      1'h0,    // [12]     ebreaku
 			      1'h0,    // [11]     stepie
 			      1'h0,    // [10]     stopcount
 			      1'h0,    // [9]      stoptime
@@ -1193,10 +1197,16 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
    endmethod
 
    // Interrupts
-   method Action external_interrupt_req (Bool set_not_clear);
-      csr_mip.external_interrupt_req  (set_not_clear);     
+   method Action m_external_interrupt_req (Bool set_not_clear);
+      csr_mip.m_external_interrupt_req  (set_not_clear);
       if (cfg_verbosity > 1)
-	 $display ("%0d: CSR_RegFile: external_interrupt_req: %x", rg_mcycle, set_not_clear);
+	 $display ("%0d: CSR_RegFile: m_external_interrupt_req: %x", rg_mcycle, set_not_clear);
+   endmethod
+
+   method Action s_external_interrupt_req (Bool set_not_clear);
+      csr_mip.s_external_interrupt_req  (set_not_clear);
+      if (cfg_verbosity > 1)
+	 $display ("%0d: CSR_RegFile: s_external_interrupt_req: %x", rg_mcycle, set_not_clear);
    endmethod
 
    method Action timer_interrupt_req (Bool set_not_clear);

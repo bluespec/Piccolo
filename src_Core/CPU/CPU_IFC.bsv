@@ -37,14 +37,29 @@ interface CPU_IFC;
    // DMem to Fabric master interface
    interface AXI4_Master_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User)  dmem_master;
 
-   // Back-door slave interface from fabric into Near_Mem
-   interface AXI4_Slave_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User)  near_mem_slave;
-
    // ----------------
    // External interrupts
 
    (* always_ready, always_enabled *)
-   method Action  external_interrupt_req (Bool set_not_clear);
+   method Action  m_external_interrupt_req (Bool set_not_clear);
+
+   (* always_ready, always_enabled *)
+   method Action  s_external_interrupt_req (Bool set_not_clear);
+
+   // ----------------
+   // Software and timer interrupts (from Near_Mem_IO/CLINT)
+
+   (* always_ready, always_enabled *)
+   method Action  software_interrupt_req (Bool set_not_clear);
+
+   (* always_ready, always_enabled *)
+   method Action  timer_interrupt_req    (Bool set_not_clear);
+
+   // ----------------
+   // Non-maskable interrupt
+
+   (* always_ready, always_enabled *)
+   method Action  non_maskable_interrupt_req (Bool set_not_clear);
 
    // ----------------
    // Set core's verbosity

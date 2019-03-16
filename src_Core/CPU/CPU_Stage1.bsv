@@ -219,11 +219,11 @@ module mkCPU_Stage1 #(Bit #(4)         verbosity,
 
       // Trap on IMem exception
       else if (imem.exc) begin
-	 output_stage1.ostatus    = OSTATUS_NONPIPE;
-	 output_stage1.control    = CONTROL_TRAP;
-	 output_stage1.trap_info  = Trap_Info {epc:      pc,
-					       exc_code: imem.exc_code,
-					       tval:     imem.tval};
+	 output_stage1.ostatus   = OSTATUS_NONPIPE;
+	 output_stage1.control   = CONTROL_TRAP;
+	 output_stage1.trap_info = Trap_Info {epc:      pc,
+					      exc_code: imem.exc_code,
+					      tval:     imem.tval};
 	 output_stage1.data_to_stage2 = data_to_stage2;
       end
 
@@ -238,11 +238,13 @@ module mkCPU_Stage1 #(Bit #(4)         verbosity,
 	 // Compute MTVAL in case of traps
 	 let tval = 0;
 	 if (alu_outputs.exc_code == exc_code_ILLEGAL_INSTRUCTION)
-	    tval = zeroExtend (instr);  // The instruction
+	    tval = (is_i32_not_i16
+		    ? zeroExtend (instr)
+		    : zeroExtend (instr_C));                   // The instruction
 	 else if (alu_outputs.exc_code == exc_code_INSTR_ADDR_MISALIGNED)
-	    tval = alu_outputs.addr;    // The branch target pc
+	    tval = alu_outputs.addr;                           // The branch target pc
 	 else if (alu_outputs.exc_code == exc_code_BREAKPOINT)
-	    tval = pc;                  // The faulting virtual address
+	    tval = pc;                                         // The faulting virtual address
 
 	 let trap_info = Trap_Info {epc:      pc,
 				    exc_code: alu_outputs.exc_code,
@@ -282,7 +284,7 @@ module mkCPU_Stage1 #(Bit #(4)         verbosity,
       imem.req (f3_LW, next_pc, priv, sstatus_SUM, mstatus_MXR, satp);
 
       if (verbosity > 1)
-	 $display ("    CPU_Stage1.enq: 0x%08x", next_pc);
+	 $display ("    CPU_Stage1.enq: 0x%08h", next_pc);
    endmethod
 
    method Action set_full (Bool full);

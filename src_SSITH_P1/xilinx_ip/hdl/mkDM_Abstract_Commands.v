@@ -914,7 +914,7 @@ module mkDM_Abstract_Commands(CLK,
     if (RST_N != `BSV_RESET_VALUE)
       if (EN_write &&
 	  rg_abstractcs_cmderr_6_EQ_0_0_AND_write_dm_add_ETC___d123)
-	$write(" not supported", "\n");
+	$write(" not supported in RV32 mode", "\n");
     if (RST_N != `BSV_RESET_VALUE)
       if (EN_write && write_dm_addr != 7'h16 &&
 	  rg_abstractcs_cmderr == 3'd0 &&
