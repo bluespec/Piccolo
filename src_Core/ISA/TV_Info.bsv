@@ -358,5 +358,13 @@ typedef struct {
 } Info_CPU_to_Verifier deriving (Bits, FShow);
 
 // ================================================================
+// TV AXI4 Stream Parameters
+
+typedef SizeOf #(Info_CPU_to_Verifier)Wd_SData;
+typedef 0 Wd_SDest;
+typedef 0 Wd_SUser;
+typedef 0 Wd_SId;
+
+// ================================================================
 
 endpackage
