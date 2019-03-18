@@ -51,7 +51,6 @@ import Fabric_Defs  :: *;
 `ifdef INCLUDE_TANDEM_VERIF
 import TV_Info :: *;
 import AXI4_Stream ::*;
-import VerificationBridge ::*;
 `endif
 
 `ifdef INCLUDE_GDB_CONTROL
@@ -240,6 +239,18 @@ endmodule
 // ================================================================
 // The TV to AXI4 Stream transactor
 
+`ifdef INCLUDE_TANDEM_VERIF
+
+// ================================================================
+// TV AXI4 Stream Parameters
+
+typedef SizeOf #(Info_CPU_to_Verifier)Wd_SData;
+typedef 0 Wd_SDest;
+typedef 0 Wd_SUser;
+typedef 0 Wd_SId;
+
+// ================================================================
+
 interface TV_Xactor;
    interface Put #(Info_CPU_to_Verifier) tv_in;
    interface AXI4_Stream_Master_IFC #(Wd_SId, Wd_SDest, Wd_SData, Wd_SUser)  axi_out;
@@ -268,6 +279,7 @@ module mkTV_Xactor (TV_Xactor);
 
    interface axi_out = tv_xactor.axi_side;
 endmodule
+`endif
 
 // ================================================================
 
