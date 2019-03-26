@@ -51,7 +51,8 @@ interface Near_Mem_IFC;
    interface IMem_IFC  imem;
 
    // Fabric side
-   interface AXI4_Master_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User) imem_master;
+   interface AXI4_Master_Synth #(Wd_MId, Wd_Addr, Wd_Data,
+                                 Wd_User, Wd_User, Wd_User, Wd_User, Wd_User) imem_master;
 
    // ----------------
    // DMem
@@ -60,7 +61,8 @@ interface Near_Mem_IFC;
    interface DMem_IFC  dmem;
 
    // Fabric side
-   interface AXI4_Master_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User) dmem_master;
+   interface AXI4_Master_Synth #(Wd_MId_2x3, Wd_Addr, Wd_Data,
+                                 Wd_User, Wd_User, Wd_User, Wd_User, Wd_User) dmem_master;
 
    // ----------------
    // Fences

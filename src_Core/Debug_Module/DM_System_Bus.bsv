@@ -39,7 +39,8 @@ interface DM_System_Bus_IFC;
 
    // ----------------
    // Facing System
-   interface AXI4_Master_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User) master;
+   interface AXI4_Master_Synth #(Wd_MId_2x3, Wd_Addr, Wd_Data,
+                                 Wd_User, Wd_User, Wd_User, Wd_User, Wd_User) master;
 endinterface
 
 // ================================================================
@@ -180,7 +181,9 @@ module mkDM_System_Bus (DM_System_Bus_IFC);
    // ----------------------------------------------------------------
 
    // Interface to memory fabric
-   AXI4_Master_Xactor_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User) master_xactor <- mkAXI4_Master_Xactor_2;
+   AXI4_Master_Xactor#(Wd_MId_2x3, Wd_Addr, Wd_Data,
+                       Wd_User, Wd_User, Wd_User, Wd_User, Wd_User)
+                       master_xactor <- mkAXI4_Master_Xactor;
 
    // ----------------------------------------------------------------
    // System Bus state

@@ -83,12 +83,14 @@ import Fabric_Defs  :: *;
 
 // ================================================================
 
-export  MMU_Cache_IFC (..),  mkMMU_Cache;
+export  MMU_Cache_IFC (..);
+export  MMU_ICache_IFC (..),  mkMMU_ICache;
+export  MMU_DCache_IFC (..),  mkMMU_DCache;
 
 // ================================================================
 // MMU_Cache interface
 
-interface MMU_Cache_IFC;
+interface MMU_Cache_IFC#(numeric type mID);
    method Action set_verbosity (Bit #(4) verbosity);
 
    // Reset request/response
@@ -124,8 +126,12 @@ interface MMU_Cache_IFC;
    method Action tlb_flush;
 
    // Fabric master interface
-   interface AXI4_Master_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User) mem_master;
+   interface AXI4_Master_Synth #(mID, Wd_Addr, Wd_Data,
+                                 Wd_User, Wd_User, Wd_User, Wd_User, Wd_User) mem_master;
 endinterface
+
+typedef MMU_Cache_IFC#(Wd_MId_2x3) MMU_DCache_IFC;
+typedef MMU_Cache_IFC#(Wd_MId) MMU_ICache_IFC;
 
 // ****************************************************************
 // ****************************************************************
@@ -416,7 +422,17 @@ endfunction
 // The module implementation
                 
 (* synthesize *)
-module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
+module mkMMU_ICache(MMU_ICache_IFC);
+  let cache <- mkMMU_Cache(False, fabric_default_mid);
+  return cache;
+endmodule
+(* synthesize *)
+module mkMMU_DCache(MMU_DCache_IFC);
+  let cache <- mkMMU_Cache(True, fabric_2x3_default_mid);
+  return cache;
+endmodule
+module mkMMU_Cache  #(parameter Bool dmem_not_imem,
+                      parameter Bit#(mID) default_mid)  (MMU_Cache_IFC#(mID));
 
    String d_or_i = (dmem_not_imem ? "D_MMU_Cache" : "I_MMU_Cache");
 

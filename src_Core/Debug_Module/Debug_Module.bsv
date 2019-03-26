@@ -118,7 +118,8 @@ interface Debug_Module_IFC;
    interface Get #(Token) get_ndm_reset_req;
 
    // Read/Write RISC-V memory
-   interface AXI4_Master_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User) master;
+   interface AXI4_Master_Synth #(Wd_MId_2x3, Wd_Addr, Wd_Data,
+                                 Wd_User, Wd_User, Wd_User, Wd_User, Wd_User) master;
 endinterface
 
 // ================================================================

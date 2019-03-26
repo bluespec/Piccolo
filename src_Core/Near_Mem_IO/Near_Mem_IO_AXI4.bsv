@@ -83,7 +83,8 @@ interface Near_Mem_IO_AXI4_IFC;
    method Action set_addr_map (Bit #(64) addr_base, Bit #(64) addr_lim);
 
    // Memory-mapped access
-   interface AXI4_Slave_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User) axi4_slave;
+   interface AXI4_Slave_Synth #(Wd_SId_2x3, Wd_Addr, Wd_Data,
+                                Wd_User, Wd_User, Wd_User, Wd_User, Wd_User) axi4_slave;
 
    // Timer interrupt
    // True/False = set/clear interrupt-pending in CPU's MTIP

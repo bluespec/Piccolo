@@ -67,10 +67,12 @@ interface P1_Core_IFC;
    // Core CPU interfaces
 
    // CPU IMem to Fabric master interface
-   interface AXI4_Master_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User) master0;
+   interface AXI4_Master_Synth #(Wd_MId, Wd_Addr, Wd_Data,
+                                 Wd_User, Wd_User, Wd_User, Wd_User, Wd_User) master0;
 
    // CPU DMem (incl. I/O) to Fabric master interface
-   interface AXI4_Master_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User) master1;
+   interface AXI4_Master_Synth #(Wd_MId, Wd_Addr, Wd_Data,
+                                 Wd_User, Wd_User, Wd_User, Wd_User, Wd_User) master1;
 
    // External interrupt sources
    (* always_ready, always_enabled, prefix="" *)

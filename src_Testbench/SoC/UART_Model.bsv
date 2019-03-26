@@ -111,7 +111,8 @@ interface UART_IFC;
    method Action set_addr_map (Fabric_Addr addr_base, Fabric_Addr addr_lim);
 
    // Main Fabric Reqs/Rsps
-   interface AXI4_Slave_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User) slave;
+   interface AXI4_Slave_Synth #(Wd_SId, Wd_Addr, Wd_Data,
+                                Wd_User, Wd_User, Wd_User, Wd_User, Wd_User) slave;
 
    // To external console
    interface Get #(Bit #(8))  get_to_console;

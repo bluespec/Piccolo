@@ -53,29 +53,12 @@ import Fabric_Defs :: *;    // Only for type Fabric_Addr
 // Interface and module for the address map
 
 interface SoC_Map_IFC;
-   (* always_ready *)   method  Fabric_Addr  m_near_mem_io_addr_base;
-   (* always_ready *)   method  Fabric_Addr  m_near_mem_io_addr_size;
-   (* always_ready *)   method  Fabric_Addr  m_near_mem_io_addr_lim;
-
-   (* always_ready *)   method  Fabric_Addr  m_plic_addr_base;
-   (* always_ready *)   method  Fabric_Addr  m_plic_addr_size;
-   (* always_ready *)   method  Fabric_Addr  m_plic_addr_lim;
-
-   (* always_ready *)   method  Fabric_Addr  m_uart0_addr_base;
-   (* always_ready *)   method  Fabric_Addr  m_uart0_addr_size;
-   (* always_ready *)   method  Fabric_Addr  m_uart0_addr_lim;
-
-   (* always_ready *)   method  Fabric_Addr  m_boot_rom_addr_base;
-   (* always_ready *)   method  Fabric_Addr  m_boot_rom_addr_size;
-   (* always_ready *)   method  Fabric_Addr  m_boot_rom_addr_lim;
-
-   (* always_ready *)   method  Fabric_Addr  m_mem0_controller_addr_base;
-   (* always_ready *)   method  Fabric_Addr  m_mem0_controller_addr_size;
-   (* always_ready *)   method  Fabric_Addr  m_mem0_controller_addr_lim;
-
-   (* always_ready *)   method  Fabric_Addr  m_tcm_addr_base;
-   (* always_ready *)   method  Fabric_Addr  m_tcm_addr_size;
-   (* always_ready *)   method  Fabric_Addr  m_tcm_addr_lim;
+   (* always_ready *)   method  Range#(Wd_Addr)  m_near_mem_io_addr_range;
+   (* always_ready *)   method  Range#(Wd_Addr)  m_plic_addr_range;
+   (* always_ready *)   method  Range#(Wd_Addr)  m_uart0_addr_range;
+   (* always_ready *)   method  Range#(Wd_Addr)  m_boot_rom_addr_range;
+   (* always_ready *)   method  Range#(Wd_Addr)  m_mem0_controller_addr_range;
+   (* always_ready *)   method  Range#(Wd_Addr)  m_tcm_addr_range;
 
    (* always_ready *)
    method  Bool  m_is_mem_addr (Fabric_Addr addr);
