@@ -25,12 +25,19 @@ package Fabric_Defs;
 import AXI4 :: *;
 
 // ================================================================
-// Fabric parameters
+// Core local Fabric parameters
+
+typedef 2  Num_Masters_2x3;
+typedef 3  Num_Slaves_2x3;
+
+typedef Bit#(TLog #(Num_Masters_2x3))  Master_Num_2x3;
+typedef Bit#(TLog #(Num_Slaves_2x3))  Slave_Num_2x3;
 
 // ----------------
-// Width of fabric 'id' buses
-typedef  4             Wd_Id;
-typedef  Bit #(Wd_Id)  Fabric_Id;
+// Width of fabric 'Id' buses
+typedef 4 Wd_MId_2x3;
+typedef TAdd#(Wd_MId_2x3, TLog#(Num_Masters_2x3)) Wd_SId_2x3;
+typedef Wd_SId_2x3 Wd_MId;
 
 // ----------------
 // Width of fabric 'addr' buses
@@ -72,13 +79,13 @@ Integer  zlsbs_aligned_fabric_addr = valueOf (ZLSBs_Aligned_Fabric_Addr);
 
 // ================================================================
 // AXI4 defaults for this project
-
-Fabric_Id    fabric_default_id       = 0;
-AXI4_Burst   fabric_default_burst    = axburst_incr;
-AXI4_Lock    fabric_default_lock     = axlock_normal;
+Bit#(Wd_MId_2x3) fabric_2x3_default_mid  = 0;
+Bit#(Wd_MId) fabric_default_mid      = 0;
+AXI4_Burst   fabric_default_burst    = INCR;
+AXI4_Lock    fabric_default_lock     = NORMAL;
 AXI4_Cache   fabric_default_arcache  = arcache_dev_nonbuf;
 AXI4_Cache   fabric_default_awcache  = awcache_dev_nonbuf;
-AXI4_Prot    fabric_default_prot     = { axprot_2_data, axprot_1_secure, axprot_0_unpriv };
+AXI4_Prot    fabric_default_prot     = axi4Prot(DATA, SECURE, UNPRIV);
 AXI4_QoS     fabric_default_qos      = 0;
 AXI4_Region  fabric_default_region   = 0;
 Fabric_User  fabric_default_user     = ?;
