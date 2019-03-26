@@ -31,13 +31,13 @@ import Connectable   :: *;
 
 import Cur_Cycle  :: *;
 import GetPut_Aux :: *;
+import Routable   :: *;
+import AXI4       :: *;
 
 // ================================================================
 // Project imports
 
 // Main fabric
-import AXI4_Types   :: *;
-import AXI4_Fabric  :: *;
 import Fabric_Defs  :: *;    // for Wd_Id, Wd_Addr, Wd_Data, Wd_User
 import SoC_Map      :: *;
 

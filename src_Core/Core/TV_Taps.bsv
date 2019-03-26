@@ -25,6 +25,8 @@ import Connectable   :: *;
 
 import Semi_FIFOF  :: *;
 import GetPut_Aux  :: *;
+import SourceSink  :: *;
+import AXI4        :: *;
 
 // ================================================================
 // Project imports
@@ -33,7 +35,6 @@ import ISA_Decls      :: *;
 import DM_CPU_Req_Rsp :: *;
 import TV_Info        :: *;
 
-import AXI4_Types   :: *;
 import Fabric_Defs  :: *;
 
 // ================================================================

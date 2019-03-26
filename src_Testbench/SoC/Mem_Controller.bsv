@@ -69,13 +69,14 @@ import Cur_Cycle  :: *;
 import GetPut_Aux :: *;
 import Semi_FIFOF :: *;
 import ByteLane   :: *;
+import AXI4       :: *;
+import SourceSink :: *;
 
 // ================================================================
 // Project imports
 
 import Fabric_Defs :: *;
 import SoC_Map     :: *;
-import AXI4_Types  :: *;
 
 // ================================================================
 // Raw mem data width:    256 (bits/ 32 x Byte/ 8 x Word32/ 4 x Word64)

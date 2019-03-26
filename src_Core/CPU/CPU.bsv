@@ -33,11 +33,10 @@ import ConfigReg    :: *;
 
 import GetPut_Aux :: *;
 import Semi_FIFOF :: *;
+import AXI4       :: *;
 
 // ================================================================
 // Project imports
-
-import AXI4_Types :: *;
 
 import ISA_Decls :: *;
 

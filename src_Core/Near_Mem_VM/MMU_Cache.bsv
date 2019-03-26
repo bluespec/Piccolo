@@ -59,6 +59,8 @@ import Cur_Cycle     :: *;
 import GetPut_Aux    :: *;
 import Semi_FIFOF    :: *;
 import CreditCounter :: *;
+import AXI4          :: *;
+import SourceSink    :: *;
 
 // ================================================================
 // Project imports
@@ -77,7 +79,6 @@ import Cache_Decls_RV64 :: *;
 `endif
 
 import SoC_Map      :: *;
-import AXI4_Types   :: *;
 import Fabric_Defs  :: *;
 
 // ================================================================

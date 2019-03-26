@@ -19,11 +19,14 @@ import Vector        :: *;
 import GetPut        :: *;
 import ClientServer  :: *;
 
+// ----------------
+// BSV additional libs
+import AXI4 :: *;
+
 // ================================================================
 // Project imports
 
 // Main fabric
-import AXI4_Types   :: *;
 import Fabric_Defs  :: *;
 
 // External interrupt request interface

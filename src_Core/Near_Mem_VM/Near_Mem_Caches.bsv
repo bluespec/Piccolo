@@ -33,6 +33,8 @@ import Connectable  :: *;
 
 import Cur_Cycle  :: *;
 import GetPut_Aux :: *;
+import Routable   :: *;
+import AXI4       :: *;
 
 // ================================================================
 // Project imports
@@ -40,7 +42,6 @@ import GetPut_Aux :: *;
 import ISA_Decls    :: *;
 import Near_Mem_IFC :: *;
 import MMU_Cache    :: *;
-import AXI4_Types   :: *;
 import Fabric_Defs  :: *;
 
 // System address map and pc_reset value

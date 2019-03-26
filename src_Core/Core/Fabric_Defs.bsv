@@ -19,10 +19,10 @@ package Fabric_Defs;
 
 // None
 
-// ================================================================
-// Project imports
+// ----------------
+// BSV additional libs
 
-import AXI4_Types :: *;
+import AXI4 :: *;
 
 // ================================================================
 // Fabric parameters

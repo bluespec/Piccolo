@@ -23,12 +23,14 @@ import ConfigReg :: *;
 import Cur_Cycle  :: *;
 import GetPut_Aux :: *;
 import Semi_FIFOF :: *;
+import AXI4       :: *;
+import SourceSink :: *;
 
 // ================================================================
 // Project imports
 
-import AXI4_Types  :: *;
 import Fabric_Defs :: *;
+import SoC_Map     :: *;
 
 // ================================================================
 // Include the auto-generated BSV-include file with the ROM function

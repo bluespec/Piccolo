@@ -21,24 +21,21 @@ import GetPut        :: *;
 import ClientServer  :: *;
 import Connectable   :: *;
 import Memory        :: *;
+import Vector        :: *;
 
 // ----------------
 // BSV additional libs
 
 import Cur_Cycle   :: *;
 import GetPut_Aux  :: *;
+import Routable    :: *;
+import AXI4        :: *;
 
 // ================================================================
 // Project imports
 
-// Main fabric
-import AXI4_Types     :: *;
-import AXI4_Fabric    :: *;
-import AXI4_Deburster :: *;
-
 import Fabric_Defs :: *;
 import SoC_Map     :: *;
-import SoC_Fabric  :: *;
 
 // SoC components (CPU, mem, and IPs)
 

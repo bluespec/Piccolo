@@ -15,6 +15,8 @@ import FIFOF :: *;
 // Other library imports
 
 import Semi_FIFOF :: *;
+import SourceSink :: *;
+import AXI4       :: *;
 
 // ================================================================
 // Project Imports
@@ -22,7 +24,6 @@ import Semi_FIFOF :: *;
 import ISA_Decls :: *;
 import DM_Common :: *;
 
-import AXI4_Types  :: *;
 import Fabric_Defs :: *;
 
 // ================================================================

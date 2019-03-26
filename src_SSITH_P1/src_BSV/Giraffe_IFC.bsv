@@ -1,12 +1,10 @@
 
 package Giraffe_IFC;
 
-import Axi ::*;
-import Axi4 ::*;
+import AXI4 ::*;
 import Bus ::*;
 import Connectable ::*;
 
-`include "TLM.defines"
 `include "Giraffe.defines"
 
 (* always_ready, always_enabled *)

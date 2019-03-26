@@ -7,6 +7,7 @@ package CPU_IFC;
 
 import GetPut       :: *;
 import ClientServer :: *;
+import AXI4         :: *;
 
 // ================================================================
 // Project imports
@@ -23,6 +24,8 @@ import DM_CPU_Req_Rsp :: *;
 `ifdef INCLUDE_TANDEM_VERIF
 import TV_Info         :: *;
 `endif
+
+import Fabric_Defs :: *;
 
 // ================================================================
 // CPU interface

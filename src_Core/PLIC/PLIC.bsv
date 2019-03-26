@@ -25,13 +25,13 @@ import  Assert       :: *;
 import  Cur_Cycle  :: *;
 import  GetPut_Aux :: *;
 import  Semi_FIFOF :: *;
+import  SourceSink :: *;
+import  AXI4       :: *;
 
 // ================================================================
 // Project imports
 
-import AXI4_Types   :: *;
-import AXI4_Fabric  :: *;
-import Fabric_Defs  :: *;    // for Wd_Id, Wd_Addr, Wd_Data, Wd_User
+import Fabric_Defs  :: *;    // for Wd_SId_2x3, Wd_Addr, Wd_Data, Wd_User
 
 // ================================================================
 // Change bitwidth without requiring < or > constraints.

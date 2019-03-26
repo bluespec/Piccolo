@@ -42,7 +42,7 @@ export  irq_num_uart0;
 // ================================================================
 // Bluespec library imports
 
-// None
+import Routable :: *; // For Range
 
 // ================================================================
 // Project imports

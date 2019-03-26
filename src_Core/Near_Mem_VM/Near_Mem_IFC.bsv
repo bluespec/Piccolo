@@ -29,13 +29,13 @@ import ClientServer :: *;
 // BSV additional libs
 
 import Cur_Cycle :: *;
+import AXI4      :: *;
 
 // ================================================================
 // Project imports
 
-import ISA_Decls       :: *;
+import ISA_Decls   :: *;
 
-import AXI4_Types  :: *;
 import Fabric_Defs :: *;
 
 // ================================================================

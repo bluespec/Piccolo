@@ -44,8 +44,7 @@ import Core     :: *;
 import PLIC :: *;    // for PLIC_Source_IFC type which is exposed at P2_Core interface
 
 // Main Fabric
-import AXI4_Types   :: *;
-import AXI4_Fabric  :: *;
+import AXI4         :: *;
 import Fabric_Defs  :: *;
 
 `ifdef INCLUDE_TANDEM_VERIF
