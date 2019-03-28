@@ -763,9 +763,9 @@ module mkCore(CLK,
 		cpu$imem_master_rdata,
 		cpu$imem_master_wdata,
 		cpu$set_verbosity_logdelay;
-  wire [48 : 0] cpu$hart0_csr_mem_server_request_put;
-  wire [41 : 0] cpu$hart0_gpr_mem_server_request_put;
-  wire [31 : 0] cpu$hart0_csr_mem_server_response_get,
+  wire [44 : 0] cpu$hart0_csr_mem_server_request_put;
+  wire [37 : 0] cpu$hart0_gpr_mem_server_request_put;
+  wire [32 : 0] cpu$hart0_csr_mem_server_response_get,
 		cpu$hart0_gpr_mem_server_response_get;
   wire [7 : 0] cpu$dmem_master_arlen,
 	       cpu$dmem_master_awlen,
@@ -874,12 +874,11 @@ module mkCore(CLK,
 		debug_module$master_awaddr,
 		debug_module$master_rdata,
 		debug_module$master_wdata;
-  wire [48 : 0] debug_module$hart0_csr_mem_client_request_get;
-  wire [41 : 0] debug_module$hart0_gpr_mem_client_request_get;
-  wire [31 : 0] debug_module$dmi_read_data,
-		debug_module$dmi_write_dm_word,
-		debug_module$hart0_csr_mem_client_response_put,
+  wire [44 : 0] debug_module$hart0_csr_mem_client_request_get;
+  wire [37 : 0] debug_module$hart0_gpr_mem_client_request_get;
+  wire [32 : 0] debug_module$hart0_csr_mem_client_response_put,
 		debug_module$hart0_gpr_mem_client_response_put;
+  wire [31 : 0] debug_module$dmi_read_data, debug_module$dmi_write_dm_word;
   wire [7 : 0] debug_module$master_arlen,
 	       debug_module$master_awlen,
 	       debug_module$master_wstrb;
@@ -948,8 +947,8 @@ module mkCore(CLK,
 
   // ports of submodule dm_csr_tap
   wire [233 : 0] dm_csr_tap$trace_data_out_get;
-  wire [48 : 0] dm_csr_tap$client_request_get, dm_csr_tap$server_request_put;
-  wire [31 : 0] dm_csr_tap$client_response_put,
+  wire [44 : 0] dm_csr_tap$client_request_get, dm_csr_tap$server_request_put;
+  wire [32 : 0] dm_csr_tap$client_response_put,
 		dm_csr_tap$server_response_get;
   wire dm_csr_tap$EN_client_request_get,
        dm_csr_tap$EN_client_response_put,
@@ -964,9 +963,9 @@ module mkCore(CLK,
 
   // ports of submodule dm_gpr_tap_ifc
   wire [233 : 0] dm_gpr_tap_ifc$trace_data_out_get;
-  wire [41 : 0] dm_gpr_tap_ifc$client_request_get,
+  wire [37 : 0] dm_gpr_tap_ifc$client_request_get,
 		dm_gpr_tap_ifc$server_request_put;
-  wire [31 : 0] dm_gpr_tap_ifc$client_response_put,
+  wire [32 : 0] dm_gpr_tap_ifc$client_response_put,
 		dm_gpr_tap_ifc$server_response_get;
   wire dm_gpr_tap_ifc$EN_client_request_get,
        dm_gpr_tap_ifc$EN_client_response_put,
