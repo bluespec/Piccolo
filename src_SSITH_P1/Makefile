@@ -31,6 +31,7 @@ BSC_COMPILATION_FLAGS += \
 	-D FABRIC64    \
 	-D INCLUDE_GDB_CONTROL \
 	-D INCLUDE_TANDEM_VERIF \
+	-D BRVF_TRACE \
 	-D XILINX_BSCAN  -D XILINX_XCVU9P  -D JTAG_TAP
 
 # ================================================================
