@@ -63,7 +63,7 @@ import AXI4       :: *;
 // Project imports
 
 // Main fabric
-import Fabric_Defs  :: *;    // for Wd_SId_2x3, Wd_Addr, Wd_Data, Wd_User
+import Fabric_Defs  :: *;    // for Wd_SId_2x3, Wd_Addr, Wd_Data...
 
 // ================================================================
 // Local constants and types
@@ -84,7 +84,8 @@ interface Near_Mem_IO_AXI4_IFC;
 
    // Memory-mapped access
    interface AXI4_Slave_Synth #(Wd_SId_2x3, Wd_Addr, Wd_Data,
-                                Wd_User, Wd_User, Wd_User, Wd_User, Wd_User) axi4_slave;
+                                Wd_AW_User, Wd_W_User, Wd_B_User,
+                                Wd_AR_User, Wd_R_User) axi4_slave;
 
    // Timer interrupt
    // True/False = set/clear interrupt-pending in CPU's MTIP
@@ -98,6 +99,8 @@ endinterface
 
 (* synthesize *)
 module mkNear_Mem_IO_AXI4 (Near_Mem_IO_AXI4_IFC);
+// XXX This module seems to assume the following constraints:
+// provisos(Add #(Wd_AW_User, 0, Wd_B_User), Add #(Wd_AR_User, 0, Wd_R_User));
 
    // Verbosity: 0: quiet; 1: reset; 2: timer interrupts, all reads and writes
    Reg #(Bit #(4)) cfg_verbosity <- mkConfigReg (0);
@@ -263,7 +266,7 @@ module mkNear_Mem_IO_AXI4 (Near_Mem_IO_AXI4_IFC);
 			    rdata: x,
 			    rresp: rresp,
 			    rlast: True,
-			    ruser: rda.aruser};
+			    ruser: rda.aruser}; // XXX This requires that Wd_AR_User == Wd_R_User
       slave_xactor.master.r.put(rdr);
 
       if (cfg_verbosity > 1) begin
@@ -402,7 +405,7 @@ module mkNear_Mem_IO_AXI4 (Near_Mem_IO_AXI4_IFC);
       // Send write-response to bus
       let wrr = AXI4_BFlit {bid:   wra.awid,
 			    bresp: bresp,
-			    buser: wra.awuser};
+			    buser: wra.awuser}; // XXX This requires that Wd_AW_User == Wd_B_User
       slave_xactor.master.b.put(wrr);
 
       if (cfg_verbosity > 1) begin

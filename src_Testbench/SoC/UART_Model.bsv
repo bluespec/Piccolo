@@ -112,7 +112,8 @@ interface UART_IFC;
 
    // Main Fabric Reqs/Rsps
    interface AXI4_Slave_Synth #(Wd_SId, Wd_Addr, Wd_Data,
-                                Wd_User, Wd_User, Wd_User, Wd_User, Wd_User) slave;
+                                Wd_AW_User, Wd_W_User, Wd_B_User,
+                                Wd_AR_User, Wd_R_User) slave;
 
    // To external console
    interface Get #(Bit #(8))  get_to_console;
@@ -148,6 +149,8 @@ endfunction
 
 (* synthesize *)
 module mkUART (UART_IFC);
+// XXX This module seems to assume the following constraints:
+// provisos(Add #(Wd_AW_User, 0, Wd_B_User), Add #(Wd_AR_User, 0, Wd_R_User));
 
    Reg #(Bit #(8)) cfg_verbosity <- mkConfigReg (0);
 
@@ -308,7 +311,7 @@ module mkUART (UART_IFC);
 			    rdata: rdata,
 			    rresp: rresp,
 			    rlast: True,
-			    ruser: rda.aruser};
+			    ruser: rda.aruser}; // XXX This requires that Wd_AR_User == Wd_R_User
       slave_xactor.master.r.put(rdr);
 
       if (cfg_verbosity > 1) begin
@@ -388,7 +391,7 @@ module mkUART (UART_IFC);
       // Send write-response to bus
       let wrr = AXI4_BFlit {bid:   wra.awid,
 			    bresp: bresp,
-			    buser: wra.awuser};
+			    buser: wra.awuser}; // XXX This requires that Wd_AW_User == Wd_B_User
       slave_xactor.master.b.put(wrr);
 
       if (cfg_verbosity > 1) begin

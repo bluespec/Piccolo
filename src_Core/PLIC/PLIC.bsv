@@ -31,7 +31,7 @@ import  AXI4       :: *;
 // ================================================================
 // Project imports
 
-import Fabric_Defs  :: *;    // for Wd_SId_2x3, Wd_Addr, Wd_Data, Wd_User
+import Fabric_Defs  :: *;    // for Wd_SId_2x3, Wd_Addr, Wd_Data...
 
 // ================================================================
 // Change bitwidth without requiring < or > constraints.
@@ -85,7 +85,8 @@ interface PLIC_IFC #(numeric type  t_n_external_sources,
 
    // Memory-mapped access
    interface AXI4_Slave_Synth #(Wd_SId_2x3, Wd_Addr, Wd_Data,
-                                Wd_User, Wd_User, Wd_User, Wd_User, Wd_User) axi4_slave;
+                                Wd_AW_User, Wd_W_User, Wd_B_User,
+                                Wd_AR_User, Wd_R_User) axi4_slave;
 
    // sources
    interface Vector #(t_n_external_sources, PLIC_Source_IFC)  v_sources;
@@ -102,6 +103,8 @@ module mkPLIC (PLIC_IFC #(t_n_external_sources, t_n_targets, t_max_priority))
 	     Add #(_any_0, TLog #(t_n_sources), T_wd_source_id),
 	     Add #(_any_1, TLog #(t_n_targets), T_wd_target_id),
 	     Log #(TAdd #(t_max_priority, 1), t_wd_priority));
+// XXX This module seems to assume the following constraints:
+// provisos(Add #(Wd_AW_User, 0, Wd_B_User), Add #(Wd_AR_User, 0, Wd_R_User));
 
    Reg #(Bit #(4)) cfg_verbosity <- mkConfigReg (0);
 
@@ -389,7 +392,7 @@ module mkPLIC (PLIC_IFC #(t_n_external_sources, t_n_targets, t_max_priority))
 			    rdata: x,
 			    rresp: rresp,
 			    rlast: True,
-			    ruser: rda.aruser};
+			    ruser: rda.aruser}; // XXX This requires that Wd_AR_User == Wd_R_User
       slave_xactor.master.r.put(rdr);
 
       if (cfg_verbosity > 1) begin
@@ -534,7 +537,7 @@ module mkPLIC (PLIC_IFC #(t_n_external_sources, t_n_targets, t_max_priority))
       // Send write-response to bus
       let wrr = AXI4_BFlit {bid:   wra.awid,
 			    bresp: bresp,
-			    buser: wra.awuser};
+			    buser: wra.awuser}; // XXX This requires that Wd_AW_User == Wd_B_User
       slave_xactor.master.b.put(wrr);
 
       if (cfg_verbosity > 1) begin

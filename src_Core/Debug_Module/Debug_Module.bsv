@@ -119,7 +119,8 @@ interface Debug_Module_IFC;
 
    // Read/Write RISC-V memory
    interface AXI4_Master_Synth #(Wd_MId_2x3, Wd_Addr, Wd_Data,
-                                 Wd_User, Wd_User, Wd_User, Wd_User, Wd_User) master;
+                                 Wd_AW_User, Wd_W_User, Wd_B_User,
+                                 Wd_AR_User, Wd_R_User) master;
 endinterface
 
 // ================================================================

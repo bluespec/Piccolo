@@ -42,9 +42,11 @@ import Fabric_Defs  :: *;
 
 interface DM_Mem_Tap_IFC;
    interface AXI4_Slave_Synth #(Wd_MId_2x3, Wd_Addr, Wd_Data,
-                                Wd_User, Wd_User, Wd_User, Wd_User, Wd_User) slave;
+                                Wd_AW_User, Wd_W_User, Wd_B_User,
+                                Wd_AR_User, Wd_R_User) slave;
    interface AXI4_Master_Synth #(Wd_MId_2x3, Wd_Addr, Wd_Data,
-                                 Wd_User, Wd_User, Wd_User, Wd_User, Wd_User) master;
+                                 Wd_AW_User, Wd_W_User, Wd_B_User,
+                                 Wd_AR_User, Wd_R_User) master;
    interface Get #(Trace_Data) trace_data_out;
 endinterface
 

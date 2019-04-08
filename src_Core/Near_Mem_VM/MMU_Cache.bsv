@@ -127,7 +127,8 @@ interface MMU_Cache_IFC#(numeric type mID);
 
    // Fabric master interface
    interface AXI4_Master_Synth #(mID, Wd_Addr, Wd_Data,
-                                 Wd_User, Wd_User, Wd_User, Wd_User, Wd_User) mem_master;
+                                 Wd_AW_User, Wd_W_User, Wd_B_User,
+                                 Wd_AR_User, Wd_R_User) mem_master;
 endinterface
 
 typedef MMU_Cache_IFC#(Wd_MId_2x3) MMU_DCache_IFC;
@@ -182,8 +183,6 @@ Bool bram_cmd_write = True;
 // The reset-loop is run based on requests for reset and requests for flush
 typedef enum {REQUESTOR_RESET_IFC, REQUESTOR_FLUSH_IFC} Requestor
 deriving (Bits, Eq, FShow);
-
-Bit #(Wd_User) dummy_user = ?;    // For AXI4 'user' field (here unused)
 
 `ifndef ISA_PRIV_S
 
@@ -453,7 +452,8 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem,
 
    // Fabric request/response
    AXI4_Master_Xactor#(mID, Wd_Addr, Wd_Data,
-                       Wd_User, Wd_User, Wd_User, Wd_User, Wd_User)
+                       Wd_AW_User, Wd_W_User, Wd_B_User,
+                       Wd_AR_User, Wd_R_User)
                        master_xactor <- mkAXI4_Master_Xactor;
 
 `ifdef ISA_PRIV_S
@@ -684,7 +684,7 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem,
 					    arprot:   fabric_default_prot,
 					    arqos:    fabric_default_qos,
 					    arregion: fabric_default_region,
-					    aruser:   fabric_default_user};
+					    aruser:   fabric_default_aruser};
 
 	 master_xactor.slave.ar.put(mem_req_rd_addr);
 
@@ -742,12 +742,12 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem,
 					    awprot:   fabric_default_prot,
 					    awqos:    fabric_default_qos,
 					    awregion: fabric_default_region,
-					    awuser:   fabric_default_user};
+					    awuser:   fabric_default_awuser};
 
 	 let mem_req_wr_data = AXI4_WFlit {wdata:  fabric_data,
 					   wstrb:  fabric_strb,
 					   wlast:  True,
-					   wuser:  fabric_default_user};
+					   wuser:  fabric_default_wuser};
 
 	 master_xactor.slave.aw.put(mem_req_wr_addr);
 	 master_xactor.slave.w.put(mem_req_wr_data);

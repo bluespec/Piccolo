@@ -36,7 +36,7 @@ import AXI4       :: *;
 // Project imports
 
 // Main fabric
-import Fabric_Defs  :: *;    // for Wd_Id, Wd_Addr, Wd_Data, Wd_User
+import Fabric_Defs  :: *;    // for Wd_Id, Wd_Addr, Wd_Data...
 import SoC_Map      :: *;
 
 `ifdef INCLUDE_GDB_CONTROL
@@ -299,19 +299,21 @@ module mkCore (Core_IFC #(N_External_Interrupt_Sources));
    // Connect the local 2x3 fabric
 
    // Masters on the local 2x3 fabric
-   Vector#(Num_Masters_2x3, AXI4_Master_Synth #(Wd_MId_2x3, Wd_Addr, Wd_Data,
-                                                Wd_User, Wd_User, Wd_User,
-                                                Wd_User, Wd_User))
-                                                master_vector = newVector;
+   Vector#(Num_Masters_2x3,
+           AXI4_Master_Synth #(Wd_MId_2x3, Wd_Addr, Wd_Data,
+                               Wd_AW_User, Wd_W_User, Wd_B_User,
+                               Wd_AR_User, Wd_R_User))
+                               master_vector = newVector;
    master_vector[cpu_dmem_master_num]         = cpu.dmem_master;
    master_vector[debug_module_sba_master_num] = dm_master_local;
 
    // Slaves on the local 2x3 fabric
    // default slave is forwarded out directly to the Core interface
-   Vector#(Num_Slaves_2x3, AXI4_Slave_Synth #(Wd_SId_2x3, Wd_Addr, Wd_Data,
-                                              Wd_User, Wd_User, Wd_User,
-                                              Wd_User, Wd_User))
-                                              slave_vector = newVector;
+   Vector#(Num_Slaves_2x3,
+           AXI4_Slave_Synth #(Wd_SId_2x3, Wd_Addr, Wd_Data,
+                              Wd_AW_User, Wd_W_User, Wd_B_User,
+                              Wd_AR_User, Wd_R_User))
+                              slave_vector = newVector;
    slave_vector[default_slave_num]     = toAXI4_Slave_Synth(shim.slave);
    slave_vector[near_mem_io_slave_num] = near_mem_io.axi4_slave;
    slave_vector[plic_slave_num]        = plic.axi4_slave;

@@ -40,7 +40,8 @@ interface DM_System_Bus_IFC;
    // ----------------
    // Facing System
    interface AXI4_Master_Synth #(Wd_MId_2x3, Wd_Addr, Wd_Data,
-                                 Wd_User, Wd_User, Wd_User, Wd_User, Wd_User) master;
+                                 Wd_AW_User, Wd_W_User, Wd_B_User,
+                                 Wd_AR_User, Wd_R_User) master;
 endinterface
 
 // ================================================================
@@ -182,7 +183,8 @@ module mkDM_System_Bus (DM_System_Bus_IFC);
 
    // Interface to memory fabric
    AXI4_Master_Xactor#(Wd_MId_2x3, Wd_Addr, Wd_Data,
-                       Wd_User, Wd_User, Wd_User, Wd_User, Wd_User)
+                       Wd_AW_User, Wd_W_User, Wd_B_User,
+                       Wd_AR_User, Wd_R_User)
                        master_xactor <- mkAXI4_Master_Xactor;
 
    // ----------------------------------------------------------------
@@ -278,7 +280,7 @@ module mkDM_System_Bus (DM_System_Bus_IFC);
 				arprot:   fabric_default_prot,
 				arqos:    fabric_default_qos,
 				arregion: fabric_default_region,
-				aruser:   fabric_default_user};
+				aruser:   fabric_default_aruser};
 	 master_xactor.slave.ar.put(rda);
 
 	 // Save read-address for byte-lane extraction from later response
@@ -319,13 +321,13 @@ module mkDM_System_Bus (DM_System_Bus_IFC);
 				awprot:   fabric_default_prot,
 				awqos:    fabric_default_qos,
 				awregion: fabric_default_region,
-				awuser:   fabric_default_user};
+				awuser:   fabric_default_awuser};
 	 master_xactor.slave.aw.put(wra);
 
 	 let wrd = AXI4_WFlit {wdata: fabric_data,
 			       wstrb: fabric_strb,
 			       wlast: True,
-			       wuser: fabric_default_user};
+			       wuser: fabric_default_wuser};
 	 master_xactor.slave.w.put(wrd);
 
 	 if (verbosity != 0) begin

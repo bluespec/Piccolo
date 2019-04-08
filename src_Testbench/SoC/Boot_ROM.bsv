@@ -52,13 +52,16 @@ interface Boot_ROM_IFC;
 
    // Main Fabric Reqs/Rsps
    interface AXI4_Slave_Synth #(Wd_SId, Wd_Addr, Wd_Data,
-                                Wd_User, Wd_User, Wd_User, Wd_User, Wd_User) slave;
+                                Wd_AW_User, Wd_W_User, Wd_B_User,
+                                Wd_AR_User, Wd_R_User) slave;
 endinterface
 
 // ================================================================
 
 (* synthesize *)
 module mkBoot_ROM (Boot_ROM_IFC);
+// XXX This module seems to assume the following constraints:
+// provisos(Add #(Wd_AW_User, 0, Wd_B_User), Add #(Wd_AR_User, 0, Wd_R_User));
 
    // Verbosity: 0: quiet; 1: reads/writes
    Integer verbosity = 0;
@@ -126,7 +129,7 @@ module mkBoot_ROM (Boot_ROM_IFC);
 			    rdata: rdata,
 			    rresp: rresp,
 			    rlast: True,
-			    ruser: rda.aruser};
+			    ruser: rda.aruser}; // XXX This requires that Wd_AR_User == Wd_R_User
       slave_xactor.master.r.put(rdr);
 
       if (verbosity > 0) begin
@@ -152,7 +155,7 @@ module mkBoot_ROM (Boot_ROM_IFC);
 
       let wrr = AXI4_BFlit {bid:   wra.awid,
 			    bresp: bresp,
-			    buser: wra.awuser};
+			    buser: wra.awuser}; // XXX This requires that Wd_AW_User == Wd_B_User
       slave_xactor.master.b.put(wrr);
 
       if (verbosity > 0) begin
