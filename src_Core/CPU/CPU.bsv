@@ -1343,8 +1343,6 @@ module mkCPU (CPU_IFC);
    // and Stage2 and Stage3 have drained,
    // encapsulated in condition 'stage1_take_interrupt'
 
-   (* descending_urgency = "rl_stage1_interrupt, nmi_req" *)
-
    rule rl_stage1_interrupt (interrupt_pending
 			     && (rg_state == CPU_RUNNING)
 			     && stage1_take_interrupt);

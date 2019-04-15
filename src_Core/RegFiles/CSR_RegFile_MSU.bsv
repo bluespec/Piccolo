@@ -1281,7 +1281,7 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
 
    method Action nmi_req (Bool set_not_clear);
       rg_nmi <= set_not_clear;
-   endmethod      
+   endmethod
 
    method Bool nmi_pending;
       return rg_nmi;
