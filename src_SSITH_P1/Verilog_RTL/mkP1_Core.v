@@ -639,7 +639,7 @@ module mkP1_Core(CLK,
 
   // inlined wires
   wire [40 : 0] bus_dmi_req_data_wire$wget;
-  wire bus_dmi_rsp_fifof_x_wire$whas;
+  wire bus_dmi_rsp_fifof_enqueueing$whas;
 
   // register bus_dmi_rsp_fifof_cntr_r
   reg [1 : 0] bus_dmi_rsp_fifof_cntr_r;
@@ -784,7 +784,8 @@ module mkP1_Core(CLK,
        core$cpu_imem_master_rvalid,
        core$cpu_imem_master_wlast,
        core$cpu_imem_master_wready,
-       core$cpu_imem_master_wvalid;
+       core$cpu_imem_master_wvalid,
+       core$nmi_req_set_not_clear;
 
   // ports of submodule jtagtap
   wire [31 : 0] jtagtap$dmi_req_data, jtagtap$dmi_rsp_data;
@@ -825,6 +826,7 @@ module mkP1_Core(CLK,
        CAN_FIRE_RL_mkConnectionVtoAf_6,
        CAN_FIRE_RL_mkConnectionVtoAf_7,
        CAN_FIRE_RL_mkConnectionVtoAf_8,
+       CAN_FIRE_RL_rl_always,
        CAN_FIRE_RL_rl_dmi_req,
        CAN_FIRE_RL_rl_dmi_req_cpu,
        CAN_FIRE_RL_rl_dmi_rsp,
@@ -862,6 +864,7 @@ module mkP1_Core(CLK,
        WILL_FIRE_RL_mkConnectionVtoAf_6,
        WILL_FIRE_RL_mkConnectionVtoAf_7,
        WILL_FIRE_RL_mkConnectionVtoAf_8,
+       WILL_FIRE_RL_rl_always,
        WILL_FIRE_RL_rl_dmi_req,
        WILL_FIRE_RL_rl_dmi_req_cpu,
        WILL_FIRE_RL_rl_dmi_rsp,
@@ -1215,6 +1218,7 @@ module mkP1_Core(CLK,
 	      .dm_dmi_read_addr_dm_addr(core$dm_dmi_read_addr_dm_addr),
 	      .dm_dmi_write_dm_addr(core$dm_dmi_write_dm_addr),
 	      .dm_dmi_write_dm_word(core$dm_dmi_write_dm_word),
+	      .nmi_req_set_not_clear(core$nmi_req_set_not_clear),
 	      .set_verbosity_logdelay(core$set_verbosity_logdelay),
 	      .set_verbosity_verbosity(core$set_verbosity_verbosity),
 	      .EN_set_verbosity(core$EN_set_verbosity),
@@ -1326,6 +1330,10 @@ module mkP1_Core(CLK,
 			.axi_out_tkeep(tv_xactor$axi_out_tkeep),
 			.axi_out_tlast(tv_xactor$axi_out_tlast));
 
+  // rule RL_rl_always
+  assign CAN_FIRE_RL_rl_always = 1'd1 ;
+  assign WILL_FIRE_RL_rl_always = 1'd1 ;
+
   // rule RL_rl_once
   assign CAN_FIRE_RL_rl_once =
 	     core$RDY_cpu_reset_server_request_put && !rg_once ;
@@ -1415,7 +1423,8 @@ module mkP1_Core(CLK,
 
   // rule RL_bus_dmi_rsp_fifof_incCtr
   assign CAN_FIRE_RL_bus_dmi_rsp_fifof_incCtr =
-	     bus_dmi_rsp_fifof_x_wire$whas && bus_dmi_rsp_fifof_x_wire$whas &&
+	     bus_dmi_rsp_fifof_enqueueing$whas &&
+	     bus_dmi_rsp_fifof_enqueueing$whas &&
 	     !CAN_FIRE_RL_bus_dmi_rsp_do_deq ;
   assign WILL_FIRE_RL_bus_dmi_rsp_fifof_incCtr =
 	     CAN_FIRE_RL_bus_dmi_rsp_fifof_incCtr ;
@@ -1423,15 +1432,15 @@ module mkP1_Core(CLK,
   // rule RL_bus_dmi_rsp_fifof_decCtr
   assign CAN_FIRE_RL_bus_dmi_rsp_fifof_decCtr =
 	     CAN_FIRE_RL_bus_dmi_rsp_do_deq &&
-	     !bus_dmi_rsp_fifof_x_wire$whas ;
+	     !bus_dmi_rsp_fifof_enqueueing$whas ;
   assign WILL_FIRE_RL_bus_dmi_rsp_fifof_decCtr =
 	     CAN_FIRE_RL_bus_dmi_rsp_fifof_decCtr ;
 
   // rule RL_bus_dmi_rsp_fifof_both
   assign CAN_FIRE_RL_bus_dmi_rsp_fifof_both =
-	     bus_dmi_rsp_fifof_x_wire$whas &&
+	     bus_dmi_rsp_fifof_enqueueing$whas &&
 	     CAN_FIRE_RL_bus_dmi_rsp_do_deq &&
-	     bus_dmi_rsp_fifof_x_wire$whas ;
+	     bus_dmi_rsp_fifof_enqueueing$whas ;
   assign WILL_FIRE_RL_bus_dmi_rsp_fifof_both =
 	     CAN_FIRE_RL_bus_dmi_rsp_fifof_both ;
 
@@ -1470,7 +1479,7 @@ module mkP1_Core(CLK,
 	     { core$dm_dmi_read_data, 2'd0 } ;
 
   // inlined wires
-  assign bus_dmi_rsp_fifof_x_wire$whas =
+  assign bus_dmi_rsp_fifof_enqueueing$whas =
 	     WILL_FIRE_RL_rl_dmi_req_cpu &&
 	     bus_dmi_req_fifof$D_OUT[1:0] != 2'd1 ||
 	     WILL_FIRE_RL_rl_dmi_rsp_cpu ;
@@ -1608,6 +1617,7 @@ module mkP1_Core(CLK,
   assign core$dm_dmi_read_addr_dm_addr = bus_dmi_req_fifof$D_OUT[40:34] ;
   assign core$dm_dmi_write_dm_addr = bus_dmi_req_fifof$D_OUT[40:34] ;
   assign core$dm_dmi_write_dm_word = bus_dmi_req_fifof$D_OUT[33:2] ;
+  assign core$nmi_req_set_not_clear = 1'd0 ;
   assign core$set_verbosity_logdelay = 64'h0 ;
   assign core$set_verbosity_verbosity = 4'h0 ;
   assign core$EN_set_verbosity = 1'b0 ;
