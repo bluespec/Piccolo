@@ -856,7 +856,7 @@ module mkUART(CLK,
 
   // register rg_state
   assign rg_state$D_IN = 1'd1 ;
-  assign rg_state$EN = CAN_FIRE_RL_rl_reset ;
+  assign rg_state$EN = f_reset_reqs$EMPTY_N && f_reset_rsps$FULL_N ;
 
   // register rg_thr
   assign rg_thr$D_IN = slave_xactor_f_wr_data$D_OUT[16:9] ;
@@ -872,11 +872,11 @@ module mkUART(CLK,
 
   // submodule f_reset_reqs
   assign f_reset_reqs$ENQ = EN_server_reset_request_put ;
-  assign f_reset_reqs$DEQ = CAN_FIRE_RL_rl_reset ;
+  assign f_reset_reqs$DEQ = f_reset_reqs$EMPTY_N && f_reset_rsps$FULL_N ;
   assign f_reset_reqs$CLR = 1'b0 ;
 
   // submodule f_reset_rsps
-  assign f_reset_rsps$ENQ = CAN_FIRE_RL_rl_reset ;
+  assign f_reset_rsps$ENQ = f_reset_reqs$EMPTY_N && f_reset_rsps$FULL_N ;
   assign f_reset_rsps$DEQ = EN_server_reset_response_get ;
   assign f_reset_rsps$CLR = 1'b0 ;
 

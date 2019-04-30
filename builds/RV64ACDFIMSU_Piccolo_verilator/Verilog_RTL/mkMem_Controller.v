@@ -990,13 +990,11 @@ module mkMem_Controller(CLK,
 
   // submodule f_reset_reqs
   assign f_reset_reqs$ENQ = EN_server_reset_request_put ;
-  assign f_reset_reqs$DEQ =
-	     f_reset_reqs$EMPTY_N && f_reset_rsps$FULL_N && rg_state == 2'd3 ;
+  assign f_reset_reqs$DEQ = CAN_FIRE_RL_rl_external_reset ;
   assign f_reset_reqs$CLR = 1'b0 ;
 
   // submodule f_reset_rsps
-  assign f_reset_rsps$ENQ =
-	     f_reset_reqs$EMPTY_N && f_reset_rsps$FULL_N && rg_state == 2'd3 ;
+  assign f_reset_rsps$ENQ = CAN_FIRE_RL_rl_external_reset ;
   assign f_reset_rsps$DEQ = EN_server_reset_response_get ;
   assign f_reset_rsps$CLR = 1'b0 ;
 
@@ -1014,11 +1012,8 @@ module mkMem_Controller(CLK,
 	       slave_arregion } ;
   assign slave_xactor_f_rd_addr$ENQ =
 	     slave_arvalid && slave_xactor_f_rd_addr$FULL_N ;
-  assign slave_xactor_f_rd_addr$DEQ =
-	     slave_xactor_f_rd_addr$EMPTY_N && !f_reqs_rv$port1__read[170] ;
-  assign slave_xactor_f_rd_addr$CLR =
-	     WILL_FIRE_RL_rl_external_reset ||
-	     WILL_FIRE_RL_rl_power_on_reset ;
+  assign slave_xactor_f_rd_addr$DEQ = CAN_FIRE_RL_rl_merge_rd_req ;
+  assign slave_xactor_f_rd_addr$CLR = MUX_rg_state$write_1__SEL_1 ;
 
   // submodule slave_xactor_f_rd_data
   assign slave_xactor_f_rd_data$D_IN =
@@ -1030,9 +1025,7 @@ module mkMem_Controller(CLK,
 	     WILL_FIRE_RL_rl_invalid_rd_address ;
   assign slave_xactor_f_rd_data$DEQ =
 	     slave_rready && slave_xactor_f_rd_data$EMPTY_N ;
-  assign slave_xactor_f_rd_data$CLR =
-	     WILL_FIRE_RL_rl_external_reset ||
-	     WILL_FIRE_RL_rl_power_on_reset ;
+  assign slave_xactor_f_rd_data$CLR = MUX_rg_state$write_1__SEL_1 ;
 
   // submodule slave_xactor_f_wr_addr
   assign slave_xactor_f_wr_addr$D_IN =
@@ -1048,22 +1041,16 @@ module mkMem_Controller(CLK,
 	       slave_awregion } ;
   assign slave_xactor_f_wr_addr$ENQ =
 	     slave_awvalid && slave_xactor_f_wr_addr$FULL_N ;
-  assign slave_xactor_f_wr_addr$DEQ =
-	     CAN_FIRE_RL_rl_merge_wr_req && !WILL_FIRE_RL_rl_merge_rd_req ;
-  assign slave_xactor_f_wr_addr$CLR =
-	     WILL_FIRE_RL_rl_external_reset ||
-	     WILL_FIRE_RL_rl_power_on_reset ;
+  assign slave_xactor_f_wr_addr$DEQ = WILL_FIRE_RL_rl_merge_wr_req ;
+  assign slave_xactor_f_wr_addr$CLR = MUX_rg_state$write_1__SEL_1 ;
 
   // submodule slave_xactor_f_wr_data
   assign slave_xactor_f_wr_data$D_IN =
 	     { slave_wid, slave_wdata, slave_wstrb, slave_wlast } ;
   assign slave_xactor_f_wr_data$ENQ =
 	     slave_wvalid && slave_xactor_f_wr_data$FULL_N ;
-  assign slave_xactor_f_wr_data$DEQ =
-	     CAN_FIRE_RL_rl_merge_wr_req && !WILL_FIRE_RL_rl_merge_rd_req ;
-  assign slave_xactor_f_wr_data$CLR =
-	     WILL_FIRE_RL_rl_external_reset ||
-	     WILL_FIRE_RL_rl_power_on_reset ;
+  assign slave_xactor_f_wr_data$DEQ = WILL_FIRE_RL_rl_merge_wr_req ;
+  assign slave_xactor_f_wr_data$CLR = MUX_rg_state$write_1__SEL_1 ;
 
   // submodule slave_xactor_f_wr_resp
   assign slave_xactor_f_wr_resp$D_IN =
@@ -1075,9 +1062,7 @@ module mkMem_Controller(CLK,
 	     WILL_FIRE_RL_rl_invalid_wr_address ;
   assign slave_xactor_f_wr_resp$DEQ =
 	     slave_bready && slave_xactor_f_wr_resp$EMPTY_N ;
-  assign slave_xactor_f_wr_resp$CLR =
-	     WILL_FIRE_RL_rl_external_reset ||
-	     WILL_FIRE_RL_rl_power_on_reset ;
+  assign slave_xactor_f_wr_resp$CLR = MUX_rg_state$write_1__SEL_1 ;
 
   // remaining internal signals
   assign NOT_cfg_verbosity_read_ULE_1___d5 = cfg_verbosity > 4'd1 ;
