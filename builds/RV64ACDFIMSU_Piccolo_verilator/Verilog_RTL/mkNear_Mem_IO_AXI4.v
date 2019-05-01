@@ -433,7 +433,8 @@ module mkNear_Mem_IO_AXI4(CLK,
   wire MUX_crg_time$port1__write_1__SEL_1,
        MUX_crg_timecmp$port1__write_1__SEL_1,
        MUX_rg_msip$write_1__SEL_1,
-       MUX_rg_state$write_1__SEL_1;
+       MUX_rg_state$write_1__SEL_1,
+       MUX_rg_state$write_1__SEL_2;
 
   // declarations used by system tasks
   // synopsys translate_off
@@ -679,9 +680,8 @@ module mkNear_Mem_IO_AXI4(CLK,
 								 .EMPTY_N(slave_xactor_f_wr_resp$EMPTY_N));
 
   // rule RL_rl_reset
-  assign CAN_FIRE_RL_rl_reset =
-	     f_reset_reqs$EMPTY_N && f_reset_rsps$FULL_N && !rg_state ;
-  assign WILL_FIRE_RL_rl_reset = CAN_FIRE_RL_rl_reset ;
+  assign CAN_FIRE_RL_rl_reset = MUX_rg_state$write_1__SEL_2 ;
+  assign WILL_FIRE_RL_rl_reset = MUX_rg_state$write_1__SEL_2 ;
 
   // rule RL_rl_soft_reset
   assign CAN_FIRE_RL_rl_soft_reset = f_reset_reqs$EMPTY_N ;
@@ -735,6 +735,8 @@ module mkNear_Mem_IO_AXI4(CLK,
 	     !rg_msip_7_EQ_slave_xactor_f_wr_data_first__06__ETC___d108 ;
   assign MUX_rg_state$write_1__SEL_1 =
 	     f_reset_reqs$EMPTY_N && !WILL_FIRE_RL_rl_reset ;
+  assign MUX_rg_state$write_1__SEL_2 =
+	     f_reset_reqs$EMPTY_N && f_reset_rsps$FULL_N && !rg_state ;
 
   // inlined wires
   assign crg_time$port0__write_1 = crg_time + 64'd1 ;
@@ -807,11 +809,11 @@ module mkNear_Mem_IO_AXI4(CLK,
 
   // submodule f_reset_reqs
   assign f_reset_reqs$ENQ = EN_server_reset_request_put ;
-  assign f_reset_reqs$DEQ = CAN_FIRE_RL_rl_reset ;
+  assign f_reset_reqs$DEQ = MUX_rg_state$write_1__SEL_2 ;
   assign f_reset_reqs$CLR = 1'b0 ;
 
   // submodule f_reset_rsps
-  assign f_reset_rsps$ENQ = CAN_FIRE_RL_rl_reset ;
+  assign f_reset_rsps$ENQ = MUX_rg_state$write_1__SEL_2 ;
   assign f_reset_rsps$DEQ = EN_server_reset_response_get ;
   assign f_reset_rsps$CLR = 1'b0 ;
 
@@ -819,14 +821,14 @@ module mkNear_Mem_IO_AXI4(CLK,
   assign f_sw_interrupt_req$D_IN = slave_xactor_f_wr_data$D_OUT[9] ;
   assign f_sw_interrupt_req$ENQ = MUX_rg_msip$write_1__SEL_1 ;
   assign f_sw_interrupt_req$DEQ = EN_get_sw_interrupt_req_get ;
-  assign f_sw_interrupt_req$CLR = CAN_FIRE_RL_rl_reset ;
+  assign f_sw_interrupt_req$CLR = MUX_rg_state$write_1__SEL_2 ;
 
   // submodule f_timer_interrupt_req
   assign f_timer_interrupt_req$D_IN =
 	     NOT_crg_time_port0__read__3_ULT_crg_timecmp_po_ETC___d24 ;
   assign f_timer_interrupt_req$ENQ = CAN_FIRE_RL_rl_compare ;
   assign f_timer_interrupt_req$DEQ = EN_get_timer_interrupt_req_get ;
-  assign f_timer_interrupt_req$CLR = CAN_FIRE_RL_rl_reset ;
+  assign f_timer_interrupt_req$CLR = MUX_rg_state$write_1__SEL_2 ;
 
   // submodule slave_xactor_f_rd_addr
   assign slave_xactor_f_rd_addr$D_IN =
@@ -843,8 +845,7 @@ module mkNear_Mem_IO_AXI4(CLK,
   assign slave_xactor_f_rd_addr$ENQ =
 	     axi4_slave_arvalid && slave_xactor_f_rd_addr$FULL_N ;
   assign slave_xactor_f_rd_addr$DEQ = CAN_FIRE_RL_rl_process_rd_req ;
-  assign slave_xactor_f_rd_addr$CLR =
-	     f_reset_reqs$EMPTY_N && f_reset_rsps$FULL_N && !rg_state ;
+  assign slave_xactor_f_rd_addr$CLR = MUX_rg_state$write_1__SEL_2 ;
 
   // submodule slave_xactor_f_rd_data
   assign slave_xactor_f_rd_data$D_IN =
@@ -855,8 +856,7 @@ module mkNear_Mem_IO_AXI4(CLK,
   assign slave_xactor_f_rd_data$ENQ = CAN_FIRE_RL_rl_process_rd_req ;
   assign slave_xactor_f_rd_data$DEQ =
 	     axi4_slave_rready && slave_xactor_f_rd_data$EMPTY_N ;
-  assign slave_xactor_f_rd_data$CLR =
-	     f_reset_reqs$EMPTY_N && f_reset_rsps$FULL_N && !rg_state ;
+  assign slave_xactor_f_rd_data$CLR = MUX_rg_state$write_1__SEL_2 ;
 
   // submodule slave_xactor_f_wr_addr
   assign slave_xactor_f_wr_addr$D_IN =
@@ -873,8 +873,7 @@ module mkNear_Mem_IO_AXI4(CLK,
   assign slave_xactor_f_wr_addr$ENQ =
 	     axi4_slave_awvalid && slave_xactor_f_wr_addr$FULL_N ;
   assign slave_xactor_f_wr_addr$DEQ = WILL_FIRE_RL_rl_process_wr_req ;
-  assign slave_xactor_f_wr_addr$CLR =
-	     f_reset_reqs$EMPTY_N && f_reset_rsps$FULL_N && !rg_state ;
+  assign slave_xactor_f_wr_addr$CLR = MUX_rg_state$write_1__SEL_2 ;
 
   // submodule slave_xactor_f_wr_data
   assign slave_xactor_f_wr_data$D_IN =
@@ -885,8 +884,7 @@ module mkNear_Mem_IO_AXI4(CLK,
   assign slave_xactor_f_wr_data$ENQ =
 	     axi4_slave_wvalid && slave_xactor_f_wr_data$FULL_N ;
   assign slave_xactor_f_wr_data$DEQ = WILL_FIRE_RL_rl_process_wr_req ;
-  assign slave_xactor_f_wr_data$CLR =
-	     f_reset_reqs$EMPTY_N && f_reset_rsps$FULL_N && !rg_state ;
+  assign slave_xactor_f_wr_data$CLR = MUX_rg_state$write_1__SEL_2 ;
 
   // submodule slave_xactor_f_wr_resp
   assign slave_xactor_f_wr_resp$D_IN =
@@ -894,8 +892,7 @@ module mkNear_Mem_IO_AXI4(CLK,
   assign slave_xactor_f_wr_resp$ENQ = WILL_FIRE_RL_rl_process_wr_req ;
   assign slave_xactor_f_wr_resp$DEQ =
 	     axi4_slave_bready && slave_xactor_f_wr_resp$EMPTY_N ;
-  assign slave_xactor_f_wr_resp$CLR =
-	     f_reset_reqs$EMPTY_N && f_reset_rsps$FULL_N && !rg_state ;
+  assign slave_xactor_f_wr_resp$CLR = MUX_rg_state$write_1__SEL_2 ;
 
   // remaining internal signals
   assign NOT_cfg_verbosity_read_ULE_1_0___d31 = cfg_verbosity > 4'd1 ;
