@@ -120,18 +120,16 @@ module mkSoC_Top (SoC_Top_IFC);
    // SoC Boot ROM
    Boot_ROM_IFC  boot_rom <- mkBoot_ROM;
    // AXI4 Deburster in front of Boot_ROM
-   AXI4_Deburster_IFC #(Wd_Id,
-			Wd_Addr,
-			Wd_Data,
-			Wd_User)  boot_rom_axi4_deburster <- mkAXI4_Deburster_A;
+   AXI4_Shim#(Wd_SId, Wd_Addr, Wd_Data,
+              Wd_AW_User, Wd_W_User, Wd_B_User, Wd_AR_User, Wd_R_User)
+              boot_rom_axi4_deburster <- mkBurstToNoBurst;
 
    // SoC Memory
    Mem_Controller_IFC  mem0_controller <- mkMem_Controller;
    // AXI4 Deburster in front of SoC Memory
-   AXI4_Deburster_IFC #(Wd_Id,
-			Wd_Addr,
-			Wd_Data,
-			Wd_User)  mem0_controller_axi4_deburster <- mkAXI4_Deburster_A;
+   AXI4_Shim#(Wd_SId, Wd_Addr, Wd_Data,
+              Wd_AW_User, Wd_W_User, Wd_B_User, Wd_AR_User, Wd_R_User)
+              mem0_controller_axi4_deburster <- mkBurstToNoBurst;
 
    // SoC IPs
    UART_IFC   uart0  <- mkUART;
@@ -172,13 +170,15 @@ module mkSoC_Top (SoC_Top_IFC);
    Vector#(Num_Slaves, Range#(Wd_Addr))   route_vector = newVector;
 
    // Fabric to Boot ROM
-   mkConnection(boot_rom_axi4_deburster.to_slave, boot_rom.slave);
-   slave_vector[boot_rom_slave_num] = boot_rom_axi4_deburster.from_master;
+   mkConnection(boot_rom_axi4_deburster.master, fromAXI4_Slave_Synth(boot_rom.slave));
+   let ug_boot_rom_slave <- toUnguarded_AXI4_Slave(boot_rom_axi4_deburster.slave);
+   slave_vector[boot_rom_slave_num] = toAXI4_Slave_Synth(ug_boot_rom_slave);
    route_vector[boot_rom_slave_num] = soc_map.m_boot_rom_addr_range;
 
    // Fabric to Mem Controller
-   mkConnection(mem0_controller_axi4_deburster.to_slave, mem0_controller.slave);
-   slave_vector[mem0_controller_slave_num] = mem0_controller_axi4_deburster.from_master;
+   mkConnection(mem0_controller_axi4_deburster.master, fromAXI4_Slave_Synth(mem0_controller.slave));
+   let ug_mem0_slave <- toUnguarded_AXI4_Slave(mem0_controller_axi4_deburster.slave);
+   slave_vector[mem0_controller_slave_num] = toAXI4_Slave_Synth(ug_mem0_slave);
    route_vector[mem0_controller_slave_num] = soc_map.m_mem0_controller_addr_range;
 
    // Fabric to UART0
@@ -309,6 +309,8 @@ module mkSoC_Top (SoC_Top_IFC);
       uart0.server_reset.request.put (?);
 
       fabric.reset;
+      boot_rom_axi4_deburster.clear;
+      mem0_controller_axi4_deburster.clear;
 
       rg_state <= SOC_RESETTING;
 
@@ -388,18 +390,6 @@ module mkSoC_Top (SoC_Top_IFC);
       mem0_controller.set_watch_tohost (watch_tohost, tohost_addr);
    endmethod
 endmodule: mkSoC_Top
-
-// ================================================================
-// Specialization of parameterized AXI4 Deburster for this SoC.
-
-(* synthesize *)
-module mkAXI4_Deburster_A (AXI4_Deburster_IFC #(Wd_Id,
-						Wd_Addr,
-						Wd_Data,
-						Wd_User));
-   let m <- mkAXI4_Deburster;
-   return m;
-endmodule
 
 // ================================================================
 

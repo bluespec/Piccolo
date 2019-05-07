@@ -699,23 +699,23 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem,
    // 'addr' is already aligned to a cache-line.
    function Action fa_fabric_send_read_burst_req (Fabric_Addr  addr);
       action
-	 AXI4_Size size = ((bytes_per_fabric_data == 4) ? axsize_4 : axsize_8);
+	 AXI4_Size size = ((bytes_per_fabric_data == 4) ? 4 : 8);
 	 // Note: AXI4 codes a burst length of 'n' as 'n-1'
 	 AXI4_Len  len  = fromInteger ((bytes_per_cline / bytes_per_fabric_data) - 1);
 
-	 let mem_req_rd_addr = AXI4_Rd_Addr {arid:     fabric_default_id,
-					     araddr:   addr,
-					     arlen:    len,
-					     arsize:   size,
-					     arburst:  axburst_incr,
-					     arlock:   fabric_default_lock,
-					     arcache:  fabric_default_arcache,
-					     arprot:   fabric_default_prot,
-					     arqos:    fabric_default_qos,
-					     arregion: fabric_default_region,
-					     aruser:   fabric_default_user};
+	 let mem_req_rd_addr = AXI4_ARFlit {arid:     default_mid,
+					    araddr:   addr,
+					    arlen:    len,
+					    arsize:   size,
+					    arburst:  INCR,
+					    arlock:   fabric_default_lock,
+					    arcache:  fabric_default_arcache,
+					    arprot:   fabric_default_prot,
+					    arqos:    fabric_default_qos,
+					    arregion: fabric_default_region,
+					    aruser:   fabric_default_aruser};
 
-	 master_xactor.i_rd_addr.enq (mem_req_rd_addr);
+	 master_xactor.slave.ar.put(mem_req_rd_addr);
 
 	 // Debugging
 	 if (cfg_verbosity > 1) begin
