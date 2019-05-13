@@ -12,27 +12,35 @@
 // av_read                        O    32
 // RDY_av_read                    O     1 const
 // RDY_write                      O     1
-// RDY_hart0_get_reset_req_get    O     1 reg
+// hart0_reset_client_request_get  O     1 reg
+// RDY_hart0_reset_client_request_get  O     1 reg
+// RDY_hart0_reset_client_response_put  O     1 reg
 // hart0_client_run_halt_request_get  O     1 reg
 // RDY_hart0_client_run_halt_request_get  O     1 reg
 // RDY_hart0_client_run_halt_response_put  O     1 reg
 // hart0_get_other_req_get        O     4 reg
 // RDY_hart0_get_other_req_get    O     1 reg
-// RDY_get_ndm_reset_req_get      O     1 reg
+// ndm_reset_client_request_get   O     1 reg
+// RDY_ndm_reset_client_request_get  O     1 reg
+// RDY_ndm_reset_client_response_put  O     1 reg
 // CLK                            I     1 clock
 // RST_N                          I     1 reset
 // av_read_dm_addr                I     7
 // write_dm_addr                  I     7
 // write_dm_word                  I    32
+// hart0_reset_client_response_put  I     1 reg
 // hart0_client_run_halt_response_put  I     1 reg
+// ndm_reset_client_response_put  I     1 reg
 // EN_reset                       I     1
 // EN_write                       I     1
-// EN_hart0_get_reset_req_get     I     1
+// EN_hart0_reset_client_response_put  I     1
 // EN_hart0_client_run_halt_response_put  I     1
-// EN_get_ndm_reset_req_get       I     1
+// EN_ndm_reset_client_response_put  I     1
 // EN_av_read                     I     1 unused
+// EN_hart0_reset_client_request_get  I     1
 // EN_hart0_client_run_halt_request_get  I     1
 // EN_hart0_get_other_req_get     I     1
+// EN_ndm_reset_client_request_get  I     1
 //
 // Combinational paths from inputs to outputs:
 //   av_read_dm_addr -> av_read
@@ -71,8 +79,13 @@ module mkDM_Run_Control(CLK,
 			EN_write,
 			RDY_write,
 
-			EN_hart0_get_reset_req_get,
-			RDY_hart0_get_reset_req_get,
+			EN_hart0_reset_client_request_get,
+			hart0_reset_client_request_get,
+			RDY_hart0_reset_client_request_get,
+
+			hart0_reset_client_response_put,
+			EN_hart0_reset_client_response_put,
+			RDY_hart0_reset_client_response_put,
 
 			EN_hart0_client_run_halt_request_get,
 			hart0_client_run_halt_request_get,
@@ -86,8 +99,13 @@ module mkDM_Run_Control(CLK,
 			hart0_get_other_req_get,
 			RDY_hart0_get_other_req_get,
 
-			EN_get_ndm_reset_req_get,
-			RDY_get_ndm_reset_req_get);
+			EN_ndm_reset_client_request_get,
+			ndm_reset_client_request_get,
+			RDY_ndm_reset_client_request_get,
+
+			ndm_reset_client_response_put,
+			EN_ndm_reset_client_response_put,
+			RDY_ndm_reset_client_response_put);
   input  CLK;
   input  RST_N;
 
@@ -111,9 +129,15 @@ module mkDM_Run_Control(CLK,
   input  EN_write;
   output RDY_write;
 
-  // action method hart0_get_reset_req_get
-  input  EN_hart0_get_reset_req_get;
-  output RDY_hart0_get_reset_req_get;
+  // actionvalue method hart0_reset_client_request_get
+  input  EN_hart0_reset_client_request_get;
+  output hart0_reset_client_request_get;
+  output RDY_hart0_reset_client_request_get;
+
+  // action method hart0_reset_client_response_put
+  input  hart0_reset_client_response_put;
+  input  EN_hart0_reset_client_response_put;
+  output RDY_hart0_reset_client_response_put;
 
   // actionvalue method hart0_client_run_halt_request_get
   input  EN_hart0_client_run_halt_request_get;
@@ -130,24 +154,34 @@ module mkDM_Run_Control(CLK,
   output [3 : 0] hart0_get_other_req_get;
   output RDY_hart0_get_other_req_get;
 
-  // action method get_ndm_reset_req_get
-  input  EN_get_ndm_reset_req_get;
-  output RDY_get_ndm_reset_req_get;
+  // actionvalue method ndm_reset_client_request_get
+  input  EN_ndm_reset_client_request_get;
+  output ndm_reset_client_request_get;
+  output RDY_ndm_reset_client_request_get;
+
+  // action method ndm_reset_client_response_put
+  input  ndm_reset_client_response_put;
+  input  EN_ndm_reset_client_response_put;
+  output RDY_ndm_reset_client_response_put;
 
   // signals for module outputs
   reg [31 : 0] av_read;
   wire [3 : 0] hart0_get_other_req_get;
   wire RDY_av_read,
        RDY_dmactive,
-       RDY_get_ndm_reset_req_get,
        RDY_hart0_client_run_halt_request_get,
        RDY_hart0_client_run_halt_response_put,
        RDY_hart0_get_other_req_get,
-       RDY_hart0_get_reset_req_get,
+       RDY_hart0_reset_client_request_get,
+       RDY_hart0_reset_client_response_put,
+       RDY_ndm_reset_client_request_get,
+       RDY_ndm_reset_client_response_put,
        RDY_reset,
        RDY_write,
        dmactive,
-       hart0_client_run_halt_request_get;
+       hart0_client_run_halt_request_get,
+       hart0_reset_client_request_get,
+       ndm_reset_client_request_get;
 
   // register rg_dmcontrol_dmactive
   reg rg_dmcontrol_dmactive;
@@ -170,6 +204,14 @@ module mkDM_Run_Control(CLK,
   reg rg_dmstatus_allresumeack$D_IN;
   wire rg_dmstatus_allresumeack$EN;
 
+  // register rg_dmstatus_allunavail
+  reg rg_dmstatus_allunavail;
+  wire rg_dmstatus_allunavail$D_IN, rg_dmstatus_allunavail$EN;
+
+  // register rg_hart0_hasreset
+  reg rg_hart0_hasreset;
+  wire rg_hart0_hasreset$D_IN, rg_hart0_hasreset$EN;
+
   // register rg_hart0_running
   reg rg_hart0_running;
   reg rg_hart0_running$D_IN;
@@ -191,9 +233,20 @@ module mkDM_Run_Control(CLK,
   // ports of submodule f_hart0_reset_reqs
   wire f_hart0_reset_reqs$CLR,
        f_hart0_reset_reqs$DEQ,
+       f_hart0_reset_reqs$D_IN,
+       f_hart0_reset_reqs$D_OUT,
        f_hart0_reset_reqs$EMPTY_N,
        f_hart0_reset_reqs$ENQ,
        f_hart0_reset_reqs$FULL_N;
+
+  // ports of submodule f_hart0_reset_rsps
+  wire f_hart0_reset_rsps$CLR,
+       f_hart0_reset_rsps$DEQ,
+       f_hart0_reset_rsps$D_IN,
+       f_hart0_reset_rsps$D_OUT,
+       f_hart0_reset_rsps$EMPTY_N,
+       f_hart0_reset_rsps$ENQ,
+       f_hart0_reset_rsps$FULL_N;
 
   // ports of submodule f_hart0_run_halt_reqs
   wire f_hart0_run_halt_reqs$CLR,
@@ -216,42 +269,67 @@ module mkDM_Run_Control(CLK,
   // ports of submodule f_ndm_reset_reqs
   wire f_ndm_reset_reqs$CLR,
        f_ndm_reset_reqs$DEQ,
+       f_ndm_reset_reqs$D_IN,
+       f_ndm_reset_reqs$D_OUT,
        f_ndm_reset_reqs$EMPTY_N,
        f_ndm_reset_reqs$ENQ,
        f_ndm_reset_reqs$FULL_N;
 
+  // ports of submodule f_ndm_reset_rsps
+  wire f_ndm_reset_rsps$CLR,
+       f_ndm_reset_rsps$DEQ,
+       f_ndm_reset_rsps$D_IN,
+       f_ndm_reset_rsps$D_OUT,
+       f_ndm_reset_rsps$EMPTY_N,
+       f_ndm_reset_rsps$ENQ,
+       f_ndm_reset_rsps$FULL_N;
+
   // rule scheduling signals
-  wire CAN_FIRE_RL_rl_hart0_run_rsp,
+  wire CAN_FIRE_RL_rl_hart0_reset_rsp,
+       CAN_FIRE_RL_rl_hart0_run_rsp,
+       CAN_FIRE_RL_rl_ndm_reset_rsp,
        CAN_FIRE_av_read,
-       CAN_FIRE_get_ndm_reset_req_get,
        CAN_FIRE_hart0_client_run_halt_request_get,
        CAN_FIRE_hart0_client_run_halt_response_put,
        CAN_FIRE_hart0_get_other_req_get,
-       CAN_FIRE_hart0_get_reset_req_get,
+       CAN_FIRE_hart0_reset_client_request_get,
+       CAN_FIRE_hart0_reset_client_response_put,
+       CAN_FIRE_ndm_reset_client_request_get,
+       CAN_FIRE_ndm_reset_client_response_put,
        CAN_FIRE_reset,
        CAN_FIRE_write,
+       WILL_FIRE_RL_rl_hart0_reset_rsp,
        WILL_FIRE_RL_rl_hart0_run_rsp,
+       WILL_FIRE_RL_rl_ndm_reset_rsp,
        WILL_FIRE_av_read,
-       WILL_FIRE_get_ndm_reset_req_get,
        WILL_FIRE_hart0_client_run_halt_request_get,
        WILL_FIRE_hart0_client_run_halt_response_put,
        WILL_FIRE_hart0_get_other_req_get,
-       WILL_FIRE_hart0_get_reset_req_get,
+       WILL_FIRE_hart0_reset_client_request_get,
+       WILL_FIRE_hart0_reset_client_response_put,
+       WILL_FIRE_ndm_reset_client_request_get,
+       WILL_FIRE_ndm_reset_client_response_put,
        WILL_FIRE_reset,
        WILL_FIRE_write;
 
   // inputs to muxes for submodule ports
   wire MUX_rg_dmstatus_allresumeack$write_1__SEL_2,
        MUX_rg_dmstatus_allresumeack$write_1__SEL_3,
-       MUX_rg_hart0_running$write_1__SEL_3,
+       MUX_rg_dmstatus_allunavail$write_1__SEL_3,
+       MUX_rg_hart0_hasreset$write_1__SEL_3,
        MUX_rg_verbosity$write_1__SEL_2;
 
   // remaining internal signals
-  wire [31 : 0] haltsum__h505,
-		virt_rg_dmcontrol__h670,
-		virt_rg_dmstatus__h543;
-  wire write_dm_addr_EQ_0x10_6_AND_write_dm_word_BIT__ETC___d72,
-       write_dm_addr_EQ_0x10_6_AND_write_dm_word_BIT__ETC___d77;
+  wire [31 : 0] haltsum__h699,
+		virt_rg_dmcontrol__h930,
+		virt_rg_dmstatus__h805;
+  wire NOT_rg_dmcontrol_ndmreset_6_7_OR_write_dm_word_ETC___d92,
+       NOT_rg_dmstatus_allunavail_2_6_AND_NOT_rg_dmco_ETC___d82,
+       write_dm_addr_EQ_0x10_9_AND_write_dm_word_BIT__ETC___d101,
+       write_dm_addr_EQ_0x10_9_AND_write_dm_word_BIT__ETC___d107,
+       write_dm_addr_EQ_0x10_9_AND_write_dm_word_BIT__ETC___d51,
+       write_dm_word_BIT_0_3_AND_NOT_rg_dmstatus_allu_ETC___d55,
+       write_dm_word_BIT_0_3_AND_NOT_rg_dmstatus_allu_ETC___d61;
 
   // value method dmactive
   assign dmactive = rg_dmcontrol_dmactive ;
@@ -265,12 +343,12 @@ module mkDM_Run_Control(CLK,
   // actionvalue method av_read
   always@(av_read_dm_addr or
 	  rg_verbosity or
-	  virt_rg_dmcontrol__h670 or virt_rg_dmstatus__h543 or haltsum__h505)
+	  virt_rg_dmcontrol__h930 or virt_rg_dmstatus__h805 or haltsum__h699)
   begin
     case (av_read_dm_addr)
-      7'h10: av_read = virt_rg_dmcontrol__h670;
-      7'h11: av_read = virt_rg_dmstatus__h543;
-      7'h13, 7'h40: av_read = haltsum__h505;
+      7'h10: av_read = virt_rg_dmcontrol__h930;
+      7'h11: av_read = virt_rg_dmstatus__h805;
+      7'h13, 7'h40: av_read = haltsum__h699;
       default: av_read = { 28'd0, rg_verbosity };
     endcase
   end
@@ -280,19 +358,27 @@ module mkDM_Run_Control(CLK,
 
   // action method write
   assign RDY_write =
-	     f_ndm_reset_reqs$FULL_N && f_hart0_reset_reqs$FULL_N &&
-	     f_hart0_run_halt_reqs$FULL_N &&
+	     (rg_dmstatus_allunavail ||
+	      f_ndm_reset_reqs$FULL_N && f_hart0_reset_reqs$FULL_N &&
+	      f_hart0_run_halt_reqs$FULL_N) &&
 	     f_hart0_other_reqs$FULL_N ;
-  assign CAN_FIRE_write =
-	     f_ndm_reset_reqs$FULL_N && f_hart0_reset_reqs$FULL_N &&
-	     f_hart0_run_halt_reqs$FULL_N &&
-	     f_hart0_other_reqs$FULL_N ;
+  assign CAN_FIRE_write = RDY_write ;
   assign WILL_FIRE_write = EN_write ;
 
-  // action method hart0_get_reset_req_get
-  assign RDY_hart0_get_reset_req_get = f_hart0_reset_reqs$EMPTY_N ;
-  assign CAN_FIRE_hart0_get_reset_req_get = f_hart0_reset_reqs$EMPTY_N ;
-  assign WILL_FIRE_hart0_get_reset_req_get = EN_hart0_get_reset_req_get ;
+  // actionvalue method hart0_reset_client_request_get
+  assign hart0_reset_client_request_get = f_hart0_reset_reqs$D_OUT ;
+  assign RDY_hart0_reset_client_request_get = f_hart0_reset_reqs$EMPTY_N ;
+  assign CAN_FIRE_hart0_reset_client_request_get =
+	     f_hart0_reset_reqs$EMPTY_N ;
+  assign WILL_FIRE_hart0_reset_client_request_get =
+	     EN_hart0_reset_client_request_get ;
+
+  // action method hart0_reset_client_response_put
+  assign RDY_hart0_reset_client_response_put = f_hart0_reset_rsps$FULL_N ;
+  assign CAN_FIRE_hart0_reset_client_response_put =
+	     f_hart0_reset_rsps$FULL_N ;
+  assign WILL_FIRE_hart0_reset_client_response_put =
+	     EN_hart0_reset_client_response_put ;
 
   // actionvalue method hart0_client_run_halt_request_get
   assign hart0_client_run_halt_request_get = f_hart0_run_halt_reqs$D_OUT ;
@@ -317,10 +403,18 @@ module mkDM_Run_Control(CLK,
   assign CAN_FIRE_hart0_get_other_req_get = f_hart0_other_reqs$EMPTY_N ;
   assign WILL_FIRE_hart0_get_other_req_get = EN_hart0_get_other_req_get ;
 
-  // action method get_ndm_reset_req_get
-  assign RDY_get_ndm_reset_req_get = f_ndm_reset_reqs$EMPTY_N ;
-  assign CAN_FIRE_get_ndm_reset_req_get = f_ndm_reset_reqs$EMPTY_N ;
-  assign WILL_FIRE_get_ndm_reset_req_get = EN_get_ndm_reset_req_get ;
+  // actionvalue method ndm_reset_client_request_get
+  assign ndm_reset_client_request_get = f_ndm_reset_reqs$D_OUT ;
+  assign RDY_ndm_reset_client_request_get = f_ndm_reset_reqs$EMPTY_N ;
+  assign CAN_FIRE_ndm_reset_client_request_get = f_ndm_reset_reqs$EMPTY_N ;
+  assign WILL_FIRE_ndm_reset_client_request_get =
+	     EN_ndm_reset_client_request_get ;
+
+  // action method ndm_reset_client_response_put
+  assign RDY_ndm_reset_client_response_put = f_ndm_reset_rsps$FULL_N ;
+  assign CAN_FIRE_ndm_reset_client_response_put = f_ndm_reset_rsps$FULL_N ;
+  assign WILL_FIRE_ndm_reset_client_response_put =
+	     EN_ndm_reset_client_response_put ;
 
   // submodule f_hart0_other_reqs
   FIFO2 #(.width(32'd4), .guarded(32'd1)) f_hart0_other_reqs(.RST(RST_N),
@@ -334,13 +428,26 @@ module mkDM_Run_Control(CLK,
 							     .EMPTY_N(f_hart0_other_reqs$EMPTY_N));
 
   // submodule f_hart0_reset_reqs
-  FIFO20 #(.guarded(32'd1)) f_hart0_reset_reqs(.RST(RST_N),
-					       .CLK(CLK),
-					       .ENQ(f_hart0_reset_reqs$ENQ),
-					       .DEQ(f_hart0_reset_reqs$DEQ),
-					       .CLR(f_hart0_reset_reqs$CLR),
-					       .FULL_N(f_hart0_reset_reqs$FULL_N),
-					       .EMPTY_N(f_hart0_reset_reqs$EMPTY_N));
+  FIFO2 #(.width(32'd1), .guarded(32'd1)) f_hart0_reset_reqs(.RST(RST_N),
+							     .CLK(CLK),
+							     .D_IN(f_hart0_reset_reqs$D_IN),
+							     .ENQ(f_hart0_reset_reqs$ENQ),
+							     .DEQ(f_hart0_reset_reqs$DEQ),
+							     .CLR(f_hart0_reset_reqs$CLR),
+							     .D_OUT(f_hart0_reset_reqs$D_OUT),
+							     .FULL_N(f_hart0_reset_reqs$FULL_N),
+							     .EMPTY_N(f_hart0_reset_reqs$EMPTY_N));
+
+  // submodule f_hart0_reset_rsps
+  FIFO2 #(.width(32'd1), .guarded(32'd1)) f_hart0_reset_rsps(.RST(RST_N),
+							     .CLK(CLK),
+							     .D_IN(f_hart0_reset_rsps$D_IN),
+							     .ENQ(f_hart0_reset_rsps$ENQ),
+							     .DEQ(f_hart0_reset_rsps$DEQ),
+							     .CLR(f_hart0_reset_rsps$CLR),
+							     .D_OUT(f_hart0_reset_rsps$D_OUT),
+							     .FULL_N(f_hart0_reset_rsps$FULL_N),
+							     .EMPTY_N(f_hart0_reset_rsps$EMPTY_N));
 
   // submodule f_hart0_run_halt_reqs
   FIFO2 #(.width(32'd1), .guarded(32'd1)) f_hart0_run_halt_reqs(.RST(RST_N),
@@ -365,27 +472,52 @@ module mkDM_Run_Control(CLK,
 								.EMPTY_N(f_hart0_run_halt_rsps$EMPTY_N));
 
   // submodule f_ndm_reset_reqs
-  FIFO20 #(.guarded(32'd1)) f_ndm_reset_reqs(.RST(RST_N),
-					     .CLK(CLK),
-					     .ENQ(f_ndm_reset_reqs$ENQ),
-					     .DEQ(f_ndm_reset_reqs$DEQ),
-					     .CLR(f_ndm_reset_reqs$CLR),
-					     .FULL_N(f_ndm_reset_reqs$FULL_N),
-					     .EMPTY_N(f_ndm_reset_reqs$EMPTY_N));
+  FIFO2 #(.width(32'd1), .guarded(32'd1)) f_ndm_reset_reqs(.RST(RST_N),
+							   .CLK(CLK),
+							   .D_IN(f_ndm_reset_reqs$D_IN),
+							   .ENQ(f_ndm_reset_reqs$ENQ),
+							   .DEQ(f_ndm_reset_reqs$DEQ),
+							   .CLR(f_ndm_reset_reqs$CLR),
+							   .D_OUT(f_ndm_reset_reqs$D_OUT),
+							   .FULL_N(f_ndm_reset_reqs$FULL_N),
+							   .EMPTY_N(f_ndm_reset_reqs$EMPTY_N));
+
+  // submodule f_ndm_reset_rsps
+  FIFO2 #(.width(32'd1), .guarded(32'd1)) f_ndm_reset_rsps(.RST(RST_N),
+							   .CLK(CLK),
+							   .D_IN(f_ndm_reset_rsps$D_IN),
+							   .ENQ(f_ndm_reset_rsps$ENQ),
+							   .DEQ(f_ndm_reset_rsps$DEQ),
+							   .CLR(f_ndm_reset_rsps$CLR),
+							   .D_OUT(f_ndm_reset_rsps$D_OUT),
+							   .FULL_N(f_ndm_reset_rsps$FULL_N),
+							   .EMPTY_N(f_ndm_reset_rsps$EMPTY_N));
+
+  // rule RL_rl_hart0_reset_rsp
+  assign CAN_FIRE_RL_rl_hart0_reset_rsp = f_hart0_reset_rsps$EMPTY_N ;
+  assign WILL_FIRE_RL_rl_hart0_reset_rsp = f_hart0_reset_rsps$EMPTY_N ;
+
+  // rule RL_rl_ndm_reset_rsp
+  assign CAN_FIRE_RL_rl_ndm_reset_rsp = f_ndm_reset_rsps$EMPTY_N ;
+  assign WILL_FIRE_RL_rl_ndm_reset_rsp = f_ndm_reset_rsps$EMPTY_N ;
 
   // rule RL_rl_hart0_run_rsp
-  assign CAN_FIRE_RL_rl_hart0_run_rsp = f_hart0_run_halt_rsps$EMPTY_N ;
-  assign WILL_FIRE_RL_rl_hart0_run_rsp = f_hart0_run_halt_rsps$EMPTY_N ;
+  assign CAN_FIRE_RL_rl_hart0_run_rsp =
+	     f_hart0_run_halt_rsps$EMPTY_N && !f_ndm_reset_rsps$EMPTY_N ;
+  assign WILL_FIRE_RL_rl_hart0_run_rsp = CAN_FIRE_RL_rl_hart0_run_rsp ;
 
   // inputs to muxes for submodule ports
   assign MUX_rg_dmstatus_allresumeack$write_1__SEL_2 =
-	     f_hart0_run_halt_rsps$EMPTY_N && f_hart0_run_halt_rsps$D_OUT ;
+	     WILL_FIRE_RL_rl_hart0_run_rsp && f_hart0_run_halt_rsps$D_OUT ;
   assign MUX_rg_dmstatus_allresumeack$write_1__SEL_3 =
 	     EN_write &&
-	     write_dm_addr_EQ_0x10_6_AND_write_dm_word_BIT__ETC___d77 ;
-  assign MUX_rg_hart0_running$write_1__SEL_3 =
-	     EN_write && write_dm_addr == 7'h10 && write_dm_word[0] &&
-	     (write_dm_word[1] || write_dm_word[29]) ;
+	     write_dm_addr_EQ_0x10_9_AND_write_dm_word_BIT__ETC___d101 ;
+  assign MUX_rg_dmstatus_allunavail$write_1__SEL_3 =
+	     EN_write &&
+	     write_dm_addr_EQ_0x10_9_AND_write_dm_word_BIT__ETC___d51 ;
+  assign MUX_rg_hart0_hasreset$write_1__SEL_3 =
+	     EN_write && write_dm_addr == 7'h10 &&
+	     write_dm_word_BIT_0_3_AND_NOT_rg_dmstatus_allu_ETC___d61 ;
   assign MUX_rg_verbosity$write_1__SEL_2 =
 	     EN_write && write_dm_addr == 7'h60 ;
 
@@ -422,26 +554,47 @@ module mkDM_Run_Control(CLK,
     default: rg_dmstatus_allresumeack$D_IN = 1'b0 /* unspecified value */ ;
   endcase
   assign rg_dmstatus_allresumeack$EN =
-	     f_hart0_run_halt_rsps$EMPTY_N && f_hart0_run_halt_rsps$D_OUT ||
+	     WILL_FIRE_RL_rl_hart0_run_rsp && f_hart0_run_halt_rsps$D_OUT ||
 	     EN_write &&
-	     write_dm_addr_EQ_0x10_6_AND_write_dm_word_BIT__ETC___d77 ||
+	     write_dm_addr_EQ_0x10_9_AND_write_dm_word_BIT__ETC___d101 ||
+	     EN_reset ;
+
+  // register rg_dmstatus_allunavail
+  assign rg_dmstatus_allunavail$D_IN =
+	     !EN_reset && !f_ndm_reset_rsps$EMPTY_N ;
+  assign rg_dmstatus_allunavail$EN =
+	     EN_write &&
+	     write_dm_addr_EQ_0x10_9_AND_write_dm_word_BIT__ETC___d51 ||
+	     f_ndm_reset_rsps$EMPTY_N ||
+	     EN_reset ;
+
+  // register rg_hart0_hasreset
+  assign rg_hart0_hasreset$D_IN = !EN_reset && !f_hart0_reset_rsps$EMPTY_N ;
+  assign rg_hart0_hasreset$EN =
+	     EN_write && write_dm_addr == 7'h10 &&
+	     write_dm_word_BIT_0_3_AND_NOT_rg_dmstatus_allu_ETC___d61 ||
+	     f_hart0_reset_rsps$EMPTY_N ||
 	     EN_reset ;
 
   // register rg_hart0_running
   always@(EN_reset or
-	  f_hart0_run_halt_rsps$EMPTY_N or
-	  f_hart0_run_halt_rsps$D_OUT or MUX_rg_hart0_running$write_1__SEL_3)
+	  WILL_FIRE_RL_rl_hart0_run_rsp or
+	  f_hart0_run_halt_rsps$D_OUT or
+	  f_ndm_reset_rsps$EMPTY_N or
+	  f_ndm_reset_rsps$D_OUT or
+	  f_hart0_reset_rsps$EMPTY_N or f_hart0_reset_rsps$D_OUT)
   case (1'b1)
     EN_reset: rg_hart0_running$D_IN = 1'd1;
-    f_hart0_run_halt_rsps$EMPTY_N:
+    WILL_FIRE_RL_rl_hart0_run_rsp:
 	rg_hart0_running$D_IN = f_hart0_run_halt_rsps$D_OUT;
-    MUX_rg_hart0_running$write_1__SEL_3: rg_hart0_running$D_IN = 1'd1;
+    f_ndm_reset_rsps$EMPTY_N: rg_hart0_running$D_IN = f_ndm_reset_rsps$D_OUT;
+    f_hart0_reset_rsps$EMPTY_N:
+	rg_hart0_running$D_IN = f_hart0_reset_rsps$D_OUT;
     default: rg_hart0_running$D_IN = 1'b0 /* unspecified value */ ;
   endcase
   assign rg_hart0_running$EN =
-	     EN_write && write_dm_addr == 7'h10 && write_dm_word[0] &&
-	     (write_dm_word[1] || write_dm_word[29]) ||
-	     f_hart0_run_halt_rsps$EMPTY_N ||
+	     f_ndm_reset_rsps$EMPTY_N || f_hart0_reset_rsps$EMPTY_N ||
+	     WILL_FIRE_RL_rl_hart0_run_rsp ||
 	     EN_reset ;
 
   // register rg_verbosity
@@ -455,66 +608,108 @@ module mkDM_Run_Control(CLK,
   assign f_hart0_other_reqs$CLR = 1'b0 ;
 
   // submodule f_hart0_reset_reqs
-  assign f_hart0_reset_reqs$ENQ =
-	     EN_write && write_dm_addr == 7'h10 && write_dm_word[0] &&
-	     !write_dm_word[1] &&
-	     write_dm_word[29] ;
-  assign f_hart0_reset_reqs$DEQ = EN_hart0_get_reset_req_get ;
+  assign f_hart0_reset_reqs$D_IN = !write_dm_word[31] ;
+  assign f_hart0_reset_reqs$ENQ = MUX_rg_hart0_hasreset$write_1__SEL_3 ;
+  assign f_hart0_reset_reqs$DEQ = EN_hart0_reset_client_request_get ;
   assign f_hart0_reset_reqs$CLR = EN_reset ;
+
+  // submodule f_hart0_reset_rsps
+  assign f_hart0_reset_rsps$D_IN = hart0_reset_client_response_put ;
+  assign f_hart0_reset_rsps$ENQ = EN_hart0_reset_client_response_put ;
+  assign f_hart0_reset_rsps$DEQ = f_hart0_reset_rsps$EMPTY_N ;
+  assign f_hart0_reset_rsps$CLR = EN_reset ;
 
   // submodule f_hart0_run_halt_reqs
   assign f_hart0_run_halt_reqs$D_IN = write_dm_word[30] && !rg_hart0_running ;
   assign f_hart0_run_halt_reqs$ENQ =
-	     EN_write &&
-	     write_dm_addr_EQ_0x10_6_AND_write_dm_word_BIT__ETC___d72 ;
+	     EN_write && write_dm_addr == 7'h10 && write_dm_word[0] &&
+	     !rg_dmstatus_allunavail &&
+	     NOT_rg_dmcontrol_ndmreset_6_7_OR_write_dm_word_ETC___d92 ;
   assign f_hart0_run_halt_reqs$DEQ = EN_hart0_client_run_halt_request_get ;
   assign f_hart0_run_halt_reqs$CLR = EN_reset ;
 
   // submodule f_hart0_run_halt_rsps
   assign f_hart0_run_halt_rsps$D_IN = hart0_client_run_halt_response_put ;
   assign f_hart0_run_halt_rsps$ENQ = EN_hart0_client_run_halt_response_put ;
-  assign f_hart0_run_halt_rsps$DEQ = f_hart0_run_halt_rsps$EMPTY_N ;
+  assign f_hart0_run_halt_rsps$DEQ = CAN_FIRE_RL_rl_hart0_run_rsp ;
   assign f_hart0_run_halt_rsps$CLR = EN_reset ;
 
   // submodule f_ndm_reset_reqs
-  assign f_ndm_reset_reqs$ENQ =
-	     EN_write && write_dm_addr == 7'h10 && write_dm_word[0] &&
-	     write_dm_word[1] ;
-  assign f_ndm_reset_reqs$DEQ = EN_get_ndm_reset_req_get ;
+  assign f_ndm_reset_reqs$D_IN = !write_dm_word[31] ;
+  assign f_ndm_reset_reqs$ENQ = MUX_rg_dmstatus_allunavail$write_1__SEL_3 ;
+  assign f_ndm_reset_reqs$DEQ = EN_ndm_reset_client_request_get ;
   assign f_ndm_reset_reqs$CLR = EN_reset ;
 
+  // submodule f_ndm_reset_rsps
+  assign f_ndm_reset_rsps$D_IN = ndm_reset_client_response_put ;
+  assign f_ndm_reset_rsps$ENQ = EN_ndm_reset_client_response_put ;
+  assign f_ndm_reset_rsps$DEQ = f_ndm_reset_rsps$EMPTY_N ;
+  assign f_ndm_reset_rsps$CLR = EN_reset ;
+
   // remaining internal signals
-  assign haltsum__h505 = { 31'h0, !rg_hart0_running } ;
-  assign virt_rg_dmcontrol__h670 =
+  assign NOT_rg_dmcontrol_ndmreset_6_7_OR_write_dm_word_ETC___d92 =
+	     (!rg_dmcontrol_ndmreset || write_dm_word[1]) &&
+	     !write_dm_word[29] &&
+	     (!write_dm_word[31] || !write_dm_word[30]) &&
+	     (write_dm_word[30] && !rg_hart0_running ||
+	      write_dm_word[31] && rg_hart0_running) ;
+  assign NOT_rg_dmstatus_allunavail_2_6_AND_NOT_rg_dmco_ETC___d82 =
+	     !rg_dmstatus_allunavail &&
+	     (!rg_dmcontrol_ndmreset || write_dm_word[1]) &&
+	     !write_dm_word[29] &&
+	     write_dm_word[31] &&
+	     write_dm_word[30] ;
+  assign haltsum__h699 = { 31'h0, !rg_hart0_running } ;
+  assign virt_rg_dmcontrol__h930 =
 	     { 2'b0,
 	       rg_dmcontrol_hartreset,
 	       27'd0,
 	       rg_dmcontrol_ndmreset,
 	       rg_dmcontrol_dmactive } ;
-  assign virt_rg_dmstatus__h543 =
-	     { 14'b0,
+  assign virt_rg_dmstatus__h805 =
+	     { 12'd0,
+	       rg_hart0_hasreset,
+	       rg_hart0_hasreset,
 	       rg_dmstatus_allresumeack,
 	       rg_dmstatus_allresumeack,
-	       4'd0,
+	       2'd0,
+	       rg_dmstatus_allunavail,
+	       rg_dmstatus_allunavail,
 	       rg_hart0_running,
 	       rg_hart0_running,
 	       !rg_hart0_running,
 	       !rg_hart0_running,
 	       8'd130 } ;
-  assign write_dm_addr_EQ_0x10_6_AND_write_dm_word_BIT__ETC___d72 =
+  assign write_dm_addr_EQ_0x10_9_AND_write_dm_word_BIT__ETC___d101 =
 	     write_dm_addr == 7'h10 && write_dm_word[0] &&
-	     !write_dm_word[1] &&
-	     !write_dm_word[29] &&
-	     (!write_dm_word[31] || !write_dm_word[30]) &&
-	     (write_dm_word[30] && !rg_hart0_running ||
-	      write_dm_word[31] && rg_hart0_running) ;
-  assign write_dm_addr_EQ_0x10_6_AND_write_dm_word_BIT__ETC___d77 =
-	     write_dm_addr == 7'h10 && write_dm_word[0] &&
-	     !write_dm_word[1] &&
+	     !rg_dmstatus_allunavail &&
+	     (!rg_dmcontrol_ndmreset || write_dm_word[1]) &&
 	     !write_dm_word[29] &&
 	     !write_dm_word[31] &&
 	     write_dm_word[30] &&
 	     !rg_hart0_running ;
+  assign write_dm_addr_EQ_0x10_9_AND_write_dm_word_BIT__ETC___d107 =
+	     write_dm_addr == 7'h10 && write_dm_word[0] &&
+	     !rg_dmstatus_allunavail &&
+	     (!rg_dmcontrol_ndmreset || write_dm_word[1]) &&
+	     !write_dm_word[29] &&
+	     !write_dm_word[30] &&
+	     write_dm_word[31] &&
+	     rg_hart0_running ;
+  assign write_dm_addr_EQ_0x10_9_AND_write_dm_word_BIT__ETC___d51 =
+	     write_dm_addr == 7'h10 && write_dm_word[0] &&
+	     !rg_dmstatus_allunavail &&
+	     rg_dmcontrol_ndmreset &&
+	     !write_dm_word[1] ;
+  assign write_dm_word_BIT_0_3_AND_NOT_rg_dmstatus_allu_ETC___d55 =
+	     write_dm_word[0] && !rg_dmstatus_allunavail &&
+	     rg_dmcontrol_ndmreset &&
+	     !write_dm_word[1] &&
+	     write_dm_word[29] ;
+  assign write_dm_word_BIT_0_3_AND_NOT_rg_dmstatus_allu_ETC___d61 =
+	     write_dm_word[0] && !rg_dmstatus_allunavail &&
+	     (!rg_dmcontrol_ndmreset || write_dm_word[1]) &&
+	     write_dm_word[29] ;
 
   // handling of inlined registers
 
@@ -523,12 +718,16 @@ module mkDM_Run_Control(CLK,
     if (RST_N == `BSV_RESET_VALUE)
       begin
         rg_dmcontrol_dmactive <= `BSV_ASSIGNMENT_DELAY 1'd0;
+	rg_dmstatus_allunavail <= `BSV_ASSIGNMENT_DELAY 1'd0;
       end
     else
       begin
         if (rg_dmcontrol_dmactive$EN)
 	  rg_dmcontrol_dmactive <= `BSV_ASSIGNMENT_DELAY
 	      rg_dmcontrol_dmactive$D_IN;
+	if (rg_dmstatus_allunavail$EN)
+	  rg_dmstatus_allunavail <= `BSV_ASSIGNMENT_DELAY
+	      rg_dmstatus_allunavail$D_IN;
       end
     if (rg_dmcontrol_haltreq$EN)
       rg_dmcontrol_haltreq <= `BSV_ASSIGNMENT_DELAY rg_dmcontrol_haltreq$D_IN;
@@ -541,6 +740,8 @@ module mkDM_Run_Control(CLK,
     if (rg_dmstatus_allresumeack$EN)
       rg_dmstatus_allresumeack <= `BSV_ASSIGNMENT_DELAY
 	  rg_dmstatus_allresumeack$D_IN;
+    if (rg_hart0_hasreset$EN)
+      rg_hart0_hasreset <= `BSV_ASSIGNMENT_DELAY rg_hart0_hasreset$D_IN;
     if (rg_hart0_running$EN)
       rg_hart0_running <= `BSV_ASSIGNMENT_DELAY rg_hart0_running$D_IN;
     if (rg_verbosity$EN)
@@ -557,6 +758,8 @@ module mkDM_Run_Control(CLK,
     rg_dmcontrol_hartreset = 1'h0;
     rg_dmcontrol_ndmreset = 1'h0;
     rg_dmstatus_allresumeack = 1'h0;
+    rg_dmstatus_allunavail = 1'h0;
+    rg_hart0_hasreset = 1'h0;
     rg_hart0_running = 1'h0;
     rg_verbosity = 4'hA;
   end
@@ -571,75 +774,63 @@ module mkDM_Run_Control(CLK,
     #0;
     if (RST_N != `BSV_RESET_VALUE)
       if (EN_write && write_dm_addr == 7'h10 && write_dm_word[0] &&
-	  write_dm_word[1])
-	$display("DM_Run_Control.write: dmcontrol 0x%08h: ndmreset=1: resetting platform",
+	  rg_dmstatus_allunavail)
+	$display("DM_Run_Control: dmcontrol_write 0x%0h: ndm reset in progress; ignoring this write",
 		 write_dm_word);
     if (RST_N != `BSV_RESET_VALUE)
-      if (EN_write && write_dm_addr == 7'h10 && write_dm_word[0] &&
-	  write_dm_word[1] &&
-	  write_dm_word[29])
-	$display("DM_Run_Control.write: WARNING: in word written to dmcontrol (0x%08h):",
-		 write_dm_word);
+      if (EN_write && write_dm_addr == 7'h10 &&
+	  write_dm_word_BIT_0_3_AND_NOT_rg_dmstatus_allu_ETC___d55)
+	$display("DM_Run_Control: dmcontrol_write 0x%08h:", write_dm_word);
     if (RST_N != `BSV_RESET_VALUE)
-      if (EN_write && write_dm_addr == 7'h10 && write_dm_word[0] &&
-	  write_dm_word[1] &&
-	  write_dm_word[29])
-	$display("    Both ndmreset (bit 1) and hartreset (bit 29) are asserted");
+      if (EN_write && write_dm_addr == 7'h10 &&
+	  write_dm_word_BIT_0_3_AND_NOT_rg_dmstatus_allu_ETC___d55)
+	$display("    Both ndmreset [1] and hartreset [29] are asserted");
     if (RST_N != `BSV_RESET_VALUE)
-      if (EN_write && write_dm_addr == 7'h10 && write_dm_word[0] &&
-	  write_dm_word[1] &&
-	  write_dm_word[29])
+      if (EN_write && write_dm_addr == 7'h10 &&
+	  write_dm_word_BIT_0_3_AND_NOT_rg_dmstatus_allu_ETC___d55)
 	$display("    ndmreset has priority; ignoring hartreset");
     if (RST_N != `BSV_RESET_VALUE)
       if (EN_write && write_dm_addr == 7'h10 && write_dm_word[0] &&
-	  !write_dm_word[1] &&
+	  !rg_dmstatus_allunavail &&
+	  (!rg_dmcontrol_ndmreset || write_dm_word[1]) &&
 	  !write_dm_word[29] &&
 	  write_dm_word[26])
-	$display("DM_Run_Control.write: ERROR: dmcontrol 0x%08h: 'hasel' is not supported",
+	$display("ERROR: DM_Run_Control: dmcontrol_write 0x%08h: hasel is not supported",
 		 write_dm_word);
     if (RST_N != `BSV_RESET_VALUE)
       if (EN_write && write_dm_addr == 7'h10 && write_dm_word[0] &&
-	  !write_dm_word[1] &&
+	  !rg_dmstatus_allunavail &&
+	  (!rg_dmcontrol_ndmreset || write_dm_word[1]) &&
 	  !write_dm_word[29] &&
 	  write_dm_word[25:16] != 10'd0)
-	$display("DM_Run_Control.write: ERROR: dmcontrol 0x%08h: hartsel 0x%0h not supported",
+	$display("ERROR: DM_Run_Control: dmcontrol_write 0x%08h: hartsel 0x%0h not supported",
 		 write_dm_word,
 		 write_dm_word[25:16]);
     if (RST_N != `BSV_RESET_VALUE)
       if (EN_write && write_dm_addr == 7'h10 && write_dm_word[0] &&
-	  !write_dm_word[1] &&
-	  !write_dm_word[29] &&
-	  write_dm_word[31] &&
-	  write_dm_word[30])
-	$display("DM_Run_Control.write: ERROR: dmcontrol 0x%08h: haltreq=1 and resumereq=1",
+	  NOT_rg_dmstatus_allunavail_2_6_AND_NOT_rg_dmco_ETC___d82)
+	$display("ERROR: DM_Run_Control: dmcontrol_write 0x%08h: haltreq=1 and resumereq=1",
 		 write_dm_word);
     if (RST_N != `BSV_RESET_VALUE)
       if (EN_write && write_dm_addr == 7'h10 && write_dm_word[0] &&
-	  !write_dm_word[1] &&
-	  !write_dm_word[29] &&
-	  write_dm_word[31] &&
-	  write_dm_word[30])
+	  NOT_rg_dmstatus_allunavail_2_6_AND_NOT_rg_dmco_ETC___d82)
 	$display("    This behavior is 'undefined' in the spec; ignoring");
     if (RST_N != `BSV_RESET_VALUE)
       if (EN_write &&
-	  write_dm_addr_EQ_0x10_6_AND_write_dm_word_BIT__ETC___d77)
+	  write_dm_addr_EQ_0x10_9_AND_write_dm_word_BIT__ETC___d101)
 	$display("DM_Run_Control.write: hart0 resume request");
     if (RST_N != `BSV_RESET_VALUE)
-      if (EN_write && write_dm_addr == 7'h10 && write_dm_word[0] &&
-	  !write_dm_word[1] &&
-	  !write_dm_word[29] &&
-	  !write_dm_word[30] &&
-	  write_dm_word[31] &&
-	  rg_hart0_running)
+      if (EN_write &&
+	  write_dm_addr_EQ_0x10_9_AND_write_dm_word_BIT__ETC___d107)
 	$display("DM_Run_Control.write: hart0 halt request");
     if (RST_N != `BSV_RESET_VALUE)
       if (EN_write && write_dm_addr == 7'h10 && !write_dm_word[0])
-	$display("DM_Run_Control.write: dmcontrol 0x%08h (dmactive=0): resetting Debug Module",
+	$display("DM_Run_Control: dmcontrol_write 0x%08h (dmactive=0): resetting Debug Module",
 		 write_dm_word);
     if (RST_N != `BSV_RESET_VALUE)
       if (EN_write && write_dm_addr == 7'h10 && !write_dm_word[0] &&
 	  write_dm_word[1])
-	$display("DM_Run_Control.write: WARNING: in word written to dmcontrol (0x%08h):",
+	$display("WARNING: DM_Run_Control: dmcontrol_write 0x%08h:",
 		 write_dm_word);
     if (RST_N != `BSV_RESET_VALUE)
       if (EN_write && write_dm_addr == 7'h10 && !write_dm_word[0] &&
@@ -652,7 +843,7 @@ module mkDM_Run_Control(CLK,
     if (RST_N != `BSV_RESET_VALUE)
       if (EN_write && write_dm_addr == 7'h10 && !write_dm_word[0] &&
 	  write_dm_word[29])
-	$display("DM_Run_Control.write: WARNING: in word written to dmcontrol (0x%08h):",
+	$display("WARNING: DM_Run_Control: dmcontrol_write 0x%08h:",
 		 write_dm_word);
     if (RST_N != `BSV_RESET_VALUE)
       if (EN_write && write_dm_addr == 7'h10 && !write_dm_word[0] &&
@@ -663,11 +854,36 @@ module mkDM_Run_Control(CLK,
 	  write_dm_word[29])
 	$display("    dmactive has priority; ignoring hartreset");
     if (RST_N != `BSV_RESET_VALUE)
-      if (f_hart0_run_halt_rsps$EMPTY_N && f_hart0_run_halt_rsps$D_OUT)
-	$display("DM_Run_Control: hart0 running");
+      if (f_hart0_reset_rsps$EMPTY_N)
+	$write("DM_Run_Control: hart0 reset complete; hart running = ");
     if (RST_N != `BSV_RESET_VALUE)
-      if (f_hart0_run_halt_rsps$EMPTY_N && !f_hart0_run_halt_rsps$D_OUT)
-	$display("DM_Run_Control: hart0 halted");
+      if (f_hart0_reset_rsps$EMPTY_N && f_hart0_reset_rsps$D_OUT)
+	$write("True");
+    if (RST_N != `BSV_RESET_VALUE)
+      if (f_hart0_reset_rsps$EMPTY_N && !f_hart0_reset_rsps$D_OUT)
+	$write("False");
+    if (RST_N != `BSV_RESET_VALUE)
+      if (f_hart0_reset_rsps$EMPTY_N) $write("\n");
+    if (RST_N != `BSV_RESET_VALUE)
+      if (f_ndm_reset_rsps$EMPTY_N)
+	$write("DM_Run_Control: NDM reset complete; hart running = ");
+    if (RST_N != `BSV_RESET_VALUE)
+      if (f_ndm_reset_rsps$EMPTY_N && f_ndm_reset_rsps$D_OUT) $write("True");
+    if (RST_N != `BSV_RESET_VALUE)
+      if (f_ndm_reset_rsps$EMPTY_N && !f_ndm_reset_rsps$D_OUT)
+	$write("False");
+    if (RST_N != `BSV_RESET_VALUE) if (f_ndm_reset_rsps$EMPTY_N) $write("\n");
+    if (RST_N != `BSV_RESET_VALUE)
+      if (WILL_FIRE_RL_rl_hart0_run_rsp)
+	$write("DM_Run_Control.rl_hart0_run_rsp; 'running' = ");
+    if (RST_N != `BSV_RESET_VALUE)
+      if (WILL_FIRE_RL_rl_hart0_run_rsp && f_hart0_run_halt_rsps$D_OUT)
+	$write("True");
+    if (RST_N != `BSV_RESET_VALUE)
+      if (WILL_FIRE_RL_rl_hart0_run_rsp && !f_hart0_run_halt_rsps$D_OUT)
+	$write("False");
+    if (RST_N != `BSV_RESET_VALUE)
+      if (WILL_FIRE_RL_rl_hart0_run_rsp) $write("\n");
   end
   // synopsys translate_on
 endmodule  // mkDM_Run_Control

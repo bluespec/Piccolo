@@ -20,7 +20,6 @@ export mkCPU;
 // ================================================================
 // BSV library imports
 
-import Assert       :: *;
 import FIFOF        :: *;
 import SpecialFIFOs :: *;
 import GetPut       :: *;
@@ -86,8 +85,8 @@ typedef enum {CPU_RESET1,
 
 `ifdef INCLUDE_GDB_CONTROL
 	      CPU_GDB_PAUSING,      // On GDB breakpoint, while waiting for fence completion
-	      CPU_DEBUG_MODE,       // Stopped for debugger
 `endif
+	      CPU_DEBUG_MODE,       // Stopped (normally for debugger)
 	      CPU_RUNNING,          // Normal operation
 	      CPU_TRAP,
 	      CPU_SPLIT_FETCH,      // To initiate IFetch after traps/interrupts/RET
@@ -203,8 +202,8 @@ module mkCPU (CPU_IFC);
    // ----------------
    // Reset requests and responses
 
-   FIFOF #(Token)  f_reset_reqs <- mkFIFOF;
-   FIFOF #(Token)  f_reset_rsps <- mkFIFOF;
+   FIFOF #(Bool)  f_reset_reqs <- mkFIFOF;
+   FIFOF #(Bool)  f_reset_rsps <- mkFIFOF;
 
    // ----------------
    // Communication to/from External debug module
@@ -375,8 +374,11 @@ module mkCPU (CPU_IFC);
    // ================================================================
    // Reset
 
+   Reg #(Bool) rg_run_on_reset <- mkReg (False);
+
    rule rl_reset_start (rg_state == CPU_RESET1);
-      let req <- pop (f_reset_reqs);
+      let run_on_reset <- pop (f_reset_reqs);
+      rg_run_on_reset <= run_on_reset;
 
       $display ("================================================================");
       $write   ("CPU: Bluespec  RISC-V  Piccolo  v3.0");
@@ -419,6 +421,14 @@ module mkCPU (CPU_IFC);
 
    // ----------------
 
+`ifdef ISA_C
+   // TODO: analyze this carefully; added to resolve a blockage.
+   // imem_rl_fetch_next_32b is in CPU_Fetch_C.bsv, and calls imem32.req (near_mem.imem_req).
+   // fa_restart calls stageF.enq which also calls imem.req which calls imem32.req.
+   // But cond_i32_odd_fetch_next should make these rules mutually exclusive; why doesn't bsc realize this?
+   (* descending_urgency = "imem_rl_fetch_next_32b, rl_reset_complete" *)
+`endif
+
    rule rl_reset_complete (rg_state == CPU_RESET2);
       let ack_gpr <- gpr_regfile.server_reset.response.get;
 `ifdef ISA_F
@@ -433,29 +443,20 @@ module mkCPU (CPU_IFC);
 
       WordXL dpc = truncate (soc_map.m_pc_reset_value);
 
-      f_reset_rsps.enq (?);
+      f_reset_rsps.enq (rg_run_on_reset);
 
-      $display ("%0d: CPU.reset_complete", mcycle);
-
-`ifdef INCLUDE_GDB_CONTROL
-      // TODO: 'resethaltreq' is new Debug-Module functionality, to be implemented.
-      // Until then, we come out of reset running.
-      Bit #(1) resethaltreq = 0;
-      if (resethaltreq == 1'b1) begin
-	 csr_regfile.write_dcsr_cause_priv (DCSR_CAUSE_HALTREQ, m_Priv_Mode);
-	 csr_regfile.write_dpc (dpc);
-	 rg_state <= CPU_DEBUG_MODE;
-
-	 $display ("    CPU entering DEBUG_MODE");
+      if (rg_run_on_reset) begin
+	 fa_restart (dpc);
+	 $display ("%0d: CPU.rl_reset_complete: restart at PC = 0x%0h", mcycle, dpc);
       end
       else begin
-	 fa_restart (dpc);
-	 $display ("    CPU restart at PC = 0x%0h", dpc);
-      end
-`else
-      fa_restart (dpc);
-      $display ("    CPU restart at PC = 0x%0h", dpc);
+	 rg_state <= CPU_DEBUG_MODE;
+`ifdef INCLUDE_GDB_CONTROL
+	 csr_regfile.write_dcsr_cause_priv (DCSR_CAUSE_HALTREQ, m_Priv_Mode);
+	 csr_regfile.write_dpc (dpc);
 `endif
+	 $display ("%0d: CPU.rl_reset_complete: entering DEBUG_MODE", mcycle);
+      end
    endrule: rl_reset_complete
 
    // ================================================================
@@ -550,6 +551,9 @@ module mkCPU (CPU_IFC);
 
 `ifdef ISA_C
    // TODO: analyze this carefully; added to resolve a blockage
+   // imem_rl_fetch_next_32b is in CPU_Fetch_C.bsv, and calls imem32.req (near_mem.imem_req).
+   // fa_restart calls stageF.enq which also calls imem.req which calls imem32.req.
+   // But cond_i32_odd_fetch_next should make these rules mutually exclusive; why doesn't bsc realize this?
    (* descending_urgency = "imem_rl_fetch_next_32b, rl_pipe" *)
 `endif
 
@@ -886,11 +890,11 @@ module mkCPU (CPU_IFC);
       Bit #(1) sstatus_SUM = 0;
 `endif
 
-      rg_state <= CPU_RUNNING;
-
       fa_start_ifetch (next_pc, rg_cur_priv, mstatus_MXR, sstatus_SUM);
+
       stage1.set_full (True);    fa_step_check;
 
+      rg_state <= CPU_RUNNING;
       if (cur_verbosity > 1)
 	 $display ("%0d: rl_stage1_restart_after_csrrx: minstret:%0d  pc:%0x  cur_priv:%0d",
 		   mcycle, minstret, stage1.out.next_pc, rg_cur_priv);
@@ -1066,6 +1070,9 @@ module mkCPU (CPU_IFC);
 
 `ifdef ISA_C
    // TODO: analyze this carefully; added to resolve a blockage
+   // imem_rl_fetch_next_32b is in CPU_Fetch_C.bsv, and calls imem32.req (near_mem.imem_req).
+   // fa_restart calls stageF.enq which also calls imem.req which calls imem32.req.
+   // But cond_i32_odd_fetch_next should make these rules mutually exclusive; why doesn't bsc realize this?
    (* descending_urgency = "imem_rl_fetch_next_32b, rl_stage1_SFENCE_VMA" *)
 `endif
 
@@ -1334,7 +1341,7 @@ module mkCPU (CPU_IFC);
    endrule
 
    // ----------------
-   // Reset from Debug Moduule
+   // Reset from Debug Module
 
    rule rl_reset_from_Debug_Module (f_reset_reqs.notEmpty && (rg_state != CPU_RESET1));
       $display ("%0d: CPU.rl_reset_from_Debug_Module", mcycle);

@@ -49,8 +49,9 @@ interface Core_IFC #(numeric type t_n_interrupt_sources);
 
    // ----------------------------------------------------------------
    // Soft reset
+   // 'Bool' is initial 'running' state
 
-   interface Server #(Bit #(0), Bit #(0))  cpu_reset_server;
+   interface Server #(Bool, Bool)  cpu_reset_server;
 
    // ----------------------------------------------------------------
    // AXI4 Fabric interfaces
@@ -93,8 +94,9 @@ interface Core_IFC #(numeric type t_n_interrupt_sources);
    // ----------------
    // Facing Platform
    // Non-Debug-Module Reset (reset all except DM)
+   // Bool indicates 'running' hart state.
 
-   interface Get #(Bit #(0)) dm_ndm_reset_req_get;
+   interface Client #(Bool, Bool) ndm_reset_client;
 `endif
 endinterface
 
