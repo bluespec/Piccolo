@@ -32,7 +32,7 @@ import Fabric_Defs :: *;
 
 interface CPU_IFC;
    // Reset
-   interface Server #(Token, Token)  hart0_server_reset;
+   interface Server #(Bool, Bool)  hart0_server_reset;
 
    // ----------------
    // SoC fabric connections
