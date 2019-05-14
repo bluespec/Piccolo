@@ -1737,7 +1737,7 @@ module mkFabric_2x3(CLK,
   wire [8 : 0] MUX_fabric_v_f_rd_mis_0$enq_1__VAL_1,
 	       MUX_fabric_v_f_rd_mis_0$enq_1__VAL_2;
   wire [7 : 0] MUX_fabric_v_rg_r_beat_count_0$write_1__VAL_2,
-	       MUX_fabric_v_rg_r_beat_count_1$write_1__VAL_2,
+	       MUX_fabric_v_rg_r_beat_count_1$write_1__VAL_3,
 	       MUX_fabric_v_rg_r_beat_count_2$write_1__VAL_2,
 	       MUX_fabric_v_rg_wd_beat_count_0$write_1__VAL_2,
 	       MUX_fabric_v_rg_wd_beat_count_1$write_1__VAL_2;
@@ -3336,7 +3336,7 @@ module mkFabric_2x3(CLK,
 	     fabric_v_rg_r_beat_count_0_69_EQ_fabric_v_f_rd_ETC___d371 ?
 	       8'd0 :
 	       x__h17986 ;
-  assign MUX_fabric_v_rg_r_beat_count_1$write_1__VAL_2 =
+  assign MUX_fabric_v_rg_r_beat_count_1$write_1__VAL_3 =
 	     fabric_v_rg_r_beat_count_1_09_EQ_fabric_v_f_rd_ETC___d411 ?
 	       8'd0 :
 	       x__h18612 ;
@@ -3409,16 +3409,16 @@ module mkFabric_2x3(CLK,
   // register fabric_v_rg_r_beat_count_1
   always@(fabric_rg_reset or
 	  WILL_FIRE_RL_fabric_rl_rd_resp_slave_to_master_4 or
-	  MUX_fabric_v_rg_r_beat_count_1$write_1__VAL_2 or
+	  MUX_fabric_v_rg_r_beat_count_1$write_1__VAL_3 or
 	  WILL_FIRE_RL_fabric_rl_rd_resp_slave_to_master_1)
   case (1'b1)
     fabric_rg_reset: fabric_v_rg_r_beat_count_1$D_IN = 8'd0;
     WILL_FIRE_RL_fabric_rl_rd_resp_slave_to_master_4:
 	fabric_v_rg_r_beat_count_1$D_IN =
-	    MUX_fabric_v_rg_r_beat_count_1$write_1__VAL_2;
+	    MUX_fabric_v_rg_r_beat_count_1$write_1__VAL_3;
     WILL_FIRE_RL_fabric_rl_rd_resp_slave_to_master_1:
 	fabric_v_rg_r_beat_count_1$D_IN =
-	    MUX_fabric_v_rg_r_beat_count_1$write_1__VAL_2;
+	    MUX_fabric_v_rg_r_beat_count_1$write_1__VAL_3;
     default: fabric_v_rg_r_beat_count_1$D_IN =
 		 8'b10101010 /* unspecified value */ ;
   endcase
