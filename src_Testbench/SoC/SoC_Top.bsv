@@ -175,13 +175,15 @@ module mkSoC_Top (SoC_Top_IFC);
    Vector#(Num_Slaves, Range#(Wd_Addr))   route_vector = newVector;
 
    // Fabric to Boot ROM
-   mkConnection(boot_rom_axi4_deburster.master, fromAXI4_Slave_Synth(boot_rom.slave));
+   let br <- fromAXI4_Slave_Synth(boot_rom.slave);
+   mkConnection(boot_rom_axi4_deburster.master, br);
    let ug_boot_rom_slave <- toUnguarded_AXI4_Slave(boot_rom_axi4_deburster.slave);
    slave_vector[boot_rom_slave_num] = toAXI4_Slave_Synth(ug_boot_rom_slave);
    route_vector[boot_rom_slave_num] = soc_map.m_boot_rom_addr_range;
 
    // Fabric to Mem Controller
-   mkConnection(mem0_controller_axi4_deburster.master, fromAXI4_Slave_Synth(mem0_controller.slave));
+   let mem <- fromAXI4_Slave_Synth(mem0_controller.slave);
+   mkConnection(mem0_controller_axi4_deburster.master, mem);
    let ug_mem0_slave <- toUnguarded_AXI4_Slave(mem0_controller_axi4_deburster.slave);
    slave_vector[mem0_controller_slave_num] = toAXI4_Slave_Synth(ug_mem0_slave);
    route_vector[mem0_controller_slave_num] = soc_map.m_mem0_controller_addr_range;
