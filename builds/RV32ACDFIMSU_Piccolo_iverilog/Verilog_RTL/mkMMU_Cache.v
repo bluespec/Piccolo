@@ -1604,11 +1604,11 @@ module mkMMU_Cache(CLK,
 					     .RDY_insert(tlb$RDY_insert));
 
   // rule RL_rl_reset
-  assign CAN_FIRE_RL_rl_reset =
+  assign CAN_FIRE_RL_rl_reset = WILL_FIRE_RL_rl_reset ;
+  assign WILL_FIRE_RL_rl_reset =
 	     (rg_cset_in_cache != 7'd127 ||
 	      f_reset_reqs$EMPTY_N && f_reset_rsps$FULL_N) &&
 	     rg_state == 4'd1 ;
-  assign WILL_FIRE_RL_rl_reset = CAN_FIRE_RL_rl_reset ;
 
   // rule RL_rl_shift_sb_to_load_delay
   assign CAN_FIRE_RL_rl_shift_sb_to_load_delay = 1'd1 ;

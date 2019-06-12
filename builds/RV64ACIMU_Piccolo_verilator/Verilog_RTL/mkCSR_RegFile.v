@@ -1590,70 +1590,6 @@ module mkCSR_RegFile(CLK,
   assign x__h8435 = csr_mstatus_rg_mstatus & y__h8436 ;
   assign y__h8419 = ~mask__h8406 ;
   assign y__h8436 = ~mask__h8423 ;
-  always@(read_csr_port2_csr_addr or
-	  rg_tdata3 or
-	  csr_mstatus_rg_mstatus or
-	  csr_mie$fv_read or
-	  rg_mtvec or
-	  rg_mcounteren or
-	  rg_mscratch or
-	  rg_mepc or
-	  rg_mcause or
-	  rg_mtval or
-	  csr_mip$fv_read or
-	  rg_tselect or rg_tdata1 or rg_tdata2 or rg_mcycle or rg_minstret)
-  begin
-    case (read_csr_port2_csr_addr)
-      12'h300:
-	  IF_read_csr_port2_csr_addr_EQ_0xC00_85_THEN_rg_ETC___d305 =
-	      csr_mstatus_rg_mstatus;
-      12'h301:
-	  IF_read_csr_port2_csr_addr_EQ_0xC00_85_THEN_rg_ETC___d305 =
-	      64'h8000000000101105;
-      12'h304:
-	  IF_read_csr_port2_csr_addr_EQ_0xC00_85_THEN_rg_ETC___d305 =
-	      csr_mie$fv_read;
-      12'h305:
-	  IF_read_csr_port2_csr_addr_EQ_0xC00_85_THEN_rg_ETC___d305 =
-	      { rg_mtvec[62:1], 1'b0, rg_mtvec[0] };
-      12'h306:
-	  IF_read_csr_port2_csr_addr_EQ_0xC00_85_THEN_rg_ETC___d305 =
-	      { 61'd0, rg_mcounteren };
-      12'h340:
-	  IF_read_csr_port2_csr_addr_EQ_0xC00_85_THEN_rg_ETC___d305 =
-	      rg_mscratch;
-      12'h341:
-	  IF_read_csr_port2_csr_addr_EQ_0xC00_85_THEN_rg_ETC___d305 = rg_mepc;
-      12'h342:
-	  IF_read_csr_port2_csr_addr_EQ_0xC00_85_THEN_rg_ETC___d305 =
-	      { rg_mcause[4], 59'd0, rg_mcause[3:0] };
-      12'h343:
-	  IF_read_csr_port2_csr_addr_EQ_0xC00_85_THEN_rg_ETC___d305 =
-	      rg_mtval;
-      12'h344:
-	  IF_read_csr_port2_csr_addr_EQ_0xC00_85_THEN_rg_ETC___d305 =
-	      csr_mip$fv_read;
-      12'h7A0:
-	  IF_read_csr_port2_csr_addr_EQ_0xC00_85_THEN_rg_ETC___d305 =
-	      rg_tselect;
-      12'h7A1:
-	  IF_read_csr_port2_csr_addr_EQ_0xC00_85_THEN_rg_ETC___d305 =
-	      rg_tdata1;
-      12'h7A2:
-	  IF_read_csr_port2_csr_addr_EQ_0xC00_85_THEN_rg_ETC___d305 =
-	      rg_tdata2;
-      12'hB00, 12'hC00:
-	  IF_read_csr_port2_csr_addr_EQ_0xC00_85_THEN_rg_ETC___d305 =
-	      rg_mcycle;
-      12'hB02, 12'hC02:
-	  IF_read_csr_port2_csr_addr_EQ_0xC00_85_THEN_rg_ETC___d305 =
-	      rg_minstret;
-      12'hF11, 12'hF12, 12'hF13, 12'hF14:
-	  IF_read_csr_port2_csr_addr_EQ_0xC00_85_THEN_rg_ETC___d305 = 64'd0;
-      default: IF_read_csr_port2_csr_addr_EQ_0xC00_85_THEN_rg_ETC___d305 =
-		   rg_tdata3;
-    endcase
-  end
   always@(read_csr_csr_addr or
 	  rg_tdata3 or
 	  csr_mstatus_rg_mstatus or
@@ -1715,6 +1651,70 @@ module mkCSR_RegFile(CLK,
       12'hF11, 12'hF12, 12'hF13, 12'hF14:
 	  IF_read_csr_csr_addr_EQ_0xC00_0_THEN_rg_mcycle_ETC___d170 = 64'd0;
       default: IF_read_csr_csr_addr_EQ_0xC00_0_THEN_rg_mcycle_ETC___d170 =
+		   rg_tdata3;
+    endcase
+  end
+  always@(read_csr_port2_csr_addr or
+	  rg_tdata3 or
+	  csr_mstatus_rg_mstatus or
+	  csr_mie$fv_read or
+	  rg_mtvec or
+	  rg_mcounteren or
+	  rg_mscratch or
+	  rg_mepc or
+	  rg_mcause or
+	  rg_mtval or
+	  csr_mip$fv_read or
+	  rg_tselect or rg_tdata1 or rg_tdata2 or rg_mcycle or rg_minstret)
+  begin
+    case (read_csr_port2_csr_addr)
+      12'h300:
+	  IF_read_csr_port2_csr_addr_EQ_0xC00_85_THEN_rg_ETC___d305 =
+	      csr_mstatus_rg_mstatus;
+      12'h301:
+	  IF_read_csr_port2_csr_addr_EQ_0xC00_85_THEN_rg_ETC___d305 =
+	      64'h8000000000101105;
+      12'h304:
+	  IF_read_csr_port2_csr_addr_EQ_0xC00_85_THEN_rg_ETC___d305 =
+	      csr_mie$fv_read;
+      12'h305:
+	  IF_read_csr_port2_csr_addr_EQ_0xC00_85_THEN_rg_ETC___d305 =
+	      { rg_mtvec[62:1], 1'b0, rg_mtvec[0] };
+      12'h306:
+	  IF_read_csr_port2_csr_addr_EQ_0xC00_85_THEN_rg_ETC___d305 =
+	      { 61'd0, rg_mcounteren };
+      12'h340:
+	  IF_read_csr_port2_csr_addr_EQ_0xC00_85_THEN_rg_ETC___d305 =
+	      rg_mscratch;
+      12'h341:
+	  IF_read_csr_port2_csr_addr_EQ_0xC00_85_THEN_rg_ETC___d305 = rg_mepc;
+      12'h342:
+	  IF_read_csr_port2_csr_addr_EQ_0xC00_85_THEN_rg_ETC___d305 =
+	      { rg_mcause[4], 59'd0, rg_mcause[3:0] };
+      12'h343:
+	  IF_read_csr_port2_csr_addr_EQ_0xC00_85_THEN_rg_ETC___d305 =
+	      rg_mtval;
+      12'h344:
+	  IF_read_csr_port2_csr_addr_EQ_0xC00_85_THEN_rg_ETC___d305 =
+	      csr_mip$fv_read;
+      12'h7A0:
+	  IF_read_csr_port2_csr_addr_EQ_0xC00_85_THEN_rg_ETC___d305 =
+	      rg_tselect;
+      12'h7A1:
+	  IF_read_csr_port2_csr_addr_EQ_0xC00_85_THEN_rg_ETC___d305 =
+	      rg_tdata1;
+      12'h7A2:
+	  IF_read_csr_port2_csr_addr_EQ_0xC00_85_THEN_rg_ETC___d305 =
+	      rg_tdata2;
+      12'hB00, 12'hC00:
+	  IF_read_csr_port2_csr_addr_EQ_0xC00_85_THEN_rg_ETC___d305 =
+	      rg_mcycle;
+      12'hB02, 12'hC02:
+	  IF_read_csr_port2_csr_addr_EQ_0xC00_85_THEN_rg_ETC___d305 =
+	      rg_minstret;
+      12'hF11, 12'hF12, 12'hF13, 12'hF14:
+	  IF_read_csr_port2_csr_addr_EQ_0xC00_85_THEN_rg_ETC___d305 = 64'd0;
+      default: IF_read_csr_port2_csr_addr_EQ_0xC00_85_THEN_rg_ETC___d305 =
 		   rg_tdata3;
     endcase
   end

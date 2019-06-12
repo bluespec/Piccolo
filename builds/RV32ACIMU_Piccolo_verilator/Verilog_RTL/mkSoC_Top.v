@@ -876,10 +876,10 @@ module mkSoC_Top(CLK,
 
   // declarations used by system tasks
   // synopsys translate_off
-  reg [31 : 0] v__h11285;
-  reg [31 : 0] v__h11555;
-  reg [31 : 0] v__h11279;
-  reg [31 : 0] v__h11549;
+  reg [31 : 0] v__h11286;
+  reg [31 : 0] v__h11556;
+  reg [31 : 0] v__h11280;
+  reg [31 : 0] v__h11550;
   // synopsys translate_on
 
   // action method set_verbosity
@@ -1771,13 +1771,13 @@ module mkSoC_Top(CLK,
   assign MUX_rg_state$write_1__SEL_1 =
 	     mem0_controller$RDY_server_reset_request_put &&
 	     uart0$RDY_server_reset_request_put &&
-	     core$RDY_cpu_reset_server_request_put &&
 	     fabric$RDY_reset &&
+	     core$RDY_cpu_reset_server_request_put &&
 	     rg_state == 2'd0 ;
   assign MUX_rg_state$write_1__SEL_2 =
+	     mem0_controller$RDY_set_addr_map &&
 	     mem0_controller$RDY_server_reset_response_get &&
 	     uart0$RDY_server_reset_response_get &&
-	     mem0_controller$RDY_set_addr_map &&
 	     core$RDY_cpu_reset_server_response_get &&
 	     rg_state == 2'd1 ;
 
@@ -2310,23 +2310,23 @@ module mkSoC_Top(CLK,
     if (RST_N != `BSV_RESET_VALUE)
       if (WILL_FIRE_RL_rl_reset_start_initial)
 	begin
-	  v__h11285 = $stime;
+	  v__h11286 = $stime;
 	  #0;
 	end
-    v__h11279 = v__h11285 / 32'd10;
+    v__h11280 = v__h11286 / 32'd10;
     if (RST_N != `BSV_RESET_VALUE)
       if (WILL_FIRE_RL_rl_reset_start_initial)
-	$display("%0d: SoC_Top. Reset start ...", v__h11279);
+	$display("%0d:%m.rl_reset_start_initial ...", v__h11280);
     if (RST_N != `BSV_RESET_VALUE)
       if (WILL_FIRE_RL_rl_reset_complete_initial)
 	begin
-	  v__h11555 = $stime;
+	  v__h11556 = $stime;
 	  #0;
 	end
-    v__h11549 = v__h11555 / 32'd10;
+    v__h11550 = v__h11556 / 32'd10;
     if (RST_N != `BSV_RESET_VALUE)
       if (WILL_FIRE_RL_rl_reset_complete_initial)
-	$display("%0d: SoC_Top. Reset complete ...", v__h11549);
+	$display("%0d:%m.rl_reset_complete_initial", v__h11550);
   end
   // synopsys translate_on
 endmodule  // mkSoC_Top

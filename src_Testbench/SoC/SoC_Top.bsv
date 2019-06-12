@@ -55,7 +55,8 @@ import Camera_Model   :: *;
 `endif
 
 `ifdef INCLUDE_ACCEL0
-import Accel_AES      :: *;
+import AXI4_Accel_IFC :: *;
+import AXI4_Accel     :: *;
 `endif
 
 `ifdef INCLUDE_TANDEM_VERIF
@@ -149,7 +150,7 @@ module mkSoC_Top (SoC_Top_IFC);
 
 `ifdef INCLUDE_ACCEL0
    // Accel0 master to fabric
-   Accel_AES_IFC  accel_aes0 <- mkAccel_AES;
+   AXI4_Accel_IFC  accel0 <- mkAXI4_Accel;
 `endif
 
    // ----------------
@@ -164,7 +165,7 @@ module mkSoC_Top (SoC_Top_IFC);
 
 `ifdef INCLUDE_ACCEL0
    // accel_aes0 to fabric
-   mkConnection (accel_aes0.master,  fabric.v_from_masters [accel0_master_num]);
+   mkConnection (accel0.master,  fabric.v_from_masters [accel0_master_num]);
 `endif
 
    // ----------------
@@ -180,11 +181,11 @@ module mkSoC_Top (SoC_Top_IFC);
    mkConnection (mem0_controller_axi4_deburster.to_slave,        mem0_controller.slave);
 
    // Fabric to UART0
-   mkConnection (fabric.v_to_slaves [uart0_slave_num],           uart0.slave);
+   mkConnection (fabric.v_to_slaves [uart0_slave_num],  uart0.slave);
 
 `ifdef INCLUDE_ACCEL0
-   // Fabric to accel_aes0
-   mkConnection (fabric.v_to_slaves [accel0_slave_num],          accel_aes0.slave);
+   // Fabric to accel0
+   mkConnection (fabric.v_to_slaves [accel0_slave_num], accel0.slave);
 `endif
 
 `ifdef HTIF_MEMORY
@@ -204,9 +205,16 @@ module mkSoC_Top (SoC_Top_IFC);
 
       // UART
       core.core_external_interrupt_sources [irq_num_uart0].m_interrupt_req (intr);
+      Integer last_irq_num = irq_num_uart0;
 
-      // Tie off remaining interrupt request lines (1..N)
-      for (Integer j = 1; j < valueOf (N_External_Interrupt_Sources); j = j + 1)
+`ifdef INCLUDE_ACCEL0
+      Bool intr_accel0 = accel0.interrupt_req;
+      core.core_external_interrupt_sources [irq_num_accel0].m_interrupt_req (intr_accel0);
+      last_irq_num = irq_num_accel0;
+`endif
+
+      // Tie off remaining interrupt request lines (2..N)
+      for (Integer j = last_irq_num + 1; j < valueOf (N_External_Interrupt_Sources); j = j + 1)
 	 core.core_external_interrupt_sources [j].m_interrupt_req (False);
 
       // Non-maskable interrupt request. [Tie-off; TODO: connect to genuine sources]
@@ -248,6 +256,12 @@ module mkSoC_Top (SoC_Top_IFC);
 				       soc_map.m_mem0_controller_addr_lim);
 
 	 uart0.set_addr_map (soc_map.m_uart0_addr_base, soc_map.m_uart0_addr_lim);
+
+`ifdef INCLUDE_ACCEL0
+	 accel0.init (fabric_default_id,
+		      soc_map.m_accel0_addr_base,
+		      soc_map.m_accel0_addr_lim);
+`endif
 
 	 if (verbosity != 0) begin
 	    $display ("  SoC address map:");

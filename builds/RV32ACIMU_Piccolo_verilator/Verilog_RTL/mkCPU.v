@@ -1125,7 +1125,6 @@ module mkCPU(CLK,
        MUX_rg_state$write_1__SEL_2,
        MUX_rg_state$write_1__SEL_3,
        MUX_rg_state$write_1__SEL_4,
-       MUX_rg_state$write_1__SEL_5,
        MUX_rg_state$write_1__SEL_6,
        MUX_rg_state$write_1__SEL_7,
        MUX_rg_state$write_1__SEL_8,
@@ -2116,8 +2115,10 @@ module mkCPU(CLK,
 	     CAN_FIRE_RL_rl_pipe && !WILL_FIRE_RL_imem_rl_fetch_next_32b ;
 
   // rule RL_rl_reset_start
-  assign CAN_FIRE_RL_rl_reset_start = MUX_rg_state$write_1__SEL_5 ;
-  assign WILL_FIRE_RL_rl_reset_start = MUX_rg_state$write_1__SEL_5 ;
+  assign CAN_FIRE_RL_rl_reset_start =
+	     gpr_regfile_RDY_server_reset_request_put__031__ETC___d1043 &&
+	     rg_state == 4'd0 ;
+  assign WILL_FIRE_RL_rl_reset_start = CAN_FIRE_RL_rl_reset_start ;
 
   // rule RL_imem_rl_fetch_next_32b
   assign CAN_FIRE_RL_imem_rl_fetch_next_32b =
@@ -2205,9 +2206,6 @@ module mkCPU(CLK,
 	     4'd3 ;
   assign MUX_rg_state$write_1__SEL_4 =
 	     CAN_FIRE_RL_rl_reset_from_WFI && !WILL_FIRE_RL_rl_WFI_resume ;
-  assign MUX_rg_state$write_1__SEL_5 =
-	     gpr_regfile_RDY_server_reset_request_put__031__ETC___d1043 &&
-	     rg_state == 4'd0 ;
   assign MUX_rg_state$write_1__SEL_6 =
 	     WILL_FIRE_RL_rl_trap_fetch || WILL_FIRE_RL_rl_WFI_resume ||
 	     WILL_FIRE_RL_rl_finish_SFENCE_VMA ||
@@ -2497,7 +2495,7 @@ module mkCPU(CLK,
 
   // register rg_run_on_reset
   assign rg_run_on_reset$D_IN = f_reset_reqs$D_OUT ;
-  assign rg_run_on_reset$EN = MUX_rg_state$write_1__SEL_5 ;
+  assign rg_run_on_reset$EN = CAN_FIRE_RL_rl_reset_start ;
 
   // register rg_sstatus_SUM
   assign rg_sstatus_SUM$D_IN =
@@ -2767,7 +2765,7 @@ module mkCPU(CLK,
   assign csr_regfile$timer_interrupt_req_set_not_clear =
 	     timer_interrupt_req_set_not_clear ;
   assign csr_regfile$EN_server_reset_request_put =
-	     MUX_rg_state$write_1__SEL_5 ;
+	     CAN_FIRE_RL_rl_reset_start ;
   assign csr_regfile$EN_server_reset_response_get =
 	     MUX_rg_state$write_1__SEL_1 ;
   assign csr_regfile$EN_mav_read_csr = 1'b0 ;
@@ -2798,7 +2796,9 @@ module mkCPU(CLK,
   // submodule f_reset_reqs
   assign f_reset_reqs$D_IN = hart0_server_reset_request_put ;
   assign f_reset_reqs$ENQ = EN_hart0_server_reset_request_put ;
-  assign f_reset_reqs$DEQ = MUX_rg_state$write_1__SEL_5 ;
+  assign f_reset_reqs$DEQ =
+	     gpr_regfile_RDY_server_reset_request_put__031__ETC___d1043 &&
+	     rg_state == 4'd0 ;
   assign f_reset_reqs$CLR = 1'b0 ;
 
   // submodule f_reset_rsps
@@ -2821,7 +2821,7 @@ module mkCPU(CLK,
 	       csr_regfile$read_csr[31:0] :
 	       stage3_rg_stage3[31:0] ;
   assign gpr_regfile$EN_server_reset_request_put =
-	     MUX_rg_state$write_1__SEL_5 ;
+	     CAN_FIRE_RL_rl_reset_start ;
   assign gpr_regfile$EN_server_reset_response_get =
 	     MUX_rg_state$write_1__SEL_1 ;
   assign gpr_regfile$EN_write_rd =
@@ -2959,7 +2959,7 @@ module mkCPU(CLK,
   end
   assign near_mem$server_fence_request_put =
 	     8'b10101010 /* unspecified value */  ;
-  assign near_mem$EN_server_reset_request_put = MUX_rg_state$write_1__SEL_5 ;
+  assign near_mem$EN_server_reset_request_put = CAN_FIRE_RL_rl_reset_start ;
   assign near_mem$EN_server_reset_response_get = MUX_rg_state$write_1__SEL_1 ;
   assign near_mem$EN_imem_req =
 	     WILL_FIRE_RL_rl_reset_complete && rg_run_on_reset ||
@@ -2996,7 +2996,7 @@ module mkCPU(CLK,
   assign soc_map$m_is_near_mem_IO_addr_addr = 64'h0 ;
 
   // submodule stage1_f_reset_reqs
-  assign stage1_f_reset_reqs$ENQ = MUX_rg_state$write_1__SEL_5 ;
+  assign stage1_f_reset_reqs$ENQ = CAN_FIRE_RL_rl_reset_start ;
   assign stage1_f_reset_reqs$DEQ = CAN_FIRE_RL_stage1_rl_reset ;
   assign stage1_f_reset_reqs$CLR = 1'b0 ;
 
@@ -3006,7 +3006,7 @@ module mkCPU(CLK,
   assign stage1_f_reset_rsps$CLR = 1'b0 ;
 
   // submodule stage2_f_reset_reqs
-  assign stage2_f_reset_reqs$ENQ = MUX_rg_state$write_1__SEL_5 ;
+  assign stage2_f_reset_reqs$ENQ = CAN_FIRE_RL_rl_reset_start ;
   assign stage2_f_reset_reqs$DEQ = stage2_f_reset_reqs$EMPTY_N ;
   assign stage2_f_reset_reqs$CLR = 1'b0 ;
 
@@ -3031,7 +3031,7 @@ module mkCPU(CLK,
 	     3'd3 ;
 
   // submodule stage3_f_reset_reqs
-  assign stage3_f_reset_reqs$ENQ = MUX_rg_state$write_1__SEL_5 ;
+  assign stage3_f_reset_reqs$ENQ = CAN_FIRE_RL_rl_reset_start ;
   assign stage3_f_reset_reqs$DEQ = CAN_FIRE_RL_stage3_rl_reset ;
   assign stage3_f_reset_reqs$CLR = 1'b0 ;
 

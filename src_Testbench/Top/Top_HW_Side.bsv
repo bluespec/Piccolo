@@ -99,8 +99,10 @@ module mkTop_HW_Side (Empty) ;
 
       // ----------------
       // Start timing the simulation
+`ifndef IVERILOG
       Bit #(32) cycle_num <- cur_cycle;
       c_start_timing (zeroExtend (cycle_num));
+`endif
 
       // ----------------
       // Open file for Tandem Verification trace output
@@ -109,12 +111,12 @@ module mkTop_HW_Side (Empty) ;
       // Note: see 'CAVEAT FOR IVERILOG USERS' above
       let success <- c_trace_file_open ('h_AA);
       if (success == 0) begin
-	 $display ("ERROR: Top_HW_Side.rl_step0: error opening trace file.");
+	 $display ("%0d: ERROR: %m.rl_step0: error opening trace file.", cur_cycle);
 	 $display ("    Aborting.");
 	 $finish (1);
       end
       else
-	 $display ("Top_HW_Side.rl_step0: opened trace file.");
+	 $display ("%0d: %m.rl_step0: opened trace file.", cur_cycle);
 `else
       $display ("Warning: tandem verification output logs not available in IVerilog");
 `endif
@@ -127,7 +129,7 @@ module mkTop_HW_Side (Empty) ;
       // Note: see 'CAVEAT FOR IVERILOG USERS' above
       let dmi_status <- c_debug_client_connect (dmi_default_tcp_port);
       if (dmi_status != dmi_status_ok) begin
-	 $display ("ERROR: Top_HW_Side.rl_step0: error opening debug client connection.");
+	 $display ("ERROR: %m.rl_step0: error opening debug client connection.");
 	 $display ("    Aborting.");
 	 $finish (1);
       end
@@ -142,12 +144,14 @@ module mkTop_HW_Side (Empty) ;
    // Terminate on any non-zero status
 
    rule rl_terminate (soc_top.status != 0);
-      $display ("%0d: %m:.rl_terminate: soc_top status is 0x%0h (= 0d%0d)",
+      $display ("%0d: %m.rl_terminate: soc_top status is 0x%0h (= 0d%0d)",
 		cur_cycle, soc_top.status, soc_top.status);
 
+`ifndef IVERILOG
       // End timing the simulation
       Bit #(32) cycle_num <- cur_cycle;
       c_end_timing (zeroExtend (cycle_num));
+`endif
 
       $finish (0);
    endrule
@@ -170,12 +174,12 @@ module mkTop_HW_Side (Empty) ;
       end
 
       if (success == 0)
-	 $display ("ERROR: Top_HW_Side.rl_tv_vb_out: error loading %0d bytes into buffer", n);
+	 $display ("ERROR: %m.rl_tv_vb_out: error loading %0d bytes into buffer", n);
       else begin
 	 // Send the data
 	 success <- c_trace_file_write_buffer (n);
 	 if (success == 0)
-	    $display ("ERROR: Top_HW_Side.rl_tv_vb_out: error writing out bytevec data buffer (%0d bytes)", n);
+	    $display ("ERROR: %m.rl_tv_vb_out: error writing out bytevec data buffer (%0d bytes)", n);
       end
 
       if (success == 0) begin
@@ -210,7 +214,7 @@ module mkTop_HW_Side (Empty) ;
 	 if (ch != 0) begin
 	    soc_top.put_from_console.put (ch);
 	    /*
-	    $write ("%0d: Top_HW_Side.bsv.rl_relay_console: ch = 0x%0h", cur_cycle, ch);
+	    $write ("%0d: %m.bsv.rl_relay_console: ch = 0x%0h", cur_cycle, ch);
 	    if (ch >= 'h20) $write (" ('%c')", ch);
 	    $display ("");
 	    */
@@ -232,12 +236,12 @@ module mkTop_HW_Side (Empty) ;
       Bit #(16) addr   = req [23:8];
       Bit #(8)  op     = req [7:0];
       if (status == dmi_status_err) begin
-	 $display ("%0d: Top_HW_Side.rl_debug_client_request_recv: receive error; aborting",
+	 $display ("%0d: %m.rl_debug_client_request_recv: receive error; aborting",
 		   cur_cycle);
 	 $finish (1);
       end
       else if (status == dmi_status_ok) begin
-	 // $write ("%0d: Top_HW_Side.rl_debug_client_request_recv:", cur_cycle);
+	 // $write ("%0d: %m.rl_debug_client_request_recv:", cur_cycle);
 	 if (op == dmi_op_read) begin
 	    // $display (" READ 0x%0h", addr);
 	    let control_req = Control_Req {op: external_control_req_op_read_control_fabric,
@@ -253,7 +257,7 @@ module mkTop_HW_Side (Empty) ;
 	    soc_top.server_external_control.request.put (control_req);
 	 end
 	 else if (op == dmi_op_shutdown) begin
-	    $display ("Top_HW_Side.rl_debug_client_request_recv: SHUTDOWN");
+	    $display ("%0d: %m.rl_debug_client_request_recv: SHUTDOWN", cur_cycle);
 
 	    // End timing the simulation and print simulation speed stats
 	    Bit #(32) cycle_num <- cur_cycle;
@@ -265,16 +269,16 @@ module mkTop_HW_Side (Empty) ;
 	    // $display (" START COMMAND ================================");
 	 end
 	 else
-	    $display (" Top_HW_Side.rl_debug_client_request_recv: UNRECOGNIZED OP %0d; ignoring", op);
+	    $display ("%0d: %m.rl_debug_client_request_recv: UNRECOGNIZED OP %0d; ignoring", cur_cycle, op);
       end
    endrule
 
    rule rl_debug_client_response_send;
       let control_rsp <- soc_top.server_external_control.response.get;
-      // $display ("Top_HW_Side.rl_debug_client_response_send: 0x%0h", control_rsp.result);
+      // $display ("%0d: %m.rl_debug_client_response_send: 0x%0h", cur_cycle, control_rsp.result);
       let status <- c_debug_client_response_send (truncate (control_rsp.result));
       if (status == dmi_status_err) begin
-	 $display ("%0d: Top_HW_Side.rl_debug_client_response_send: send error; aborting",
+	 $display ("%0d: %m.rl_debug_client_response_send: send error; aborting",
 		   cur_cycle);
 	 $finish (1);
       end

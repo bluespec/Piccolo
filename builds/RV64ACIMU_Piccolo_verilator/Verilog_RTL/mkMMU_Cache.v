@@ -745,7 +745,7 @@ module mkMMU_Cache(CLK,
        MUX_dw_output_ld_val$wset_1__SEL_3,
        MUX_dw_output_ld_val$wset_1__SEL_4,
        MUX_master_xactor_rg_rd_addr$write_1__SEL_1,
-       MUX_ram_state_and_ctag_cset$b_put_1__SEL_1,
+       MUX_ram_state_and_ctag_cset$b_put_2__SEL_1,
        MUX_ram_word64_set$a_put_1__SEL_1,
        MUX_ram_word64_set$b_put_1__SEL_2,
        MUX_rg_error_during_refill$write_1__SEL_1,
@@ -1499,7 +1499,7 @@ module mkMMU_Cache(CLK,
 	     WILL_FIRE_RL_rl_ST_AMO_response ;
   assign MUX_master_xactor_rg_rd_addr$write_1__SEL_1 =
 	     WILL_FIRE_RL_rl_io_AMO_op_req || WILL_FIRE_RL_rl_io_read_req ;
-  assign MUX_ram_state_and_ctag_cset$b_put_1__SEL_1 =
+  assign MUX_ram_state_and_ctag_cset$b_put_2__SEL_1 =
 	     EN_req &&
 	     req_f3_BITS_1_TO_0_90_EQ_0b0_91_OR_req_f3_BITS_ETC___d920 ;
   assign MUX_ram_word64_set$a_put_1__SEL_1 =
@@ -2085,7 +2085,7 @@ module mkMMU_Cache(CLK,
 	       rg_addr[11:6] :
 	       rg_cset_in_cache ;
   assign ram_state_and_ctag_cset$ADDRB =
-	     MUX_ram_state_and_ctag_cset$b_put_1__SEL_1 ?
+	     MUX_ram_state_and_ctag_cset$b_put_2__SEL_1 ?
 	       req_addr[11:6] :
 	       rg_addr[11:6] ;
   assign ram_state_and_ctag_cset$DIA =
@@ -2093,7 +2093,7 @@ module mkMMU_Cache(CLK,
 	       MUX_ram_state_and_ctag_cset$a_put_3__VAL_1 :
 	       53'h0AAAAAAAAAAAAA ;
   assign ram_state_and_ctag_cset$DIB =
-	     MUX_ram_state_and_ctag_cset$b_put_1__SEL_1 ?
+	     MUX_ram_state_and_ctag_cset$b_put_2__SEL_1 ?
 	       53'h0AAAAAAAAAAAAA /* unspecified value */  :
 	       53'h0AAAAAAAAAAAAA /* unspecified value */  ;
   assign ram_state_and_ctag_cset$WEA = 1'd1 ;
@@ -2110,7 +2110,7 @@ module mkMMU_Cache(CLK,
 	     MUX_ram_word64_set$a_put_1__SEL_1 ?
 	       rg_word64_set_in_cache :
 	       rg_addr[11:3] ;
-  always@(MUX_ram_state_and_ctag_cset$b_put_1__SEL_1 or
+  always@(MUX_ram_state_and_ctag_cset$b_put_2__SEL_1 or
 	  req_addr or
 	  MUX_ram_word64_set$b_put_1__SEL_2 or
 	  MUX_ram_word64_set$b_put_2__VAL_2 or
@@ -2120,7 +2120,7 @@ module mkMMU_Cache(CLK,
 	  MUX_ram_word64_set$b_put_2__VAL_4)
   begin
     case (1'b1) // synopsys parallel_case
-      MUX_ram_state_and_ctag_cset$b_put_1__SEL_1:
+      MUX_ram_state_and_ctag_cset$b_put_2__SEL_1:
 	  ram_word64_set$ADDRB = req_addr[11:3];
       MUX_ram_word64_set$b_put_1__SEL_2:
 	  ram_word64_set$ADDRB = MUX_ram_word64_set$b_put_2__VAL_2;
@@ -2134,12 +2134,12 @@ module mkMMU_Cache(CLK,
 	     MUX_ram_word64_set$a_put_1__SEL_1 ?
 	       master_xactor_rg_rd_data[66:3] :
 	       MUX_ram_word64_set$a_put_3__VAL_2 ;
-  always@(MUX_ram_state_and_ctag_cset$b_put_1__SEL_1 or
+  always@(MUX_ram_state_and_ctag_cset$b_put_2__SEL_1 or
 	  MUX_ram_word64_set$b_put_1__SEL_2 or
 	  WILL_FIRE_RL_rl_rereq or WILL_FIRE_RL_rl_start_cache_refill)
   begin
     case (1'b1) // synopsys parallel_case
-      MUX_ram_state_and_ctag_cset$b_put_1__SEL_1:
+      MUX_ram_state_and_ctag_cset$b_put_2__SEL_1:
 	  ram_word64_set$DIB = 64'hAAAAAAAAAAAAAAAA /* unspecified value */ ;
       MUX_ram_word64_set$b_put_1__SEL_2:
 	  ram_word64_set$DIB = 64'hAAAAAAAAAAAAAAAA /* unspecified value */ ;
@@ -2795,15 +2795,6 @@ module mkMMU_Cache(CLK,
       2'b11: value__h29609 = 3'b011;
     endcase
   end
-  always@(rg_f3 or strobe64__h20266 or strobe64__h20268 or strobe64__h20270)
-  begin
-    case (rg_f3[1:0])
-      2'b0: mem_req_wr_data_wstrb__h20333 = strobe64__h20266;
-      2'b01: mem_req_wr_data_wstrb__h20333 = strobe64__h20268;
-      2'b10: mem_req_wr_data_wstrb__h20333 = strobe64__h20270;
-      2'b11: mem_req_wr_data_wstrb__h20333 = 8'b11111111;
-    endcase
-  end
   always@(rg_f3 or strobe64__h27199 or strobe64__h27201 or strobe64__h27203)
   begin
     case (rg_f3[1:0])
@@ -2811,6 +2802,15 @@ module mkMMU_Cache(CLK,
       2'b01: mem_req_wr_data_wstrb__h27266 = strobe64__h27201;
       2'b10: mem_req_wr_data_wstrb__h27266 = strobe64__h27203;
       2'b11: mem_req_wr_data_wstrb__h27266 = 8'b11111111;
+    endcase
+  end
+  always@(rg_f3 or strobe64__h20266 or strobe64__h20268 or strobe64__h20270)
+  begin
+    case (rg_f3[1:0])
+      2'b0: mem_req_wr_data_wstrb__h20333 = strobe64__h20266;
+      2'b01: mem_req_wr_data_wstrb__h20333 = strobe64__h20268;
+      2'b10: mem_req_wr_data_wstrb__h20333 = strobe64__h20270;
+      2'b11: mem_req_wr_data_wstrb__h20333 = 8'b11111111;
     endcase
   end
   always@(rg_f3 or rg_st_amo_val or _theResult___snd_fst__h16843)
@@ -2900,27 +2900,6 @@ module mkMMU_Cache(CLK,
     endcase
   end
   always@(rg_addr or
-	  result__h12450 or
-	  result__h12478 or result__h12506 or result__h12534)
-  begin
-    case (rg_addr[2:0])
-      3'h0:
-	  IF_rg_addr_0_BITS_2_TO_0_6_EQ_0x0_40_THEN_0_CO_ETC___d243 =
-	      result__h12450;
-      3'h2:
-	  IF_rg_addr_0_BITS_2_TO_0_6_EQ_0x0_40_THEN_0_CO_ETC___d243 =
-	      result__h12478;
-      3'h4:
-	  IF_rg_addr_0_BITS_2_TO_0_6_EQ_0x0_40_THEN_0_CO_ETC___d243 =
-	      result__h12506;
-      3'h6:
-	  IF_rg_addr_0_BITS_2_TO_0_6_EQ_0x0_40_THEN_0_CO_ETC___d243 =
-	      result__h12534;
-      default: IF_rg_addr_0_BITS_2_TO_0_6_EQ_0x0_40_THEN_0_CO_ETC___d243 =
-		   64'd0;
-    endcase
-  end
-  always@(rg_addr or
 	  result__h12325 or
 	  result__h12353 or result__h12381 or result__h12409)
   begin
@@ -2938,6 +2917,27 @@ module mkMMU_Cache(CLK,
 	  IF_rg_addr_0_BITS_2_TO_0_6_EQ_0x0_40_THEN_SEXT_ETC___d234 =
 	      result__h12409;
       default: IF_rg_addr_0_BITS_2_TO_0_6_EQ_0x0_40_THEN_SEXT_ETC___d234 =
+		   64'd0;
+    endcase
+  end
+  always@(rg_addr or
+	  result__h12450 or
+	  result__h12478 or result__h12506 or result__h12534)
+  begin
+    case (rg_addr[2:0])
+      3'h0:
+	  IF_rg_addr_0_BITS_2_TO_0_6_EQ_0x0_40_THEN_0_CO_ETC___d243 =
+	      result__h12450;
+      3'h2:
+	  IF_rg_addr_0_BITS_2_TO_0_6_EQ_0x0_40_THEN_0_CO_ETC___d243 =
+	      result__h12478;
+      3'h4:
+	  IF_rg_addr_0_BITS_2_TO_0_6_EQ_0x0_40_THEN_0_CO_ETC___d243 =
+	      result__h12506;
+      3'h6:
+	  IF_rg_addr_0_BITS_2_TO_0_6_EQ_0x0_40_THEN_0_CO_ETC___d243 =
+	      result__h12534;
+      default: IF_rg_addr_0_BITS_2_TO_0_6_EQ_0x0_40_THEN_0_CO_ETC___d243 =
 		   64'd0;
     endcase
   end
@@ -3435,6 +3435,19 @@ module mkMMU_Cache(CLK,
       3'd7: ld_val__h24158 = 64'd0;
     endcase
   end
+  always@(rg_addr or result__h29152 or result__h29180)
+  begin
+    case (rg_addr[2:0])
+      3'h0:
+	  IF_rg_addr_0_BITS_2_TO_0_6_EQ_0x0_40_THEN_0_CO_ETC___d799 =
+	      result__h29152;
+      3'h4:
+	  IF_rg_addr_0_BITS_2_TO_0_6_EQ_0x0_40_THEN_0_CO_ETC___d799 =
+	      result__h29180;
+      default: IF_rg_addr_0_BITS_2_TO_0_6_EQ_0x0_40_THEN_0_CO_ETC___d799 =
+		   64'd0;
+    endcase
+  end
   always@(rg_addr or
 	  result__h28960 or
 	  result__h28988 or result__h29016 or result__h29044)
@@ -3453,40 +3466,6 @@ module mkMMU_Cache(CLK,
 	  IF_rg_addr_0_BITS_2_TO_0_6_EQ_0x0_40_THEN_0_CO_ETC___d789 =
 	      result__h29044;
       default: IF_rg_addr_0_BITS_2_TO_0_6_EQ_0x0_40_THEN_0_CO_ETC___d789 =
-		   64'd0;
-    endcase
-  end
-  always@(rg_addr or result__h29152 or result__h29180)
-  begin
-    case (rg_addr[2:0])
-      3'h0:
-	  IF_rg_addr_0_BITS_2_TO_0_6_EQ_0x0_40_THEN_0_CO_ETC___d799 =
-	      result__h29152;
-      3'h4:
-	  IF_rg_addr_0_BITS_2_TO_0_6_EQ_0x0_40_THEN_0_CO_ETC___d799 =
-	      result__h29180;
-      default: IF_rg_addr_0_BITS_2_TO_0_6_EQ_0x0_40_THEN_0_CO_ETC___d799 =
-		   64'd0;
-    endcase
-  end
-  always@(rg_addr or
-	  result__h28835 or
-	  result__h28863 or result__h28891 or result__h28919)
-  begin
-    case (rg_addr[2:0])
-      3'h0:
-	  IF_rg_addr_0_BITS_2_TO_0_6_EQ_0x0_40_THEN_SEXT_ETC___d781 =
-	      result__h28835;
-      3'h2:
-	  IF_rg_addr_0_BITS_2_TO_0_6_EQ_0x0_40_THEN_SEXT_ETC___d781 =
-	      result__h28863;
-      3'h4:
-	  IF_rg_addr_0_BITS_2_TO_0_6_EQ_0x0_40_THEN_SEXT_ETC___d781 =
-	      result__h28891;
-      3'h6:
-	  IF_rg_addr_0_BITS_2_TO_0_6_EQ_0x0_40_THEN_SEXT_ETC___d781 =
-	      result__h28919;
-      default: IF_rg_addr_0_BITS_2_TO_0_6_EQ_0x0_40_THEN_SEXT_ETC___d781 =
 		   64'd0;
     endcase
   end
@@ -3523,6 +3502,27 @@ module mkMMU_Cache(CLK,
       3'h7:
 	  IF_rg_addr_0_BITS_2_TO_0_6_EQ_0x0_40_THEN_0_CO_ETC___d769 =
 	      result__h28790;
+    endcase
+  end
+  always@(rg_addr or
+	  result__h28835 or
+	  result__h28863 or result__h28891 or result__h28919)
+  begin
+    case (rg_addr[2:0])
+      3'h0:
+	  IF_rg_addr_0_BITS_2_TO_0_6_EQ_0x0_40_THEN_SEXT_ETC___d781 =
+	      result__h28835;
+      3'h2:
+	  IF_rg_addr_0_BITS_2_TO_0_6_EQ_0x0_40_THEN_SEXT_ETC___d781 =
+	      result__h28863;
+      3'h4:
+	  IF_rg_addr_0_BITS_2_TO_0_6_EQ_0x0_40_THEN_SEXT_ETC___d781 =
+	      result__h28891;
+      3'h6:
+	  IF_rg_addr_0_BITS_2_TO_0_6_EQ_0x0_40_THEN_SEXT_ETC___d781 =
+	      result__h28919;
+      default: IF_rg_addr_0_BITS_2_TO_0_6_EQ_0x0_40_THEN_SEXT_ETC___d781 =
+		   64'd0;
     endcase
   end
   always@(rg_addr or

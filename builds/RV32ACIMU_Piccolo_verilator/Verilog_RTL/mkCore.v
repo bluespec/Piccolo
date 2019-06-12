@@ -1258,7 +1258,7 @@ module mkCore(CLK,
   // synopsys translate_on
 
   // remaining internal signals
-  wire plic_RDY_server_reset_request_put_AND_cpu_RDY__ETC___d8;
+  wire plic_RDY_server_reset_request_put_AND_fabric_2_ETC___d8;
 
   // action method set_verbosity
   assign RDY_set_verbosity = 1'd1 ;
@@ -2153,7 +2153,7 @@ module mkCore(CLK,
   // rule RL_rl_cpu_hart0_reset_from_soc_start
   assign CAN_FIRE_RL_rl_cpu_hart0_reset_from_soc_start =
 	     near_mem_io$RDY_server_reset_request_put &&
-	     plic_RDY_server_reset_request_put_AND_cpu_RDY__ETC___d8 ;
+	     plic_RDY_server_reset_request_put_AND_fabric_2_ETC___d8 ;
   assign WILL_FIRE_RL_rl_cpu_hart0_reset_from_soc_start =
 	     CAN_FIRE_RL_rl_cpu_hart0_reset_from_soc_start ;
 
@@ -2210,7 +2210,7 @@ module mkCore(CLK,
   assign f_reset_reqs$ENQ = EN_cpu_reset_server_request_put ;
   assign f_reset_reqs$DEQ =
 	     near_mem_io$RDY_server_reset_request_put &&
-	     plic_RDY_server_reset_request_put_AND_cpu_RDY__ETC___d8 ;
+	     plic_RDY_server_reset_request_put_AND_fabric_2_ETC___d8 ;
   assign f_reset_reqs$CLR = 1'b0 ;
 
   // submodule f_reset_rsps
@@ -2460,10 +2460,9 @@ module mkCore(CLK,
   assign soc_map$m_is_near_mem_IO_addr_addr = 64'h0 ;
 
   // remaining internal signals
-  assign plic_RDY_server_reset_request_put_AND_cpu_RDY__ETC___d8 =
-	     plic$RDY_server_reset_request_put &&
+  assign plic_RDY_server_reset_request_put_AND_fabric_2_ETC___d8 =
+	     plic$RDY_server_reset_request_put && fabric_2x3$RDY_reset &&
 	     cpu$RDY_hart0_server_reset_request_put &&
-	     fabric_2x3$RDY_reset &&
 	     f_reset_reqs$EMPTY_N ;
 
   // handling of system tasks
