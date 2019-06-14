@@ -22,7 +22,6 @@
 // master_awqos                   O     4 reg
 // master_awregion                O     4 reg
 // master_wvalid                  O     1
-// master_wid                     O     4 reg
 // master_wdata                   O    64 reg
 // master_wstrb                   O     8 reg
 // master_wlast                   O     1 reg
@@ -120,8 +119,6 @@ module mkDM_System_Bus(CLK,
 		       master_awready,
 
 		       master_wvalid,
-
-		       master_wid,
 
 		       master_wdata,
 
@@ -228,9 +225,6 @@ module mkDM_System_Bus(CLK,
   // value method master_m_wvalid
   output master_wvalid;
 
-  // value method master_m_wid
-  output [3 : 0] master_wid;
-
   // value method master_m_wdata
   output [63 : 0] master_wdata;
 
@@ -312,8 +306,7 @@ module mkDM_System_Bus(CLK,
 	       master_awcache,
 	       master_awid,
 	       master_awqos,
-	       master_awregion,
-	       master_wid;
+	       master_awregion;
   wire [2 : 0] master_arprot, master_arsize, master_awprot, master_awsize;
   wire [1 : 0] master_arburst, master_awburst;
   wire RDY_av_read,
@@ -379,8 +372,8 @@ module mkDM_System_Bus(CLK,
   wire master_xactor_rg_wr_addr$EN;
 
   // register master_xactor_rg_wr_data
-  reg [76 : 0] master_xactor_rg_wr_data;
-  wire [76 : 0] master_xactor_rg_wr_data$D_IN;
+  reg [72 : 0] master_xactor_rg_wr_data;
+  wire [72 : 0] master_xactor_rg_wr_data$D_IN;
   wire master_xactor_rg_wr_data$EN;
 
   // register master_xactor_rg_wr_resp
@@ -484,12 +477,12 @@ module mkDM_System_Bus(CLK,
 	       IF_rg_sbaddress_reading_0_BITS_2_TO_0_1_EQ_0x0_ETC___d66,
 	       IF_rg_sbcs_sbaccess_8_EQ_0_9_THEN_1_ELSE_IF_rg_ETC___d103,
 	       IF_rg_sbcs_sbaccess_8_EQ_0_9_THEN_IF_rg_sbaddr_ETC___d79,
-	       wrd_wdata__h5079;
-  reg [7 : 0] wrd_wstrb__h5080;
-  reg [2 : 0] x__h3264, x__h4950;
-  wire [63 : 0] _theResult___fst__h4988,
-		addr64311_PLUS_IF_rg_sbcs_sbaccess_8_EQ_0_9_TH_ETC__q2,
-		addr64__h4311,
+	       wrd_wdata__h5077;
+  reg [7 : 0] wrd_wstrb__h5078;
+  reg [2 : 0] x__h3263, x__h4949;
+  wire [63 : 0] _theResult___fst__h4987,
+		addr64310_PLUS_IF_rg_sbcs_sbaccess_8_EQ_0_9_TH_ETC__q2,
+		addr64__h4310,
 		result__h1836,
 		result__h1866,
 		result__h1893,
@@ -506,12 +499,12 @@ module mkDM_System_Bus(CLK,
 		result__h2222,
 		sbaddress228_PLUS_IF_rg_sbcs_sbaccess_8_EQ_0_9_ETC__q3,
 		sbaddress__h1228,
-		word64__h4932;
+		word64__h4931;
   wire [31 : 0] IF_rg_sbcs_sbreadonaddr_23_THEN_IF_rg_sbcs_sba_ETC___d307,
-		v__h2728,
-		v__h2862;
-  wire [7 : 0] strobe64__h4987, strobe64__h4990, strobe64__h4993;
-  wire [5 : 0] shift_bits__h4935;
+		v__h2727,
+		v__h2861;
+  wire [7 : 0] strobe64__h4986, strobe64__h4989, strobe64__h4992;
+  wire [5 : 0] shift_bits__h4934;
   wire rg_sb_state_EQ_0_7_AND_NOT_rg_sbcs_sbbusyerror_ETC___d109,
        rg_sb_state_EQ_0_7_AND_NOT_rg_sbcs_sbbusyerror_ETC___d313,
        rg_sb_state_EQ_0_7_AND_NOT_rg_sbcs_sbbusyerror_ETC___d95,
@@ -530,13 +523,13 @@ module mkDM_System_Bus(CLK,
 
   // actionvalue method av_read
   always@(av_read_dm_addr or
-	  v__h2728 or rg_sbaddress0 or rg_sbaddress1 or v__h2862)
+	  v__h2727 or rg_sbaddress0 or rg_sbaddress1 or v__h2861)
   begin
     case (av_read_dm_addr)
-      7'h38: av_read = v__h2728;
+      7'h38: av_read = v__h2727;
       7'h39: av_read = rg_sbaddress0;
       7'h3A: av_read = rg_sbaddress1;
-      7'h3C: av_read = v__h2862;
+      7'h3C: av_read = v__h2861;
       default: av_read = 32'd0;
     endcase
   end
@@ -600,9 +593,6 @@ module mkDM_System_Bus(CLK,
 
   // value method master_m_wvalid
   assign master_wvalid = master_xactor_crg_wr_data_full ;
-
-  // value method master_m_wid
-  assign master_wid = master_xactor_rg_wr_data[76:73] ;
 
   // value method master_m_wdata
   assign master_wdata = master_xactor_rg_wr_data[72:9] ;
@@ -718,9 +708,9 @@ module mkDM_System_Bus(CLK,
 	     EN_write &&
 	     write_dm_addr_EQ_0x3C_61_AND_rg_sb_state_EQ_0__ETC___d323 ;
   assign MUX_master_xactor_rg_rd_addr$write_1__VAL_1 =
-	     { 4'd0, sbaddress__h1228, 8'd0, x__h3264, 18'd65536 } ;
+	     { 4'd0, sbaddress__h1228, 8'd0, x__h3263, 18'd65536 } ;
   assign MUX_master_xactor_rg_rd_addr$write_1__VAL_2 =
-	     { 4'd0, addr64__h4311, 8'd0, x__h3264, 18'd65536 } ;
+	     { 4'd0, addr64__h4310, 8'd0, x__h3263, 18'd65536 } ;
   always@(write_dm_addr or
 	  sbaddress228_PLUS_IF_rg_sbcs_sbaccess_8_EQ_0_9_ETC__q3 or
 	  IF_rg_sbcs_sbreadonaddr_23_THEN_IF_rg_sbcs_sba_ETC___d307)
@@ -823,12 +813,12 @@ module mkDM_System_Bus(CLK,
 
   // register master_xactor_rg_wr_addr
   assign master_xactor_rg_wr_addr$D_IN =
-	     { 4'd0, sbaddress__h1228, 8'd0, x__h4950, 18'd65536 } ;
+	     { 4'd0, sbaddress__h1228, 8'd0, x__h4949, 18'd65536 } ;
   assign master_xactor_rg_wr_addr$EN = MUX_rg_sbdata0$write_1__SEL_3 ;
 
   // register master_xactor_rg_wr_data
   assign master_xactor_rg_wr_data$D_IN =
-	     { 4'd0, wrd_wdata__h5079, wrd_wstrb__h5080, 1'd1 } ;
+	     { wrd_wdata__h5077, wrd_wstrb__h5078, 1'd1 } ;
   assign master_xactor_rg_wr_data$EN = MUX_rg_sbdata0$write_1__SEL_3 ;
 
   // register master_xactor_rg_wr_resp
@@ -879,7 +869,7 @@ module mkDM_System_Bus(CLK,
   assign rg_sbaddress_reading$D_IN =
 	     MUX_master_xactor_crg_rd_addr_full$port2__write_1__SEL_1 ?
 	       sbaddress__h1228 :
-	       addr64__h4311 ;
+	       addr64__h4310 ;
   assign rg_sbaddress_reading$EN =
 	     EN_av_read && av_read_dm_addr == 7'h3C &&
 	     rg_sb_state_EQ_0_7_AND_NOT_rg_sbcs_sbbusyerror_ETC___d109 ||
@@ -977,14 +967,14 @@ module mkDM_System_Bus(CLK,
   assign IF_rg_sbcs_sbreadonaddr_23_THEN_IF_rg_sbcs_sba_ETC___d307 =
 	     rg_sbcs_sbreadonaddr ?
 	       (rg_sbcs_sbautoincrement ?
-		  addr64311_PLUS_IF_rg_sbcs_sbaccess_8_EQ_0_9_TH_ETC__q2[31:0] :
+		  addr64310_PLUS_IF_rg_sbcs_sbaccess_8_EQ_0_9_TH_ETC__q2[31:0] :
 		  write_dm_word) :
 	       write_dm_word ;
-  assign _theResult___fst__h4988 = word64__h4932 << shift_bits__h4935 ;
-  assign addr64311_PLUS_IF_rg_sbcs_sbaccess_8_EQ_0_9_TH_ETC__q2 =
-	     addr64__h4311 +
+  assign _theResult___fst__h4987 = word64__h4931 << shift_bits__h4934 ;
+  assign addr64310_PLUS_IF_rg_sbcs_sbaccess_8_EQ_0_9_TH_ETC__q2 =
+	     addr64__h4310 +
 	     IF_rg_sbcs_sbaccess_8_EQ_0_9_THEN_1_ELSE_IF_rg_ETC___d103 ;
-  assign addr64__h4311 = { rg_sbaddress1, write_dm_word } ;
+  assign addr64__h4310 = { rg_sbaddress1, write_dm_word } ;
   assign result__h1836 = { 56'd0, master_xactor_rg_rd_data[10:3] } ;
   assign result__h1866 = { 56'd0, master_xactor_rg_rd_data[18:11] } ;
   assign result__h1893 = { 56'd0, master_xactor_rg_rd_data[26:19] } ;
@@ -1019,11 +1009,11 @@ module mkDM_System_Bus(CLK,
 	     sbaddress__h1228 +
 	     IF_rg_sbcs_sbaccess_8_EQ_0_9_THEN_1_ELSE_IF_rg_ETC___d103 ;
   assign sbaddress__h1228 = { rg_sbaddress1, rg_sbaddress0 } ;
-  assign shift_bits__h4935 = { rg_sbaddress0[2:0], 3'b0 } ;
-  assign strobe64__h4987 = 8'b00000001 << rg_sbaddress0[2:0] ;
-  assign strobe64__h4990 = 8'b00000011 << rg_sbaddress0[2:0] ;
-  assign strobe64__h4993 = 8'b00001111 << rg_sbaddress0[2:0] ;
-  assign v__h2728 =
+  assign shift_bits__h4934 = { rg_sbaddress0[2:0], 3'b0 } ;
+  assign strobe64__h4986 = 8'b00000001 << rg_sbaddress0[2:0] ;
+  assign strobe64__h4989 = 8'b00000011 << rg_sbaddress0[2:0] ;
+  assign strobe64__h4992 = 8'b00001111 << rg_sbaddress0[2:0] ;
+  assign v__h2727 =
 	     { 9'd64,
 	       rg_sbcs_sbbusyerror,
 	       rg_sb_state != 2'd0,
@@ -1033,12 +1023,12 @@ module mkDM_System_Bus(CLK,
 	       rg_sbcs_sbreadondata,
 	       rg_sbcs_sberror,
 	       12'd1031 } ;
-  assign v__h2862 =
+  assign v__h2861 =
 	     (rg_sb_state != 2'd0 || rg_sbcs_sbbusyerror ||
 	      rg_sbcs_sberror != 3'd0) ?
 	       32'd0 :
 	       rg_sbdata0 ;
-  assign word64__h4932 = { 32'd0, write_dm_word } ;
+  assign word64__h4931 = { 32'd0, write_dm_word } ;
   assign write_dm_addr_EQ_0x38_41_AND_rg_sbcs_sberror_E_ETC___d256 =
 	     write_dm_addr == 7'h38 &&
 	     (rg_sbcs_sberror == 3'd0 || write_dm_word[14:12] != 3'd0) &&
@@ -1071,33 +1061,33 @@ module mkDM_System_Bus(CLK,
   always@(rg_sbcs_sbaccess)
   begin
     case (rg_sbcs_sbaccess)
-      3'd0, 3'd1, 3'd2: x__h3264 = rg_sbcs_sbaccess;
-      default: x__h3264 = 3'b011;
+      3'd0, 3'd1, 3'd2: x__h3263 = rg_sbcs_sbaccess;
+      default: x__h3263 = 3'b011;
     endcase
   end
   always@(rg_sbcs_sbaccess)
   begin
     case (rg_sbcs_sbaccess)
-      3'd0, 3'd1, 3'd2, 3'd3: x__h4950 = rg_sbcs_sbaccess;
-      default: x__h4950 = 3'b111;
+      3'd0, 3'd1, 3'd2, 3'd3: x__h4949 = rg_sbcs_sbaccess;
+      default: x__h4949 = 3'b111;
     endcase
   end
   always@(rg_sbcs_sbaccess or
-	  strobe64__h4987 or strobe64__h4990 or strobe64__h4993)
+	  strobe64__h4986 or strobe64__h4989 or strobe64__h4992)
   begin
     case (rg_sbcs_sbaccess)
-      3'd0: wrd_wstrb__h5080 = strobe64__h4987;
-      3'd1: wrd_wstrb__h5080 = strobe64__h4990;
-      3'd2: wrd_wstrb__h5080 = strobe64__h4993;
-      3'd3: wrd_wstrb__h5080 = 8'b11111111;
-      default: wrd_wstrb__h5080 = 8'd0;
+      3'd0: wrd_wstrb__h5078 = strobe64__h4986;
+      3'd1: wrd_wstrb__h5078 = strobe64__h4989;
+      3'd2: wrd_wstrb__h5078 = strobe64__h4992;
+      3'd3: wrd_wstrb__h5078 = 8'b11111111;
+      default: wrd_wstrb__h5078 = 8'd0;
     endcase
   end
-  always@(rg_sbcs_sbaccess or word64__h4932 or _theResult___fst__h4988)
+  always@(rg_sbcs_sbaccess or word64__h4931 or _theResult___fst__h4987)
   begin
     case (rg_sbcs_sbaccess)
-      3'd0, 3'd1, 3'd2: wrd_wdata__h5079 = _theResult___fst__h4988;
-      default: wrd_wdata__h5079 = word64__h4932;
+      3'd0, 3'd1, 3'd2: wrd_wdata__h5077 = _theResult___fst__h4987;
+      default: wrd_wdata__h5077 = word64__h4931;
     endcase
   end
   always@(rg_sbcs_sbaccess)
@@ -1286,7 +1276,7 @@ module mkDM_System_Bus(CLK,
     master_xactor_rg_rd_addr = 97'h0AAAAAAAAAAAAAAAAAAAAAAAA;
     master_xactor_rg_rd_data = 71'h2AAAAAAAAAAAAAAAAA;
     master_xactor_rg_wr_addr = 97'h0AAAAAAAAAAAAAAAAAAAAAAAA;
-    master_xactor_rg_wr_data = 77'h0AAAAAAAAAAAAAAAAAAA;
+    master_xactor_rg_wr_data = 73'h0AAAAAAAAAAAAAAAAAA;
     master_xactor_rg_wr_resp = 6'h2A;
     rg_sb_state = 2'h2;
     rg_sbaddress0 = 32'hAAAAAAAA;

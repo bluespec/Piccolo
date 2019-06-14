@@ -18,7 +18,6 @@
 // master0_awqos                  O     4 reg
 // master0_awregion               O     4 reg
 // master0_wvalid                 O     1
-// master0_wid                    O     4 reg
 // master0_wdata                  O    64 reg
 // master0_wstrb                  O     8 reg
 // master0_wlast                  O     1 reg
@@ -47,7 +46,6 @@
 // master1_awqos                  O     4 reg
 // master1_awregion               O     4 reg
 // master1_wvalid                 O     1 reg
-// master1_wid                    O     4 reg
 // master1_wdata                  O    64 reg
 // master1_wstrb                  O     8 reg
 // master1_wlast                  O     1 reg
@@ -150,8 +148,6 @@ module mkP1_Core(CLK,
 
 		 master0_wvalid,
 
-		 master0_wid,
-
 		 master0_wdata,
 
 		 master0_wstrb,
@@ -223,8 +219,6 @@ module mkP1_Core(CLK,
 		 master1_awready,
 
 		 master1_wvalid,
-
-		 master1_wid,
 
 		 master1_wdata,
 
@@ -340,9 +334,6 @@ module mkP1_Core(CLK,
   // value method master0_m_wvalid
   output master0_wvalid;
 
-  // value method master0_m_wid
-  output [3 : 0] master0_wid;
-
   // value method master0_m_wdata
   output [63 : 0] master0_wdata;
 
@@ -453,9 +444,6 @@ module mkP1_Core(CLK,
 
   // value method master1_m_wvalid
   output master1_wvalid;
-
-  // value method master1_m_wid
-  output [3 : 0] master1_wid;
 
   // value method master1_m_wdata
   output [63 : 0] master1_wdata;
@@ -593,7 +581,6 @@ module mkP1_Core(CLK,
 	       master0_awid,
 	       master0_awqos,
 	       master0_awregion,
-	       master0_wid,
 	       master1_arcache,
 	       master1_arid,
 	       master1_arqos,
@@ -601,8 +588,7 @@ module mkP1_Core(CLK,
 	       master1_awcache,
 	       master1_awid,
 	       master1_awqos,
-	       master1_awregion,
-	       master1_wid;
+	       master1_awregion;
   wire [2 : 0] master0_arprot,
 	       master0_arsize,
 	       master0_awprot,
@@ -702,7 +688,6 @@ module mkP1_Core(CLK,
 	       core$cpu_dmem_master_awregion,
 	       core$cpu_dmem_master_bid,
 	       core$cpu_dmem_master_rid,
-	       core$cpu_dmem_master_wid,
 	       core$cpu_imem_master_arcache,
 	       core$cpu_imem_master_arid,
 	       core$cpu_imem_master_arqos,
@@ -713,7 +698,6 @@ module mkP1_Core(CLK,
 	       core$cpu_imem_master_awregion,
 	       core$cpu_imem_master_bid,
 	       core$cpu_imem_master_rid,
-	       core$cpu_imem_master_wid,
 	       core$set_verbosity_verbosity;
   wire [2 : 0] core$cpu_dmem_master_arprot,
 	       core$cpu_dmem_master_arsize,
@@ -963,9 +947,6 @@ module mkP1_Core(CLK,
   // value method master0_m_wvalid
   assign master0_wvalid = core$cpu_imem_master_wvalid ;
 
-  // value method master0_m_wid
-  assign master0_wid = core$cpu_imem_master_wid ;
-
   // value method master0_m_wdata
   assign master0_wdata = core$cpu_imem_master_wdata ;
 
@@ -1069,9 +1050,6 @@ module mkP1_Core(CLK,
 
   // value method master1_m_wvalid
   assign master1_wvalid = core$cpu_dmem_master_wvalid ;
-
-  // value method master1_m_wid
-  assign master1_wid = core$cpu_dmem_master_wid ;
 
   // value method master1_m_wdata
   assign master1_wdata = core$cpu_dmem_master_wdata ;
@@ -1260,7 +1238,6 @@ module mkP1_Core(CLK,
 	      .cpu_imem_master_awqos(core$cpu_imem_master_awqos),
 	      .cpu_imem_master_awregion(core$cpu_imem_master_awregion),
 	      .cpu_imem_master_wvalid(core$cpu_imem_master_wvalid),
-	      .cpu_imem_master_wid(core$cpu_imem_master_wid),
 	      .cpu_imem_master_wdata(core$cpu_imem_master_wdata),
 	      .cpu_imem_master_wstrb(core$cpu_imem_master_wstrb),
 	      .cpu_imem_master_wlast(core$cpu_imem_master_wlast),
@@ -1289,7 +1266,6 @@ module mkP1_Core(CLK,
 	      .cpu_dmem_master_awqos(core$cpu_dmem_master_awqos),
 	      .cpu_dmem_master_awregion(core$cpu_dmem_master_awregion),
 	      .cpu_dmem_master_wvalid(core$cpu_dmem_master_wvalid),
-	      .cpu_dmem_master_wid(core$cpu_dmem_master_wid),
 	      .cpu_dmem_master_wdata(core$cpu_dmem_master_wdata),
 	      .cpu_dmem_master_wstrb(core$cpu_dmem_master_wstrb),
 	      .cpu_dmem_master_wlast(core$cpu_dmem_master_wlast),

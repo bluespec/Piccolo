@@ -22,7 +22,6 @@
 // cpu_imem_master_awqos          O     4 reg
 // cpu_imem_master_awregion       O     4 reg
 // cpu_imem_master_wvalid         O     1
-// cpu_imem_master_wid            O     4 reg
 // cpu_imem_master_wdata          O    64 reg
 // cpu_imem_master_wstrb          O     8 reg
 // cpu_imem_master_wlast          O     1 reg
@@ -51,7 +50,6 @@
 // cpu_dmem_master_awqos          O     4 reg
 // cpu_dmem_master_awregion       O     4 reg
 // cpu_dmem_master_wvalid         O     1 reg
-// cpu_dmem_master_wid            O     4 reg
 // cpu_dmem_master_wdata          O    64 reg
 // cpu_dmem_master_wstrb          O     8 reg
 // cpu_dmem_master_wlast          O     1 reg
@@ -177,8 +175,6 @@ module mkCore(CLK,
 
 	      cpu_imem_master_wvalid,
 
-	      cpu_imem_master_wid,
-
 	      cpu_imem_master_wdata,
 
 	      cpu_imem_master_wstrb,
@@ -250,8 +246,6 @@ module mkCore(CLK,
 	      cpu_dmem_master_awready,
 
 	      cpu_dmem_master_wvalid,
-
-	      cpu_dmem_master_wid,
 
 	      cpu_dmem_master_wdata,
 
@@ -392,9 +386,6 @@ module mkCore(CLK,
   // value method cpu_imem_master_m_wvalid
   output cpu_imem_master_wvalid;
 
-  // value method cpu_imem_master_m_wid
-  output [3 : 0] cpu_imem_master_wid;
-
   // value method cpu_imem_master_m_wdata
   output [63 : 0] cpu_imem_master_wdata;
 
@@ -505,9 +496,6 @@ module mkCore(CLK,
 
   // value method cpu_dmem_master_m_wvalid
   output cpu_dmem_master_wvalid;
-
-  // value method cpu_dmem_master_m_wid
-  output [3 : 0] cpu_dmem_master_wid;
 
   // value method cpu_dmem_master_m_wdata
   output [63 : 0] cpu_dmem_master_wdata;
@@ -651,7 +639,6 @@ module mkCore(CLK,
 	       cpu_dmem_master_awid,
 	       cpu_dmem_master_awqos,
 	       cpu_dmem_master_awregion,
-	       cpu_dmem_master_wid,
 	       cpu_imem_master_arcache,
 	       cpu_imem_master_arid,
 	       cpu_imem_master_arqos,
@@ -659,8 +646,7 @@ module mkCore(CLK,
 	       cpu_imem_master_awcache,
 	       cpu_imem_master_awid,
 	       cpu_imem_master_awqos,
-	       cpu_imem_master_awregion,
-	       cpu_imem_master_wid;
+	       cpu_imem_master_awregion;
   wire [2 : 0] cpu_dmem_master_arprot,
 	       cpu_dmem_master_arsize,
 	       cpu_dmem_master_awprot,
@@ -720,7 +706,6 @@ module mkCore(CLK,
 	       cpu$dmem_master_awregion,
 	       cpu$dmem_master_bid,
 	       cpu$dmem_master_rid,
-	       cpu$dmem_master_wid,
 	       cpu$imem_master_arcache,
 	       cpu$imem_master_arid,
 	       cpu$imem_master_arqos,
@@ -731,7 +716,6 @@ module mkCore(CLK,
 	       cpu$imem_master_awregion,
 	       cpu$imem_master_bid,
 	       cpu$imem_master_rid,
-	       cpu$imem_master_wid,
 	       cpu$set_verbosity_verbosity;
   wire [2 : 0] cpu$dmem_master_arprot,
 	       cpu$dmem_master_arsize,
@@ -854,7 +838,6 @@ module mkCore(CLK,
 	       fabric_2x3$v_from_masters_0_awregion,
 	       fabric_2x3$v_from_masters_0_bid,
 	       fabric_2x3$v_from_masters_0_rid,
-	       fabric_2x3$v_from_masters_0_wid,
 	       fabric_2x3$v_from_masters_1_arcache,
 	       fabric_2x3$v_from_masters_1_arid,
 	       fabric_2x3$v_from_masters_1_arqos,
@@ -863,7 +846,6 @@ module mkCore(CLK,
 	       fabric_2x3$v_from_masters_1_awid,
 	       fabric_2x3$v_from_masters_1_awqos,
 	       fabric_2x3$v_from_masters_1_awregion,
-	       fabric_2x3$v_from_masters_1_wid,
 	       fabric_2x3$v_to_slaves_0_arcache,
 	       fabric_2x3$v_to_slaves_0_arid,
 	       fabric_2x3$v_to_slaves_0_arqos,
@@ -874,7 +856,6 @@ module mkCore(CLK,
 	       fabric_2x3$v_to_slaves_0_awregion,
 	       fabric_2x3$v_to_slaves_0_bid,
 	       fabric_2x3$v_to_slaves_0_rid,
-	       fabric_2x3$v_to_slaves_0_wid,
 	       fabric_2x3$v_to_slaves_1_arcache,
 	       fabric_2x3$v_to_slaves_1_arid,
 	       fabric_2x3$v_to_slaves_1_arqos,
@@ -885,7 +866,6 @@ module mkCore(CLK,
 	       fabric_2x3$v_to_slaves_1_awregion,
 	       fabric_2x3$v_to_slaves_1_bid,
 	       fabric_2x3$v_to_slaves_1_rid,
-	       fabric_2x3$v_to_slaves_1_wid,
 	       fabric_2x3$v_to_slaves_2_arcache,
 	       fabric_2x3$v_to_slaves_2_arid,
 	       fabric_2x3$v_to_slaves_2_arqos,
@@ -895,8 +875,7 @@ module mkCore(CLK,
 	       fabric_2x3$v_to_slaves_2_awqos,
 	       fabric_2x3$v_to_slaves_2_awregion,
 	       fabric_2x3$v_to_slaves_2_bid,
-	       fabric_2x3$v_to_slaves_2_rid,
-	       fabric_2x3$v_to_slaves_2_wid;
+	       fabric_2x3$v_to_slaves_2_rid;
   wire [2 : 0] fabric_2x3$v_from_masters_0_arprot,
 	       fabric_2x3$v_from_masters_0_arsize,
 	       fabric_2x3$v_from_masters_0_awprot,
@@ -1022,8 +1001,7 @@ module mkCore(CLK,
 	       near_mem_io$axi4_slave_awqos,
 	       near_mem_io$axi4_slave_awregion,
 	       near_mem_io$axi4_slave_bid,
-	       near_mem_io$axi4_slave_rid,
-	       near_mem_io$axi4_slave_wid;
+	       near_mem_io$axi4_slave_rid;
   wire [2 : 0] near_mem_io$axi4_slave_arprot,
 	       near_mem_io$axi4_slave_arsize,
 	       near_mem_io$axi4_slave_awprot,
@@ -1078,7 +1056,6 @@ module mkCore(CLK,
 	       plic$axi4_slave_awregion,
 	       plic$axi4_slave_bid,
 	       plic$axi4_slave_rid,
-	       plic$axi4_slave_wid,
 	       plic$set_verbosity_verbosity;
   wire [2 : 0] plic$axi4_slave_arprot,
 	       plic$axi4_slave_arsize,
@@ -1251,10 +1228,10 @@ module mkCore(CLK,
 
   // declarations used by system tasks
   // synopsys translate_off
-  reg [31 : 0] v__h4310;
-  reg [31 : 0] v__h4551;
-  reg [31 : 0] v__h4304;
-  reg [31 : 0] v__h4545;
+  reg [31 : 0] v__h4238;
+  reg [31 : 0] v__h4479;
+  reg [31 : 0] v__h4232;
+  reg [31 : 0] v__h4473;
   // synopsys translate_on
 
   // remaining internal signals
@@ -1317,9 +1294,6 @@ module mkCore(CLK,
 
   // value method cpu_imem_master_m_wvalid
   assign cpu_imem_master_wvalid = cpu$imem_master_wvalid ;
-
-  // value method cpu_imem_master_m_wid
-  assign cpu_imem_master_wid = cpu$imem_master_wid ;
 
   // value method cpu_imem_master_m_wdata
   assign cpu_imem_master_wdata = cpu$imem_master_wdata ;
@@ -1424,9 +1398,6 @@ module mkCore(CLK,
 
   // value method cpu_dmem_master_m_wvalid
   assign cpu_dmem_master_wvalid = fabric_2x3$v_to_slaves_0_wvalid ;
-
-  // value method cpu_dmem_master_m_wid
-  assign cpu_dmem_master_wid = fabric_2x3$v_to_slaves_0_wid ;
 
   // value method cpu_dmem_master_m_wdata
   assign cpu_dmem_master_wdata = fabric_2x3$v_to_slaves_0_wdata ;
@@ -1611,7 +1582,6 @@ module mkCore(CLK,
 	    .imem_master_awqos(cpu$imem_master_awqos),
 	    .imem_master_awregion(cpu$imem_master_awregion),
 	    .imem_master_wvalid(cpu$imem_master_wvalid),
-	    .imem_master_wid(cpu$imem_master_wid),
 	    .imem_master_wdata(cpu$imem_master_wdata),
 	    .imem_master_wstrb(cpu$imem_master_wstrb),
 	    .imem_master_wlast(cpu$imem_master_wlast),
@@ -1640,7 +1610,6 @@ module mkCore(CLK,
 	    .dmem_master_awqos(cpu$dmem_master_awqos),
 	    .dmem_master_awregion(cpu$dmem_master_awregion),
 	    .dmem_master_wvalid(cpu$dmem_master_wvalid),
-	    .dmem_master_wid(cpu$dmem_master_wid),
 	    .dmem_master_wdata(cpu$dmem_master_wdata),
 	    .dmem_master_wstrb(cpu$dmem_master_wstrb),
 	    .dmem_master_wlast(cpu$dmem_master_wlast),
@@ -1710,7 +1679,6 @@ module mkCore(CLK,
 			  .v_from_masters_0_bready(fabric_2x3$v_from_masters_0_bready),
 			  .v_from_masters_0_rready(fabric_2x3$v_from_masters_0_rready),
 			  .v_from_masters_0_wdata(fabric_2x3$v_from_masters_0_wdata),
-			  .v_from_masters_0_wid(fabric_2x3$v_from_masters_0_wid),
 			  .v_from_masters_0_wlast(fabric_2x3$v_from_masters_0_wlast),
 			  .v_from_masters_0_wstrb(fabric_2x3$v_from_masters_0_wstrb),
 			  .v_from_masters_0_wvalid(fabric_2x3$v_from_masters_0_wvalid),
@@ -1739,7 +1707,6 @@ module mkCore(CLK,
 			  .v_from_masters_1_bready(fabric_2x3$v_from_masters_1_bready),
 			  .v_from_masters_1_rready(fabric_2x3$v_from_masters_1_rready),
 			  .v_from_masters_1_wdata(fabric_2x3$v_from_masters_1_wdata),
-			  .v_from_masters_1_wid(fabric_2x3$v_from_masters_1_wid),
 			  .v_from_masters_1_wlast(fabric_2x3$v_from_masters_1_wlast),
 			  .v_from_masters_1_wstrb(fabric_2x3$v_from_masters_1_wstrb),
 			  .v_from_masters_1_wvalid(fabric_2x3$v_from_masters_1_wvalid),
@@ -1814,7 +1781,6 @@ module mkCore(CLK,
 			  .v_to_slaves_0_awqos(fabric_2x3$v_to_slaves_0_awqos),
 			  .v_to_slaves_0_awregion(fabric_2x3$v_to_slaves_0_awregion),
 			  .v_to_slaves_0_wvalid(fabric_2x3$v_to_slaves_0_wvalid),
-			  .v_to_slaves_0_wid(fabric_2x3$v_to_slaves_0_wid),
 			  .v_to_slaves_0_wdata(fabric_2x3$v_to_slaves_0_wdata),
 			  .v_to_slaves_0_wstrb(fabric_2x3$v_to_slaves_0_wstrb),
 			  .v_to_slaves_0_wlast(fabric_2x3$v_to_slaves_0_wlast),
@@ -1843,7 +1809,6 @@ module mkCore(CLK,
 			  .v_to_slaves_1_awqos(fabric_2x3$v_to_slaves_1_awqos),
 			  .v_to_slaves_1_awregion(fabric_2x3$v_to_slaves_1_awregion),
 			  .v_to_slaves_1_wvalid(fabric_2x3$v_to_slaves_1_wvalid),
-			  .v_to_slaves_1_wid(fabric_2x3$v_to_slaves_1_wid),
 			  .v_to_slaves_1_wdata(fabric_2x3$v_to_slaves_1_wdata),
 			  .v_to_slaves_1_wstrb(fabric_2x3$v_to_slaves_1_wstrb),
 			  .v_to_slaves_1_wlast(fabric_2x3$v_to_slaves_1_wlast),
@@ -1872,7 +1837,6 @@ module mkCore(CLK,
 			  .v_to_slaves_2_awqos(fabric_2x3$v_to_slaves_2_awqos),
 			  .v_to_slaves_2_awregion(fabric_2x3$v_to_slaves_2_awregion),
 			  .v_to_slaves_2_wvalid(fabric_2x3$v_to_slaves_2_wvalid),
-			  .v_to_slaves_2_wid(fabric_2x3$v_to_slaves_2_wid),
 			  .v_to_slaves_2_wdata(fabric_2x3$v_to_slaves_2_wdata),
 			  .v_to_slaves_2_wstrb(fabric_2x3$v_to_slaves_2_wstrb),
 			  .v_to_slaves_2_wlast(fabric_2x3$v_to_slaves_2_wlast),
@@ -1918,7 +1882,6 @@ module mkCore(CLK,
 				 .axi4_slave_bready(near_mem_io$axi4_slave_bready),
 				 .axi4_slave_rready(near_mem_io$axi4_slave_rready),
 				 .axi4_slave_wdata(near_mem_io$axi4_slave_wdata),
-				 .axi4_slave_wid(near_mem_io$axi4_slave_wid),
 				 .axi4_slave_wlast(near_mem_io$axi4_slave_wlast),
 				 .axi4_slave_wstrb(near_mem_io$axi4_slave_wstrb),
 				 .axi4_slave_wvalid(near_mem_io$axi4_slave_wvalid),
@@ -1976,7 +1939,6 @@ module mkCore(CLK,
 		     .axi4_slave_bready(plic$axi4_slave_bready),
 		     .axi4_slave_rready(plic$axi4_slave_rready),
 		     .axi4_slave_wdata(plic$axi4_slave_wdata),
-		     .axi4_slave_wid(plic$axi4_slave_wid),
 		     .axi4_slave_wlast(plic$axi4_slave_wlast),
 		     .axi4_slave_wstrb(plic$axi4_slave_wstrb),
 		     .axi4_slave_wvalid(plic$axi4_slave_wvalid),
@@ -2250,7 +2212,6 @@ module mkCore(CLK,
   assign fabric_2x3$v_from_masters_0_bready = cpu$dmem_master_bready ;
   assign fabric_2x3$v_from_masters_0_rready = cpu$dmem_master_rready ;
   assign fabric_2x3$v_from_masters_0_wdata = cpu$dmem_master_wdata ;
-  assign fabric_2x3$v_from_masters_0_wid = cpu$dmem_master_wid ;
   assign fabric_2x3$v_from_masters_0_wlast = cpu$dmem_master_wlast ;
   assign fabric_2x3$v_from_masters_0_wstrb = cpu$dmem_master_wstrb ;
   assign fabric_2x3$v_from_masters_0_wvalid = cpu$dmem_master_wvalid ;
@@ -2296,7 +2257,6 @@ module mkCore(CLK,
   assign fabric_2x3$v_from_masters_1_rready = 1'd0 ;
   assign fabric_2x3$v_from_masters_1_wdata =
 	     64'hAAAAAAAAAAAAAAAA /* unspecified value */  ;
-  assign fabric_2x3$v_from_masters_1_wid = 4'b1010 /* unspecified value */  ;
   assign fabric_2x3$v_from_masters_1_wlast = 1'b0 /* unspecified value */  ;
   assign fabric_2x3$v_from_masters_1_wstrb =
 	     8'b10101010 /* unspecified value */  ;
@@ -2363,7 +2323,6 @@ module mkCore(CLK,
   assign near_mem_io$axi4_slave_bready = fabric_2x3$v_to_slaves_1_bready ;
   assign near_mem_io$axi4_slave_rready = fabric_2x3$v_to_slaves_1_rready ;
   assign near_mem_io$axi4_slave_wdata = fabric_2x3$v_to_slaves_1_wdata ;
-  assign near_mem_io$axi4_slave_wid = fabric_2x3$v_to_slaves_1_wid ;
   assign near_mem_io$axi4_slave_wlast = fabric_2x3$v_to_slaves_1_wlast ;
   assign near_mem_io$axi4_slave_wstrb = fabric_2x3$v_to_slaves_1_wstrb ;
   assign near_mem_io$axi4_slave_wvalid = fabric_2x3$v_to_slaves_1_wvalid ;
@@ -2407,7 +2366,6 @@ module mkCore(CLK,
   assign plic$axi4_slave_bready = fabric_2x3$v_to_slaves_2_bready ;
   assign plic$axi4_slave_rready = fabric_2x3$v_to_slaves_2_rready ;
   assign plic$axi4_slave_wdata = fabric_2x3$v_to_slaves_2_wdata ;
-  assign plic$axi4_slave_wid = fabric_2x3$v_to_slaves_2_wid ;
   assign plic$axi4_slave_wlast = fabric_2x3$v_to_slaves_2_wlast ;
   assign plic$axi4_slave_wstrb = fabric_2x3$v_to_slaves_2_wstrb ;
   assign plic$axi4_slave_wvalid = fabric_2x3$v_to_slaves_2_wvalid ;
@@ -2474,23 +2432,23 @@ module mkCore(CLK,
     if (RST_N != `BSV_RESET_VALUE)
       if (WILL_FIRE_RL_rl_cpu_hart0_reset_from_soc_start)
 	begin
-	  v__h4310 = $stime;
+	  v__h4238 = $stime;
 	  #0;
 	end
-    v__h4304 = v__h4310 / 32'd10;
+    v__h4232 = v__h4238 / 32'd10;
     if (RST_N != `BSV_RESET_VALUE)
       if (WILL_FIRE_RL_rl_cpu_hart0_reset_from_soc_start)
-	$display("%0d: Core.rl_cpu_hart0_reset_from_soc_start", v__h4304);
+	$display("%0d: Core.rl_cpu_hart0_reset_from_soc_start", v__h4232);
     if (RST_N != `BSV_RESET_VALUE)
       if (WILL_FIRE_RL_rl_cpu_hart0_reset_complete)
 	begin
-	  v__h4551 = $stime;
+	  v__h4479 = $stime;
 	  #0;
 	end
-    v__h4545 = v__h4551 / 32'd10;
+    v__h4473 = v__h4479 / 32'd10;
     if (RST_N != `BSV_RESET_VALUE)
       if (WILL_FIRE_RL_rl_cpu_hart0_reset_complete)
-	$display("%0d: Core.rl_cpu_hart0_reset_complete", v__h4545);
+	$display("%0d: Core.rl_cpu_hart0_reset_complete", v__h4473);
   end
   // synopsys translate_on
 endmodule  // mkCore
