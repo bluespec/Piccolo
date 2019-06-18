@@ -2323,47 +2323,47 @@
         <spirit:userFileType>xdc</spirit:userFileType>
       </spirit:file>
       <spirit:file>
-        <spirit:name>bsvlib/BRAM2.v</spirit:name>
+        <spirit:name>hdl/BRAM2.v</spirit:name>
         <spirit:fileType>verilogSource</spirit:fileType>
       </spirit:file>
       <spirit:file>
-        <spirit:name>bsvlib/FIFO1.v</spirit:name>
+        <spirit:name>hdl/FIFO1.v</spirit:name>
         <spirit:fileType>verilogSource</spirit:fileType>
       </spirit:file>
       <spirit:file>
-        <spirit:name>bsvlib/FIFO2.v</spirit:name>
+        <spirit:name>hdl/FIFO2.v</spirit:name>
         <spirit:fileType>verilogSource</spirit:fileType>
       </spirit:file>
       <spirit:file>
-        <spirit:name>bsvlib/FIFO20.v</spirit:name>
+        <spirit:name>hdl/FIFO20.v</spirit:name>
         <spirit:fileType>verilogSource</spirit:fileType>
       </spirit:file>
       <spirit:file>
-        <spirit:name>bsvlib/MakeClock.v</spirit:name>
+        <spirit:name>hdl/MakeClock.v</spirit:name>
         <spirit:fileType>verilogSource</spirit:fileType>
       </spirit:file>
       <spirit:file>
-        <spirit:name>bsvlib/RegFile.v</spirit:name>
+        <spirit:name>hdl/RegFile.v</spirit:name>
         <spirit:fileType>verilogSource</spirit:fileType>
       </spirit:file>
       <spirit:file>
-        <spirit:name>bsvlib/SizedFIFO.v</spirit:name>
+        <spirit:name>hdl/SizedFIFO.v</spirit:name>
         <spirit:fileType>verilogSource</spirit:fileType>
       </spirit:file>
       <spirit:file>
-        <spirit:name>bsvlib/SizedFIFO0.v</spirit:name>
+        <spirit:name>hdl/SizedFIFO0.v</spirit:name>
         <spirit:fileType>verilogSource</spirit:fileType>
       </spirit:file>
       <spirit:file>
-        <spirit:name>bsvlib/SyncFIFOLevel.v</spirit:name>
+        <spirit:name>hdl/SyncFIFOLevel.v</spirit:name>
         <spirit:fileType>verilogSource</spirit:fileType>
       </spirit:file>
       <spirit:file>
-        <spirit:name>bsvlib/SyncHandshake.v</spirit:name>
+        <spirit:name>hdl/SyncHandshake.v</spirit:name>
         <spirit:fileType>verilogSource</spirit:fileType>
       </spirit:file>
       <spirit:file>
-        <spirit:name>bsvlib/SyncResetA.v</spirit:name>
+        <spirit:name>hdl/SyncResetA.v</spirit:name>
         <spirit:fileType>verilogSource</spirit:fileType>
       </spirit:file>
       <spirit:file>
