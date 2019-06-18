@@ -41,9 +41,9 @@ CORE_DIRS = $(REPO)/src_Core/CPU:$(REPO)/src_Core/ISA:$(REPO)/src_Core/RegFiles:
 
 # XXX
 # Specify the path to the BlueStuff library (https://github.com/CTSRD-CHERI/BlueStuff)
-# What is the best way to distribute this code?
+# What is the best way to distribute this code? Currently lives as a git submodule in $(REPO)/libs
 # XXX
-AXI_DIRS = $(REPO)/../BlueStuff/AXI:$(REPO)/../BlueStuff/BlueBasics:$(REPO)/../BlueStuff/
+AXI_DIRS = $(REPO)/libs/BlueStuff/AXI:$(REPO)/libs/BlueStuff/BlueBasics:$(REPO)/libs/BlueStuff/
 
 BSC_PATH = -p $(CORE_DIRS):src_BSV:$(AXI_DIRS):+
 

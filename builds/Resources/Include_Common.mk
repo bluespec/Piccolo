@@ -40,9 +40,9 @@ TESTBENCH_DIRS  = $(REPO)/src_Testbench/Top:$(REPO)/src_Testbench/SoC
 
 # XXX
 # Specify the path to the BlueStuff library (https://github.com/CTSRD-CHERI/BlueStuff)
-# What is the best way to distribute this code?
+# What is the best way to distribute this code? currently lives in $(REPO)/libs as a git submodule
 # XXX
-AXI_DIRS = $(REPO)/../BlueStuff/AXI:$(REPO)/../BlueStuff/BlueBasics:$(REPO)/../BlueStuff/
+AXI_DIRS = $(REPO)/libs/BlueStuff/AXI:$(REPO)/libs/BlueStuff/BlueBasics:$(REPO)/libs/BlueStuff/
 
 BSC_PATH = -p $(CORE_DIRS):$(TESTBENCH_DIRS):$(AXI_DIRS):+
 
