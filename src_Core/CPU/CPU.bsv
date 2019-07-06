@@ -89,7 +89,8 @@ typedef enum {CPU_RESET1,
 	      CPU_DEBUG_MODE,       // Stopped (normally for debugger)
 	      CPU_RUNNING,          // Normal operation
 	      CPU_TRAP,
-	      CPU_SPLIT_FETCH,      // To initiate IFetch after traps/interrupts/RET
+	      CPU_START_TRAP_HANDLER,
+	      CPU_CSRRx_TRAP,
 	      CPU_CSRRX_RESTART,    // Restart pipe after a CSRRX instruction
 	      CPU_FENCE_I,          // While waiting for FENCE.I to complete in Near_Mem
 	      CPU_FENCE,            // While waiting for FENCE to complete in Near_Mem
@@ -158,6 +159,13 @@ module mkCPU (CPU_IFC);
    Reg #(CPU_State)  rg_state    <- mkReg (CPU_RESET1);
    Reg #(Priv_Mode)  rg_cur_priv <- mkReg (m_Priv_Mode);
 
+   // These regs save info on a trap in Stage1 or Stage2
+   Reg #(Trap_Info)  rg_trap_info       <- mkRegU;
+   Reg #(Instr)      rg_trap_instr      <- mkRegU;
+`ifdef INCLUDE_TANDEM_VERIF
+   Reg #(Trace_Data) rg_trap_trace_data <- mkRegU;
+`endif
+
    // Save next_pc across split-phase FENCE.I and other split-phase ops. This
    // register is also used for initiating fetches on a trap or external
    // interrupt
@@ -221,18 +229,18 @@ module mkCPU (CPU_IFC);
    Reg #(Bit #(1))  rg_step_count <- mkReg (0);
 
    // Debugger GPR read/write request/response
-   FIFOF #(DM_CPU_Req #(5,  XLEN)) f_gpr_reqs <- mkFIFOF1;
-   FIFOF #(DM_CPU_Rsp #(XLEN))     f_gpr_rsps <- mkFIFOF1;
+   FIFOF #(DM_CPU_Req #(5,  XLEN)) f_gpr_reqs <- mkFIFOF;
+   FIFOF #(DM_CPU_Rsp #(XLEN))     f_gpr_rsps <- mkFIFOF;
 
 `ifdef ISA_F
    // Debugger FPR read/write request/response
-   FIFOF #(DM_CPU_Req #(5,  FLEN)) f_fpr_reqs <- mkFIFOF1;
-   FIFOF #(DM_CPU_Rsp #(FLEN))     f_fpr_rsps <- mkFIFOF1;
+   FIFOF #(DM_CPU_Req #(5,  FLEN)) f_fpr_reqs <- mkFIFOF;
+   FIFOF #(DM_CPU_Rsp #(FLEN))     f_fpr_rsps <- mkFIFOF;
 `endif
 
    // Debugger CSR read/write request/response
-   FIFOF #(DM_CPU_Req #(12, XLEN)) f_csr_reqs <- mkFIFOF1;
-   FIFOF #(DM_CPU_Rsp #(XLEN))     f_csr_rsps <- mkFIFOF1;
+   FIFOF #(DM_CPU_Req #(12, XLEN)) f_csr_reqs <- mkFIFOF;
+   FIFOF #(DM_CPU_Rsp #(XLEN))     f_csr_rsps <- mkFIFOF;
 
 `endif
 
@@ -404,7 +412,7 @@ module mkCPU (CPU_IFC);
       rg_state    <= CPU_RESET2;
 
       if (cur_verbosity != 0)
-	 $display ("%0d: CPU.rl_reset_start", mcycle);
+	 $display ("%0d: %m.rl_reset_start", mcycle);
 
 `ifdef INCLUDE_GDB_CONTROL
       rg_stop_req   <= False;
@@ -447,7 +455,7 @@ module mkCPU (CPU_IFC);
 
       if (rg_run_on_reset) begin
 	 fa_restart (dpc);
-	 $display ("%0d: CPU.rl_reset_complete: restart at PC = 0x%0h", mcycle, dpc);
+	 $display ("%0d: %m.rl_reset_complete: restart at PC = 0x%0h", mcycle, dpc);
       end
       else begin
 	 rg_state <= CPU_DEBUG_MODE;
@@ -455,7 +463,7 @@ module mkCPU (CPU_IFC);
 	 csr_regfile.write_dcsr_cause_priv (DCSR_CAUSE_HALTREQ, m_Priv_Mode);
 	 csr_regfile.write_dpc (dpc);
 `endif
-	 $display ("%0d: CPU.rl_reset_complete: entering DEBUG_MODE", mcycle);
+	 $display ("%0d: %m.rl_reset_complete: entering DEBUG_MODE", mcycle);
       end
    endrule: rl_reset_complete
 
@@ -535,7 +543,7 @@ module mkCPU (CPU_IFC);
       f_trace_data.enq (trace_data);
 
       if (cur_verbosity > 1)
-	 $display ("%0d: CPU.rl_stage1_mip_cmd: MIP new 0x%0h, old 0x%0h", mcycle, new_mip, rg_prev_mip);
+	 $display ("%0d: %m.rl_stage1_mip_cmd: MIP new 0x%0h, old 0x%0h", mcycle, new_mip, rg_prev_mip);
    endrule
 `endif
 
@@ -562,7 +570,7 @@ module mkCPU (CPU_IFC);
 		 && (! pipe_has_nonpipe)
 		 && (! stage1_halted));
 
-      if (cur_verbosity > 1) $display ("%0d: CPU.rl_pipe", mcycle);
+      if (cur_verbosity > 1) $display ("%0d: %m.rl_pipe", mcycle);
 
       Bool stage3_full = (stage3.out.ostatus != OSTATUS_EMPTY);
       Bool stage2_full = (stage2.out.ostatus != OSTATUS_EMPTY);
@@ -633,15 +641,29 @@ module mkCPU (CPU_IFC);
 
    rule rl_stage2_nonpipe (   (rg_state == CPU_RUNNING)
 			   && (stage3.out.ostatus == OSTATUS_EMPTY)
-			   && (stage2.out.ostatus == OSTATUS_NONPIPE)
-			   && (stage1.out.ostatus != OSTATUS_BUSY));
+			   && (stage2.out.ostatus == OSTATUS_NONPIPE));
       if (cur_verbosity > 1)
-	 $display ("%0d: CPU.rl_stage2_nonpipe", mcycle);
+	 $display ("%0d: %m.rl_stage2_nonpipe", mcycle);
 
-      let epc      = stage2.out.trap_info.epc;
-      let exc_code = stage2.out.trap_info.exc_code;
-      let tval     = stage2.out.trap_info.tval;
-      let instr    = stage2.out.data_to_stage3.instr;
+      // Just save relevant info and handle in next clock
+      rg_trap_info       <= stage2.out.trap_info;
+      rg_trap_instr      <= stage2.out.data_to_stage3.instr;
+`ifdef INCLUDE_TANDEM_VERIF
+      rg_trap_trace_data <= stage2.out.trace_data;
+`endif
+
+      rg_state           <= CPU_TRAP;
+   endrule: rl_stage2_nonpipe
+
+   // ================================================================
+   // Trap
+
+   rule rl_trap ((rg_state == CPU_TRAP)
+		 && (stage1.out.ostatus != OSTATUS_BUSY));
+      let epc      = rg_trap_info.epc;
+      let exc_code = rg_trap_info.exc_code;
+      let tval     = rg_trap_info.tval;
+      let instr    = rg_trap_instr;
 
       // Take trap, save trap information for next phase
       let trap_info <- csr_regfile.csr_trap_actions (rg_cur_priv,    // from priv
@@ -668,7 +690,7 @@ module mkCPU (CPU_IFC);
       rg_sstatus_SUM <= 0;
 `endif
 
-      rg_state    <= CPU_SPLIT_FETCH;
+      rg_state <= CPU_START_TRAP_HANDLER;
 
       stage1.set_full (False);
       stage2.set_full (False);
@@ -678,7 +700,7 @@ module mkCPU (CPU_IFC);
 
 `ifdef INCLUDE_TANDEM_VERIF
       // Trace Data
-      let trace_data = stage2.out.trace_data;
+      let trace_data = rg_trap_trace_data;
       trace_data.op = TRACE_TRAP;
       trace_data.pc = next_pc;
       // trace_data.instr_sz    should already be set
@@ -697,7 +719,7 @@ module mkCPU (CPU_IFC);
       if (cur_verbosity != 0)
 	 $display ("    mcause:0x%0h  epc 0x%0h  tval:0x%0h  new pc 0x%0h, new mstatus 0x%0h",
 		   mcause, epc, tval, next_pc, new_mstatus);
-   endrule : rl_stage2_nonpipe
+   endrule: rl_trap
 
    // ================================================================
    // Stage1: nonpipe special: CSRRW and CSRRWI
@@ -709,7 +731,7 @@ module mkCPU (CPU_IFC);
 			  && (stage1.out.ostatus == OSTATUS_NONPIPE)
 			  && (stage1.out.control == CONTROL_CSRR_W));
 
-      if (cur_verbosity > 1) $display ("%0d: CPU.rl_stage1_CSRR_W", mcycle);
+      if (cur_verbosity > 1) $display ("%0d: %m.rl_stage1_CSRR_W", mcycle);
 
       let instr    = stage1.out.data_to_stage2.instr;
       let csr_addr = instr_csr    (instr);
@@ -733,7 +755,7 @@ module mkCPU (CPU_IFC);
       Bool permitted = csr_regfile.access_permitted_1 (rg_cur_priv, csr_addr, read_not_write);
 
       if (! permitted) begin
-	 rg_state <= CPU_TRAP;
+	 rg_state <= CPU_CSRRx_TRAP;
 
 	 // Debug
 	 fa_emit_instr_trace (minstret, stage1.out.data_to_stage2.pc, instr, rg_cur_priv);
@@ -796,7 +818,7 @@ module mkCPU (CPU_IFC);
 			       && (stage1.out.ostatus == OSTATUS_NONPIPE)
 			       && (stage1.out.control == CONTROL_CSRR_S_or_C));
 
-      if (cur_verbosity > 1) $display ("%0d: CPU.rl_stage1_CSRR_S_or_C", mcycle);
+      if (cur_verbosity > 1) $display ("%0d: %m.rl_stage1_CSRR_S_or_C", mcycle);
 
       let instr    = stage1.out.data_to_stage2.instr;
       let csr_addr = instr_csr    (instr);
@@ -819,7 +841,7 @@ module mkCPU (CPU_IFC);
       Bool permitted = csr_regfile.access_permitted_2 (rg_cur_priv, csr_addr, read_not_write);
 
       if (! permitted) begin
-	 rg_state <= CPU_TRAP;
+	 rg_state <= CPU_CSRRx_TRAP;
 
 	 // Debug
 	 fa_emit_instr_trace (minstret, stage1.out.data_to_stage2.pc, instr, rg_cur_priv);
@@ -911,7 +933,7 @@ module mkCPU (CPU_IFC);
 			&& (   (stage1.out.control == CONTROL_MRET)
 			    || (stage1.out.control == CONTROL_SRET)
 			    || (stage1.out.control == CONTROL_URET)));
-      if (cur_verbosity > 1) $display ("%0d: CPU.rl_stage1_xRET", mcycle);
+      if (cur_verbosity > 1) $display ("%0d: %m.rl_stage1_xRET", mcycle);
 
       // Return-from-exception actions on CSRs
       Priv_Mode from_priv = ((stage1.out.control == CONTROL_MRET) ?
@@ -930,7 +952,7 @@ module mkCPU (CPU_IFC);
       rg_sstatus_SUM <= 0;
 `endif
 
-      rg_state    <= CPU_SPLIT_FETCH;
+      rg_state <= CPU_START_TRAP_HANDLER;    // TODO: bad naming; this is not starting the trap handler
 
       stage1.set_full (False);    fa_step_check;
 
@@ -959,7 +981,7 @@ module mkCPU (CPU_IFC);
 			   && (stage2.out.ostatus == OSTATUS_EMPTY)
 			   && (stage1.out.ostatus == OSTATUS_NONPIPE)
 			   && (stage1.out.control == CONTROL_FENCE_I));
-      if (cur_verbosity > 1) $display ("%0d: CPU.rl_stage1_FENCE_I", mcycle);
+      if (cur_verbosity > 1) $display ("%0d: %m.rl_stage1_FENCE_I", mcycle);
 
       // Save stage1.out.next_pc since it will be destroyed by FENCE.I op
       rg_next_pc <= stage1.out.next_pc;
@@ -978,14 +1000,14 @@ module mkCPU (CPU_IFC);
       // Debug
       fa_emit_instr_trace (minstret, stage1.out.data_to_stage2.pc, stage1.out.data_to_stage2.instr, rg_cur_priv);
       if (cur_verbosity > 1)
-	 $display ("%0d: CPU.rl_stage1_FENCE_I", mcycle);
+	 $display ("%0d: %m.rl_stage1_FENCE_I", mcycle);
    endrule
 
    // ----------------
    // Finish FENCE.I
 
    rule rl_finish_FENCE_I (rg_state == CPU_FENCE_I);
-      if (cur_verbosity > 1) $display ("%0d: CPU.rl_finish_FENCE_I", mcycle);
+      if (cur_verbosity > 1) $display ("%0d: %m.rl_finish_FENCE_I", mcycle);
 
       // Await mem system FENCE.I completion
       let dummy <- near_mem.server_fence_i.response.get;
@@ -1017,7 +1039,7 @@ module mkCPU (CPU_IFC);
 			 && (stage2.out.ostatus == OSTATUS_EMPTY)
 			 && (stage1.out.ostatus == OSTATUS_NONPIPE)
 			 && (stage1.out.control == CONTROL_FENCE));
-      if (cur_verbosity > 1) $display ("%0d: CPU.rl_stage1_FENCE", mcycle);
+      if (cur_verbosity > 1) $display ("%0d: %m.rl_stage1_FENCE", mcycle);
 
       rg_next_pc <= stage1.out.next_pc;
       near_mem.server_fence.request.put (?);
@@ -1035,14 +1057,14 @@ module mkCPU (CPU_IFC);
       // Debug
       fa_emit_instr_trace (minstret, stage1.out.data_to_stage2.pc, stage1.out.data_to_stage2.instr, rg_cur_priv);
       if (cur_verbosity > 1)
-	 $display ("%0d: CPU.rl_stage1_FENCE", mcycle);
+	 $display ("%0d: %m.rl_stage1_FENCE", mcycle);
    endrule
 
    // ----------------
    // Finish FENCE
 
    rule rl_finish_FENCE (rg_state == CPU_FENCE);
-      if (cur_verbosity > 1) $display ("%0d: CPU.rl_finish_FENCE", mcycle);
+      if (cur_verbosity > 1) $display ("%0d: %m.rl_finish_FENCE", mcycle);
 
       // Await mem system FENCE completion
       let dummy <- near_mem.server_fence.response.get;
@@ -1082,7 +1104,7 @@ module mkCPU (CPU_IFC);
 			      && (stage2.out.ostatus == OSTATUS_EMPTY)
 			      && (stage1.out.ostatus == OSTATUS_NONPIPE)
 			      && (stage1.out.control == CONTROL_SFENCE_VMA));
-      if (cur_verbosity > 1) $display ("%0d: CPU.rl_stage1_SFENCE_VMA", mcycle);
+      if (cur_verbosity > 1) $display ("%0d: %m.rl_stage1_SFENCE_VMA", mcycle);
 
       rg_next_pc <= stage1.out.next_pc;
       // Tell Near_Mem to do its SFENCE_VMA
@@ -1101,14 +1123,14 @@ module mkCPU (CPU_IFC);
       // Debug
       fa_emit_instr_trace (minstret, stage1.out.data_to_stage2.pc, stage1.out.data_to_stage2.instr, rg_cur_priv);
       if (cur_verbosity > 1)
-	 $display ("%0d: CPU.rl_stage1_SFENCE_VMA", mcycle);
+	 $display ("%0d: %m.rl_stage1_SFENCE_VMA", mcycle);
    endrule: rl_stage1_SFENCE_VMA
 
    // ----------------
    // Finish SFENCE.VMA
 
    rule rl_finish_SFENCE_VMA (rg_state == CPU_SFENCE_VMA);
-      if (cur_verbosity > 1) $display ("%0d: CPU.rl_finish_SFENCE_VMA", mcycle);
+      if (cur_verbosity > 1) $display ("%0d: %m.rl_finish_SFENCE_VMA", mcycle);
 
       // Note: Await mem system SFENCE.VMA completion, if SFENCE.VMA becomes split-phase
 
@@ -1138,7 +1160,7 @@ module mkCPU (CPU_IFC);
 		       && (stage2.out.ostatus == OSTATUS_EMPTY)
 		       && (stage1.out.ostatus == OSTATUS_NONPIPE)
 		       && (stage1.out.control == CONTROL_WFI));
-      if (cur_verbosity > 1) $display ("%0d: CPU.rl_stage1_WFI", mcycle);
+      if (cur_verbosity > 1) $display ("%0d: %m.rl_stage1_WFI", mcycle);
 
       rg_next_pc <= stage1.out.next_pc;
       rg_state   <= CPU_WFI_PAUSED;
@@ -1162,7 +1184,7 @@ module mkCPU (CPU_IFC);
 
    rule rl_WFI_resume (   (rg_state == CPU_WFI_PAUSED)
 		       && csr_regfile.wfi_resume);
-      if (cur_verbosity > 1) $display ("%0d: CPU.rl_WFI_resume", mcycle);
+      if (cur_verbosity > 1) $display ("%0d: %m.rl_WFI_resume", mcycle);
 
       // MSTATUS.MXR and SSTATUS.SUM for initiating FETCH
       Bit #(1) mstatus_MXR = mstatus [19];
@@ -1186,7 +1208,7 @@ module mkCPU (CPU_IFC);
    // ----------------
    rule rl_reset_from_WFI (   (rg_state == CPU_WFI_PAUSED)
 			   && f_reset_reqs.notEmpty);
-      if (cur_verbosity > 1) $display ("%0d: CPU.rl_reset_from_WFI", mcycle);
+      if (cur_verbosity > 1) $display ("%0d: %m.rl_reset_from_WFI", mcycle);
 
       rg_state <= CPU_RESET1;
    endrule: rl_reset_from_WFI
@@ -1201,7 +1223,7 @@ module mkCPU (CPU_IFC);
    Bool break_into_Debug_Mode = False;
 `endif
 
-   rule rl_stage1_trap (   (rg_state == CPU_TRAP)
+   rule rl_stage1_trap (   (rg_state == CPU_CSRRx_TRAP)
 			|| (   (rg_state == CPU_RUNNING)
 			    && (! halting)
 			    && (stage3.out.ostatus == OSTATUS_EMPTY)
@@ -1209,7 +1231,7 @@ module mkCPU (CPU_IFC);
 			    && (stage1.out.ostatus == OSTATUS_NONPIPE)
 			    && (stage1.out.control == CONTROL_TRAP)
 			    && (! break_into_Debug_Mode)));
-      if (cur_verbosity > 1) $display ("%0d: CPU.rl_stage1_trap", mcycle);
+      if (cur_verbosity > 1) $display ("%0d: %m.rl_stage1_trap", mcycle);
 
       let epc      = stage1.out.trap_info.epc;
       let exc_code = stage1.out.trap_info.exc_code;
@@ -1241,7 +1263,7 @@ module mkCPU (CPU_IFC);
       rg_sstatus_SUM <= 0;
 `endif
 
-      rg_state <= CPU_SPLIT_FETCH;
+      rg_state <= CPU_START_TRAP_HANDLER;
 
       stage1.set_full (False);    fa_step_check;
 
@@ -1264,7 +1286,7 @@ module mkCPU (CPU_IFC);
       // Simulation heuristic: finish if trap back to this instr
 `ifndef INCLUDE_GDB_CONTROL
       if (epc == next_pc) begin
-	 $display ("%0d: CPU.rl_stage1_trap: Tight infinite trap loop: pc 0x%0x instr 0x%08x", mcycle,
+	 $display ("%0d: %m.rl_stage1_trap: Tight infinite trap loop: pc 0x%0x instr 0x%08x", mcycle,
 		   next_pc, instr);
 	 fa_report_CPI;
 	 $finish (0);
@@ -1274,7 +1296,7 @@ module mkCPU (CPU_IFC);
       // Debug
       fa_emit_instr_trace (minstret, epc, instr, rg_cur_priv);
       if (cur_verbosity != 0) begin
-	 $display ("%0d: CPU.rl_stage1_trap: priv:%0d  mcause:0x%0h  epc:0x%0h",
+	 $display ("%0d: %m.rl_stage1_trap: priv:%0d  mcause:0x%0h  epc:0x%0h",
 		   mcycle, rg_cur_priv, mcause, epc);
 	 $display ("    tval:0x%0h  new pc:0x%0h  new mstatus:0x%0h", tval, next_pc, new_mstatus);
       end
@@ -1286,7 +1308,7 @@ module mkCPU (CPU_IFC);
    // external interrupt and RET rules. Separated to break long timing
    // paths from stage2 and stage3 status to IFetch
 
-   rule rl_trap_fetch (rg_state == CPU_SPLIT_FETCH);
+   rule rl_trap_fetch (rg_state == CPU_START_TRAP_HANDLER);
       fa_start_ifetch (rg_next_pc, rg_cur_priv, rg_mstatus_MXR, rg_sstatus_SUM);
       stage1.set_full (True);
       rg_state <= CPU_RUNNING;
@@ -1305,12 +1327,12 @@ module mkCPU (CPU_IFC);
 				     && (stage1.out.ostatus == OSTATUS_NONPIPE)
 				     && (stage1.out.control == CONTROL_TRAP)
 				     && break_into_Debug_Mode);
-      if (cur_verbosity > 1) $display ("%0d: CPU.rl_trap_BREAK_to_Debug_Mode", mcycle);
+      if (cur_verbosity > 1) $display ("%0d: %m.rl_trap_BREAK_to_Debug_Mode", mcycle);
 
       let pc    = stage1.out.data_to_stage2.pc;
       let instr = stage1.out.data_to_stage2.instr;
 
-      $display ("%0d: CPU.rl_trap_BREAK_to_Debug_Mode: PC 0x%08h instr 0x%08h", mcycle, pc, instr);
+      $display ("%0d: %m.rl_trap_BREAK_to_Debug_Mode: PC 0x%08h instr 0x%08h", mcycle, pc, instr);
       if (cur_verbosity > 1)
 	 $display ("    Flushing caches");
 
@@ -1337,14 +1359,14 @@ module mkCPU (CPU_IFC);
       f_run_halt_rsps.enq (False);
 
       if (cur_verbosity > 1)
-	 $display ("%0d: CPU.rl_BREAK_cache_flush_finish", mcycle);
+	 $display ("%0d: %m.rl_BREAK_cache_flush_finish", mcycle);
    endrule
 
    // ----------------
    // Reset from Debug Module
 
    rule rl_reset_from_Debug_Module (f_reset_reqs.notEmpty && (rg_state != CPU_RESET1));
-      $display ("%0d: CPU.rl_reset_from_Debug_Module", mcycle);
+      $display ("%0d: %m.rl_reset_from_Debug_Module", mcycle);
       rg_state <= CPU_RESET1;
    endrule
 `endif
@@ -1358,7 +1380,7 @@ module mkCPU (CPU_IFC);
    rule rl_stage1_interrupt (interrupt_pending
 			     && (rg_state == CPU_RUNNING)
 			     && stage1_take_interrupt);
-      if (cur_verbosity > 1) $display ("%0d: CPU.rl_stage1_interrupt", mcycle);
+      if (cur_verbosity > 1) $display ("%0d: %m.rl_stage1_interrupt", mcycle);
 
       let instr = stage1.out.data_to_stage2.instr;
 
@@ -1390,7 +1412,7 @@ module mkCPU (CPU_IFC);
       rg_sstatus_SUM <= new_mstatus [18];
       rg_mstatus_MXR <= new_mstatus [19];
 
-      rg_state <= CPU_SPLIT_FETCH;
+      rg_state <= CPU_START_TRAP_HANDLER;
 
       stage1.set_full (False);
 
@@ -1405,7 +1427,7 @@ module mkCPU (CPU_IFC);
       // Debug
       fa_emit_instr_trace (minstret, epc, instr, rg_cur_priv);
       if (cur_verbosity > 0)
-	 $display ("%0d: CPU.rl_stage1_interrupt: epc 0x%0h  next PC 0x%0h  new_priv %0d  new mstatus 0x%0h",
+	 $display ("%0d: %m.rl_stage1_interrupt: epc 0x%0h  next PC 0x%0h  new_priv %0d  new mstatus 0x%0h",
 		   mcycle, epc, next_pc, new_priv, new_mstatus);
    endrule: rl_stage1_interrupt
 
@@ -1417,19 +1439,19 @@ module mkCPU (CPU_IFC);
 `ifdef INCLUDE_GDB_CONTROL
    rule rl_stage1_stop (   (rg_state== CPU_RUNNING)
 			&& stage1_stop);
-      if (cur_verbosity > 1) $display ("%0d: CPU.rl_stage1_stop", mcycle);
+      if (cur_verbosity > 1) $display ("%0d: %m.rl_stage1_stop", mcycle);
 
       let pc    = stage1.out.data_to_stage2.pc;    // We'll retry this instruction on 'continue'
       let instr = stage1.out.data_to_stage2.instr;
 
       // Report CPI only stop-req, but not on step-req (where it's not very useful)
       if (rg_stop_req) begin
-	 $display ("%0d: CPU.rl_stage1_stop: Stop for debugger. minstret %0d priv %0d PC 0x%0h instr 0x%0h",
+	 $display ("%0d: %m.rl_stage1_stop: Stop for debugger. minstret %0d priv %0d PC 0x%0h instr 0x%0h",
 		   mcycle, minstret, rg_cur_priv, pc, instr);
 	 fa_report_CPI;
       end
       else
-	 $display ("%0d: CPU.rl_stage1_stop: Stop after single-step. PC = 0x%08h", mcycle, pc);
+	 $display ("%0d: %m.rl_stage1_stop: Stop after single-step. PC = 0x%08h", mcycle, pc);
 
       DCSR_Cause cause= (rg_stop_req ? DCSR_CAUSE_HALTREQ : DCSR_CAUSE_STEP);
       csr_regfile.write_dcsr_cause_priv (cause, rg_cur_priv);
@@ -1455,55 +1477,55 @@ module mkCPU (CPU_IFC);
 
 `ifdef INCLUDE_GDB_CONTROL
    rule rl_debug_run ((f_run_halt_reqs.first == True) && (rg_state == CPU_DEBUG_MODE));
-      if (cur_verbosity > 1) $display ("%0d: CPU.rl_debug_run", mcycle);
+      if (cur_verbosity > 1) $display ("%0d: %m.rl_debug_run", mcycle);
 
       f_run_halt_reqs.deq;
 
       // Debugger 'resume' request (e.g., GDB 'continue' command)
       let dpc = csr_regfile.read_dpc;
       fa_restart (dpc);
-      $display ("%0d: CPU.rl_debug_run: restart at PC = 0x%0h", mcycle, dpc);
+      $display ("%0d: %m.rl_debug_run: restart at PC = 0x%0h", mcycle, dpc);
 
       // Notify debugger that we've started running
       f_run_halt_rsps.enq (True);
 
       if (cur_verbosity > 1)
-	 $display ("%0d: CPU.rl_debug_run: 'run' from dpc 0x%0h", mcycle, dpc);
+	 $display ("%0d: %m.rl_debug_run: 'run' from dpc 0x%0h", mcycle, dpc);
    endrule
 
    (* descending_urgency = "rl_debug_run_redundant, rl_pipe" *)
    rule rl_debug_run_redundant ((f_run_halt_reqs.first == True) && fn_is_running (rg_state));
-      if (cur_verbosity > 1) $display ("%0d: CPU.rl_debug_run_redundant", mcycle);
+      if (cur_verbosity > 1) $display ("%0d: %m.rl_debug_run_redundant", mcycle);
 
       f_run_halt_reqs.deq;
 
       // Notify debugger that we're running
       f_run_halt_rsps.enq (True);
 
-      $display ("%0d: CPU.debug_run_redundant: CPU already running.", mcycle);
+      $display ("%0d: %m.debug_run_redundant: CPU already running.", mcycle);
    endrule
 
    (* descending_urgency = "rl_debug_halt, rl_pipe" *)
    rule rl_debug_halt ((f_run_halt_reqs.first == False) && fn_is_running (rg_state));
-      if (cur_verbosity > 1) $display ("%0d: CPU.rl_debug_halt", mcycle);
+      if (cur_verbosity > 1) $display ("%0d: %m.rl_debug_halt", mcycle);
 
       f_run_halt_reqs.deq;
 
       // Debugger 'halt' request (e.g., GDB '^C' command)
       rg_stop_req <= True;
       if (cur_verbosity > 1)
-	 $display ("%0d: CPU.rl_debug_halt", mcycle);
+	 $display ("%0d: %m.rl_debug_halt", mcycle);
    endrule
 
    rule rl_debug_halt_redundant ((f_run_halt_reqs.first == False) && (! fn_is_running (rg_state)));
-      if (cur_verbosity > 1) $display ("%0d: CPU.rl_debug_halt_redundant", mcycle);
+      if (cur_verbosity > 1) $display ("%0d: %m.rl_debug_halt_redundant", mcycle);
 
       f_run_halt_reqs.deq;
 
       // Notify debugger that we've 'halted'
       f_run_halt_rsps.enq (False);
 
-      $display ("%0d: CPU.rl_debug_halt_redundant: CPU already halted.", mcycle);
+      $display ("%0d: %m.rl_debug_halt_redundant: CPU already halted.", mcycle);
       $display ("    state = ", fshow (rg_state));
    endrule
 
@@ -1517,7 +1539,7 @@ module mkCPU (CPU_IFC);
       let rsp = DM_CPU_Rsp {ok: True, data: data};
       f_gpr_rsps.enq (rsp);
       if (cur_verbosity > 1)
-	 $display ("%0d: CPU.rl_debug_read_gpr: reg %0d => 0x%0h",
+	 $display ("%0d: %m.rl_debug_read_gpr: reg %0d => 0x%0h",
 		   mcycle, regname, data);
    endrule
 
@@ -1531,7 +1553,7 @@ module mkCPU (CPU_IFC);
       f_gpr_rsps.enq (rsp);
 
       if (cur_verbosity > 1)
-	 $display ("%0d: CPU.rl_debug_write_gpr: reg %0d <= 0x%0h",
+	 $display ("%0d: %m.rl_debug_write_gpr: reg %0d <= 0x%0h",
 		   mcycle, regname, data);
    endrule
 
@@ -1540,7 +1562,7 @@ module mkCPU (CPU_IFC);
       let rsp = DM_CPU_Rsp {ok: False, data: ?};
       f_gpr_rsps.enq (rsp);
 
-      if (cur_verbosity > 1) $display ("%0d: CPU.rl_debug_gpr_access_busy", mcycle);
+      if (cur_verbosity > 1) $display ("%0d: %m.rl_debug_gpr_access_busy", mcycle);
    endrule
 
    // ----------------
@@ -1554,7 +1576,7 @@ module mkCPU (CPU_IFC);
       let rsp = DM_CPU_Rsp {ok: True, data: data};
       f_fpr_rsps.enq (rsp);
       if (cur_verbosity > 1)
-	 $display ("%0d: CPU.rl_debug_read_fpr: reg %0d => 0x%0h",
+	 $display ("%0d: %m.rl_debug_read_fpr: reg %0d => 0x%0h",
 		   mcycle, regname, data);
    endrule
 
@@ -1568,7 +1590,7 @@ module mkCPU (CPU_IFC);
       f_fpr_rsps.enq (rsp);
 
       if (cur_verbosity > 1)
-	 $display ("%0d: CPU.rl_debug_write_fpr: reg %0d <= 0x%0h",
+	 $display ("%0d: %m.rl_debug_write_fpr: reg %0d <= 0x%0h",
 		   mcycle, regname, data);
    endrule
 
@@ -1578,7 +1600,7 @@ module mkCPU (CPU_IFC);
       f_fpr_rsps.enq (rsp);
 
       if (cur_verbosity > 1)
-	 $display ("%0d: CPU.rl_debug_fpr_access_busy", mcycle);
+	 $display ("%0d: %m.rl_debug_fpr_access_busy", mcycle);
    endrule
 `endif
 
@@ -1593,7 +1615,7 @@ module mkCPU (CPU_IFC);
       let rsp = DM_CPU_Rsp {ok: True, data: data};
       f_csr_rsps.enq (rsp);
       if (cur_verbosity > 1)
-	 $display ("%0d: CPU.rl_debug_read_csr: csr %0d => 0x%0h",
+	 $display ("%0d: %m.rl_debug_read_csr: csr %0d => 0x%0h",
 		   mcycle, csr_addr, data);
    endrule
 
@@ -1607,7 +1629,7 @@ module mkCPU (CPU_IFC);
       f_csr_rsps.enq (rsp);
 
       if (cur_verbosity > 1)
-	 $display ("%0d: CPU.rl_debug_write_csr: csr 0x%0h 0x%0h <= 0x%0h",
+	 $display ("%0d: %m.rl_debug_write_csr: csr 0x%0h 0x%0h <= 0x%0h",
 		   mcycle, csr_addr, data, new_csr_val);
    endrule
 
@@ -1617,7 +1639,7 @@ module mkCPU (CPU_IFC);
       f_csr_rsps.enq (rsp);
 
       if (cur_verbosity > 1)
-	 $display ("%0d: CPU.rl_debug_csr_access_busy", mcycle);
+	 $display ("%0d: %m.rl_debug_csr_access_busy", mcycle);
    endrule
 `endif
 
