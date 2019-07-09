@@ -44,7 +44,7 @@ TESTBENCH_DIRS  = $(REPO)/src_Testbench/Top:$(REPO)/src_Testbench/SoC
 # XXX
 AXI_DIRS = $(REPO)/libs/BlueStuff/AXI:$(REPO)/libs/BlueStuff/BlueBasics:$(REPO)/libs/BlueStuff/
 
-BSC_PATH = -p $(CORE_DIRS):$(TESTBENCH_DIRS):$(AXI_DIRS):+
+BSC_PATH = $(AXI_DIRS):$(CUSTOM_DIRS):$(CORE_DIRS):$(TESTBENCH_DIRS):+
 
 # ----------------
 # Top-level file and module

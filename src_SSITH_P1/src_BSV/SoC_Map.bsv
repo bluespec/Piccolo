@@ -57,6 +57,12 @@ import Routable :: *;
 import Fabric_Defs :: *;    // Only for type Fabric_Addr
 
 // ================================================================
+
+function Bool addr_function(Fabric_Addr base, Fabric_Addr size, Fabric_Addr addr);
+   return (base <= addr) && (addr < (base + size));
+endfunction
+
+// ================================================================
 // Interface and module for the address map
 
 interface SoC_Map_IFC;
@@ -139,7 +145,7 @@ module mkSoC_Map (SoC_Map_IFC);
 
    let flash_mem_addr_range = Range {
       base: 'h_4000_0000,
-      size: 'h_0001_0000    // 64K
+      size: 'h_0800_0000    // 128M
    };
 
    // ----------------------------------------------------------------
@@ -213,6 +219,16 @@ module mkSoC_Map (SoC_Map_IFC);
    };
 
    // ----------------------------------------------------------------
+
+   let flash_addr_range = Range{base: 'h6240_0000, size: 'h1000};
+   let uart1_addr_range = Range{base: 'h6230_0000, size: 'h1000};
+   let i2c_addr_range = Range{base: 'h6231_0000, size: 'h1000};
+   let spi_addr_range = Range{base: 'h6232_0000, size: 'h1000};
+   let uart2_addr_range = Range{base: 'h6236_0000, size: 'h1000};
+   let gpio1_addr_range = Range{base: 'h6233_0000, size: 'h1000};
+   let gpio2_addr_range = Range{base: 'h6237_0000, size: 'h1000};
+
+   // ----------------------------------------------------------------
    // Memory address predicate
    // Identifies memory addresses in the Fabric.
    // (Caches needs this information to cache these addresses.)
@@ -238,7 +254,14 @@ module mkSoC_Map (SoC_Map_IFC);
 	      || inRange (gpio_0_addr_range, addr)
 	      || inRange (boot_rom_addr_range, addr)
 	      || inRange (ddr4_0_uncached_addr_range, addr)
-	      );
+              || inRange (flash_addr_range, addr)
+              || inRange (uart1_addr_range, addr)
+              || inRange (i2c_addr_range, addr)
+              || inRange (spi_addr_range, addr)
+              || inRange (uart2_addr_range, addr)
+              || inRange (gpio1_addr_range, addr)
+              || inRange (gpio2_addr_range, addr)
+             );
    endfunction
 
    // ----------------------------------------------------------------

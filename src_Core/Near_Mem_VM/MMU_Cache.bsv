@@ -737,44 +737,52 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem,
       endaction
    endfunction
 
+   FIFOF #(Tuple3 #(Bit #(3), PA, Bit #(64))) f_fabric_write_reqs <- mkFIFOF;
+
    // Send a write-request into the fabric
    function Action fa_fabric_send_write_req (Bit #(3)  f3, PA  pa, Bit #(64)  st_val);
       action
-	 match {.fabric_addr,
-		.fabric_data,
-		.fabric_strb,
-		.fabric_size} = fn_to_fabric_write_fields (f3, pa, st_val);
-
-	 let mem_req_wr_addr = AXI4_AWFlit {awid:     default_mid,
-					    awaddr:   fabric_addr,
-					    awlen:    0,           // burst len = awlen+1
-					    awsize:   fabric_size,
-					    awburst:  fabric_default_burst,
-					    awlock:   fabric_default_lock,
-					    awcache:  fabric_default_awcache,
-					    awprot:   fabric_default_prot,
-					    awqos:    fabric_default_qos,
-					    awregion: fabric_default_region,
-					    awuser:   fabric_default_awuser};
-
-	 let mem_req_wr_data = AXI4_WFlit {wdata:  fabric_data,
-					   wstrb:  fabric_strb,
-					   wlast:  True,
-					   wuser:  fabric_default_wuser};
-
-	 master_xactor.slave.aw.put(mem_req_wr_addr);
-	 master_xactor.slave.w.put(mem_req_wr_data);
-
-	 // Expect a fabric response
-	 ctr_wr_rsps_pending.incr;
-
-	 // Debugging
-	 if (cfg_verbosity > 1) begin
-	    $display ("            To fabric: ", fshow (mem_req_wr_addr));
-	    $display ("                       ", fshow (mem_req_wr_data));
-	 end
+	 f_fabric_write_reqs.enq (tuple3 (f3, pa, st_val));
       endaction
    endfunction
+
+   rule rl_fabric_send_write_req;
+      match { .f3, .pa, .st_val } <- pop (f_fabric_write_reqs);
+
+      match {.fabric_addr,
+             .fabric_data,
+             .fabric_strb,
+             .fabric_size} = fn_to_fabric_write_fields (f3, pa, st_val);
+
+             let mem_req_wr_addr = AXI4_AWFlit {awid:     default_mid,
+                                             awaddr:   fabric_addr,
+                                             awlen:    0,           // burst len = awlen+1
+                                             awsize:   fabric_size,
+                                             awburst:  fabric_default_burst,
+                                             awlock:   fabric_default_lock,
+                                             awcache:  fabric_default_awcache,
+                                             awprot:   fabric_default_prot,
+                                             awqos:    fabric_default_qos,
+                                             awregion: fabric_default_region,
+                                             awuser:   fabric_default_awuser};
+
+             let mem_req_wr_data = AXI4_WFlit {wdata:  fabric_data,
+                                             wstrb:  fabric_strb,
+                                             wlast:  True,
+                                             wuser:  fabric_default_wuser};
+
+             master_xactor.slave.aw.put(mem_req_wr_addr);
+             master_xactor.slave.w.put(mem_req_wr_data);
+
+             // Expect a fabric response
+             ctr_wr_rsps_pending.incr;
+
+             // Debugging
+             if (cfg_verbosity > 1) begin
+             $display ("            To fabric: ", fshow (mem_req_wr_addr));
+             $display ("                       ", fshow (mem_req_wr_data));
+        end
+   endrule
 
    // ================================================================
    // When PTE.A or PTE.D is updated, this function records it in the TLB
