@@ -1,5 +1,18 @@
 // Copyright (c) 2016-2019 Bluespec, Inc. All Rights Reserved
 
+//-
+// AXI (user fields) modifications:
+//     Copyright (c) 2019 Alexandre Joannou
+//     Copyright (c) 2019 Peter Rugg
+//     Copyright (c) 2019 Jonathan Woodruff
+//     All rights reserved.
+//
+//     This software was developed by SRI International and the University of
+//     Cambridge Computer Laboratory (Department of Computer Science and
+//     Technology) under DARPA contract HR0011-18-C-0016 ("ECATS"), as part of the
+//     DARPA SSITH research programme.
+//-
+
 package Boot_ROM;
 
 // ================================================================
@@ -23,12 +36,14 @@ import ConfigReg :: *;
 import Cur_Cycle  :: *;
 import GetPut_Aux :: *;
 import Semi_FIFOF :: *;
+import AXI4       :: *;
+import SourceSink :: *;
 
 // ================================================================
 // Project imports
 
-import AXI4_Types  :: *;
 import Fabric_Defs :: *;
+import SoC_Map     :: *;
 
 // ================================================================
 // Include the auto-generated BSV-include file with the ROM function
@@ -49,13 +64,17 @@ interface Boot_ROM_IFC;
    method Action set_addr_map (Fabric_Addr addr_base, Fabric_Addr addr_lim);
 
    // Main Fabric Reqs/Rsps
-   interface AXI4_Slave_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User) slave;
+   interface AXI4_Slave_Synth #(Wd_SId, Wd_Addr, Wd_Data,
+                                Wd_AW_User, Wd_W_User, Wd_B_User,
+                                Wd_AR_User, Wd_R_User) slave;
 endinterface
 
 // ================================================================
 
 (* synthesize *)
 module mkBoot_ROM (Boot_ROM_IFC);
+// XXX This module seems to assume the following constraints:
+// provisos(Add #(Wd_AW_User, 0, Wd_B_User), Add #(Wd_AR_User, 0, Wd_R_User));
 
    // Verbosity: 0: quiet; 1: reads/writes
    Integer verbosity = 0;
@@ -68,7 +87,7 @@ module mkBoot_ROM (Boot_ROM_IFC);
    // ----------------
    // Connector to fabric
 
-   AXI4_Slave_Xactor_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User) slave_xactor <- mkAXI4_Slave_Xactor;
+   let slave_xactor <- mkAXI4_Slave_Xactor;
 
    // ----------------
 
@@ -97,14 +116,14 @@ module mkBoot_ROM (Boot_ROM_IFC);
    // Handle fabric read requests
 
    rule rl_process_rd_req (rg_module_ready);
-      let rda <- pop_o (slave_xactor.o_rd_addr);
+      let rda <- get(slave_xactor.master.ar);
 
       let byte_addr = rda.araddr - rg_addr_base;
 
-      AXI4_Resp  rresp  = axi4_resp_okay;
+      AXI4_Resp  rresp  = OKAY;
       Bit #(64)  data64 = 0;
       if (! fn_addr_is_ok (rg_addr_base, rda.araddr, rg_addr_lim)) begin
-	 rresp = axi4_resp_slverr;
+	 rresp = SLVERR;
 	 $display ("%0d: ERROR: Boot_ROM.rl_process_rd_req: unrecognized addr",  cur_cycle);
 	 $display ("    ", fshow (rda));
       end
@@ -119,12 +138,12 @@ module mkBoot_ROM (Boot_ROM_IFC);
       end
 	 
       Bit #(Wd_Data) rdata  = truncate (data64);
-      let rdr = AXI4_Rd_Data {rid:   rda.arid,
-			      rdata: rdata,
-			      rresp: rresp,
-			      rlast: True,
-			      ruser: rda.aruser};
-      slave_xactor.i_rd_data.enq (rdr);
+      let rdr = AXI4_RFlit {rid:   rda.arid,
+			    rdata: rdata,
+			    rresp: rresp,
+			    rlast: True,
+			    ruser: rda.aruser}; // XXX This requires that Wd_AR_User == Wd_R_User
+      slave_xactor.master.r.put(rdr);
 
       if (verbosity > 0) begin
 	 $display ("%0d: Boot_ROM.rl_process_rd_req: ", cur_cycle);
@@ -137,20 +156,20 @@ module mkBoot_ROM (Boot_ROM_IFC);
    // Handle fabric write requests: ignore all of them (this is a ROM)
 
    rule rl_process_wr_req (rg_module_ready);
-      let wra <- pop_o (slave_xactor.o_wr_addr);
-      let wrd <- pop_o (slave_xactor.o_wr_data);
+      let wra <- get(slave_xactor.master.aw);
+      let wrd <- get(slave_xactor.master.w);
 
-      AXI4_Resp  bresp = axi4_resp_okay;
+      AXI4_Resp  bresp = OKAY;
       if (! fn_addr_is_ok (rg_addr_base, wra.awaddr, rg_addr_lim)) begin
-	 bresp = axi4_resp_slverr;
+	 bresp = SLVERR;
 	 $display ("%0d: ERROR: Boot_ROM.rl_process_wr_req: unrecognized addr",  cur_cycle);
 	 $display ("    ", fshow (wra));
       end
 
-      let wrr = AXI4_Wr_Resp {bid:   wra.awid,
-			      bresp: bresp,
-			      buser: wra.awuser};
-      slave_xactor.i_wr_resp.enq (wrr);
+      let wrr = AXI4_BFlit {bid:   wra.awid,
+			    bresp: bresp,
+			    buser: wra.awuser}; // XXX This requires that Wd_AW_User == Wd_B_User
+      slave_xactor.master.b.put(wrr);
 
       if (verbosity > 0) begin
 	 $display ("%0d: Boot_ROM.rl_process_wr_req; ignoring all writes", cur_cycle);
@@ -193,7 +212,7 @@ module mkBoot_ROM (Boot_ROM_IFC);
    endmethod
 
    // Main Fabric Reqs/Rsps
-   interface  slave = slave_xactor.axi_side;
+   interface  slave = slave_xactor.slaveSynth;
 endmodule
 
 // ================================================================

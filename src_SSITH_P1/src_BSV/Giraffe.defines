@@ -1,2 +1,3 @@
 
 `define TLM_PRM_Giraffe 4, 64, 64, 8, 0
+`define AXI4_PARAMS_Giraffe 4, 64, 64, 0, 0, 0, 0, 0

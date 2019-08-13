@@ -1,5 +1,18 @@
 // Copyright (c) 2018-2019 Bluespec, Inc. All Rights Reserved.
 
+//-
+// AXI (user fields) modifications:
+//     Copyright (c) 2019 Alexandre Joannou
+//     Copyright (c) 2019 Peter Rugg
+//     Copyright (c) 2019 Jonathan Woodruff
+//     All rights reserved.
+//
+//     This software was developed by SRI International and the University of
+//     Cambridge Computer Laboratory (Department of Computer Science and
+//     Technology) under DARPA contract HR0011-18-C-0016 ("ECATS"), as part of the
+//     DARPA SSITH research programme.
+//-
+
 package Core_IFC;
 
 // ================================================================
@@ -19,11 +32,14 @@ import Vector        :: *;
 import GetPut        :: *;
 import ClientServer  :: *;
 
+// ----------------
+// BSV additional libs
+import AXI4 :: *;
+
 // ================================================================
 // Project imports
 
 // Main fabric
-import AXI4_Types   :: *;
 import Fabric_Defs  :: *;
 
 // External interrupt request interface
@@ -57,10 +73,14 @@ interface Core_IFC #(numeric type t_n_interrupt_sources);
    // AXI4 Fabric interfaces
 
    // CPU IMem to Fabric master interface
-   interface AXI4_Master_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User) cpu_imem_master;
+   interface AXI4_Master_Synth #(Wd_MId, Wd_Addr, Wd_Data,
+                                 Wd_AW_User, Wd_W_User, Wd_B_User,
+                                 Wd_AR_User, Wd_R_User) cpu_imem_master;
 
    // CPU DMem to Fabric master interface
-   interface AXI4_Master_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User) cpu_dmem_master;
+   interface AXI4_Master_Synth #(Wd_MId, Wd_Addr, Wd_Data,
+                                 Wd_AW_User, Wd_W_User, Wd_B_User,
+                                 Wd_AR_User, Wd_R_User) cpu_dmem_master;
 
    // ----------------------------------------------------------------
    // External interrupt sources

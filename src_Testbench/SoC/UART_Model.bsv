@@ -1,5 +1,18 @@
 // Copyright (c) 2016-2019 Bluespec, Inc. All Rights Reserved
 
+//-
+// AXI (user fields) modifications:
+//     Copyright (c) 2019 Alexandre Joannou
+//     Copyright (c) 2019 Peter Rugg
+//     Copyright (c) 2019 Jonathan Woodruff
+//     All rights reserved.
+//
+//     This software was developed by SRI International and the University of
+//     Cambridge Computer Laboratory (Department of Computer Science and
+//     Technology) under DARPA contract HR0011-18-C-0016 ("ECATS"), as part of the
+//     DARPA SSITH research programme.
+//-
+
 package UART_Model;
 
 // ================================================================
@@ -38,12 +51,14 @@ import  ConfigReg     :: *;
 import Cur_Cycle  :: *;
 import GetPut_Aux :: *;
 import Semi_FIFOF :: *;
+import AXI4       :: *;
+import SourceSink :: *;
 
 // ================================================================
 // Project imports
 
-import AXI4_Types  :: *;
 import Fabric_Defs :: *;
+import SoC_Map     :: *;
 
 // ================================================================
 // UART registers and their address offsets
@@ -109,7 +124,9 @@ interface UART_IFC;
    method Action set_addr_map (Fabric_Addr addr_base, Fabric_Addr addr_lim);
 
    // Main Fabric Reqs/Rsps
-   interface AXI4_Slave_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User) slave;
+   interface AXI4_Slave_Synth #(Wd_SId, Wd_Addr, Wd_Data,
+                                Wd_AW_User, Wd_W_User, Wd_B_User,
+                                Wd_AR_User, Wd_R_User) slave;
 
    // To external console
    interface Get #(Bit #(8))  get_to_console;
@@ -145,6 +162,8 @@ endfunction
 
 (* synthesize *)
 module mkUART (UART_IFC);
+// XXX This module seems to assume the following constraints:
+// provisos(Add #(Wd_AW_User, 0, Wd_B_User), Add #(Wd_AR_User, 0, Wd_R_User));
 
    Reg #(Bit #(8)) cfg_verbosity <- mkConfigReg (0);
 
@@ -158,7 +177,7 @@ module mkUART (UART_IFC);
    // ----------------
    // Connector to fabric
 
-   AXI4_Slave_Xactor_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User) slave_xactor <- mkAXI4_Slave_Xactor;
+   let slave_xactor <- mkAXI4_Slave_Xactor;
 
    // ----------------
    // character queues to and from the console
@@ -230,7 +249,7 @@ module mkUART (UART_IFC);
       rg_msr <= 0;
       rg_scr <= 0;
 
-      slave_xactor.reset;
+      slave_xactor.clear;
       rg_state <= STATE_READY;
 
       f_reset_rsps.enq (?);
@@ -243,23 +262,23 @@ module mkUART (UART_IFC);
    // Handle fabric read requests
 
    rule rl_process_rd_req (rg_state == STATE_READY);
-      let rda <- pop_o (slave_xactor.o_rd_addr);
+      let rda <- get(slave_xactor.master.ar);
 
       let byte_addr = rda.araddr - rg_addr_base;
       let { msbs, offset, lsbs } = split_addr (zeroExtend (byte_addr));
 
       Bit #(8)  rdata_byte = 0;
-      AXI4_Resp rresp      = axi4_resp_okay;
+      AXI4_Resp rresp      = OKAY;
 
       if (lsbs != 0) begin
 	 $display ("%0d: ERROR: UART.rl_process_rd_req: misaligned addr", cur_cycle);
 	 $display ("            ", fshow (rda));
-	 rresp = axi4_resp_slverr;
+	 rresp = SLVERR;
       end
       else if (msbs != 0) begin
 	 $display ("%0d: ERROR: UART.rl_process_rd_req: unrecognized addr", cur_cycle);
 	 $display ("            ", fshow (rda));
-	 rresp = axi4_resp_decerr;
+	 rresp = DECERR;
       end
 
       // offset 0: RBR
@@ -296,17 +315,17 @@ module mkUART (UART_IFC);
       else begin
 	 $display ("%0d: ERROR: UART.rl_process_rd_req: unrecognized addr", cur_cycle);
 	 $display ("            ", fshow (rda));
-	 rresp = axi4_resp_decerr;
+	 rresp = DECERR;
       end
 
       // Send read-response to bus
       Fabric_Data rdata = zeroExtend (rdata_byte);
-      let rdr = AXI4_Rd_Data {rid:   rda.arid,
-			      rdata: rdata,
-			      rresp: rresp,
-			      rlast: True,
-			      ruser: rda.aruser};
-      slave_xactor.i_rd_data.enq (rdr);
+      let rdr = AXI4_RFlit {rid:   rda.arid,
+			    rdata: rdata,
+			    rresp: rresp,
+			    rlast: True,
+			    ruser: rda.aruser}; // XXX This requires that Wd_AR_User == Wd_R_User
+      slave_xactor.master.r.put(rdr);
 
       if (cfg_verbosity > 1) begin
 	 $display ("%0d: UART.rl_process_rd_req", cur_cycle);
@@ -319,8 +338,8 @@ module mkUART (UART_IFC);
    // Handle fabric write requests
 
    rule rl_process_wr_req (rg_state == STATE_READY);
-      let wra <- pop_o (slave_xactor.o_wr_addr);
-      let wrd <- pop_o (slave_xactor.o_wr_data);
+      let wra <- get(slave_xactor.master.aw);
+      let wrd <- get(slave_xactor.master.w);
 
       Bit #(64) wdata     = zeroExtend (wrd.wdata);
       Bit #(8)  wstrb     = zeroExtend (wrd.wstrb);
@@ -329,19 +348,19 @@ module mkUART (UART_IFC);
       let byte_addr = wra.awaddr - rg_addr_base;
       let { msbs, offset, lsbs } = split_addr (zeroExtend (byte_addr));
 
-      AXI4_Resp bresp = axi4_resp_okay;
+      AXI4_Resp bresp = OKAY;
 
       if ((lsbs != 0) || (wstrb [0] == 1'b0))  begin
 	 $display ("%0d: ERROR: UART.rl_process_wr_req: misaligned addr", cur_cycle);
 	 $display ("            ", fshow (wra));
 	 $display ("            ", fshow (wrd));
-	 bresp = axi4_resp_slverr;
+	 bresp = SLVERR;
       end
       else if (msbs != 0) begin
 	 $display ("%0d: ERROR: UART.rl_process_wr_req: unrecognized addr", cur_cycle);
 	 $display ("            ", fshow (wra));
 	 $display ("            ", fshow (wrd));
-	 bresp = axi4_resp_decerr;
+	 bresp = DECERR;
       end
 
       // offset 0: THR
@@ -379,14 +398,14 @@ module mkUART (UART_IFC);
 	 $display ("%0d: ERROR: UART.rl_process_wr_req: unrecognized addr", cur_cycle);
 	 $display ("            ", fshow (wra));
 	 $display ("            ", fshow (wrd));
-	 bresp = axi4_resp_decerr;
+	 bresp = DECERR;
       end
 
       // Send write-response to bus
-      let wrr = AXI4_Wr_Resp {bid:   wra.awid,
-			      bresp: bresp,
-			      buser: wra.awuser};
-      slave_xactor.i_wr_resp.enq (wrr);
+      let wrr = AXI4_BFlit {bid:   wra.awid,
+			    bresp: bresp,
+			    buser: wra.awuser}; // XXX This requires that Wd_AW_User == Wd_B_User
+      slave_xactor.master.b.put(wrr);
 
       if (cfg_verbosity > 1) begin
 	 $display ("%0d: UART.rl_process_wr_req", cur_cycle);
@@ -434,7 +453,7 @@ module mkUART (UART_IFC);
    endmethod
 
    // Main Fabric Reqs/Rsps
-   interface  slave = slave_xactor.axi_side;
+   interface  slave = slave_xactor.slaveSynth;
 
    // To external console
    interface  put_from_console = toPut (f_from_console);

@@ -1,5 +1,18 @@
 // Copyright (c) 2018-2019 Bluespec, Inc. All Rights Reserved.
 
+//-
+// AXI (user fields) modifications:
+//     Copyright (c) 2019 Alexandre Joannou
+//     Copyright (c) 2019 Peter Rugg
+//     Copyright (c) 2019 Jonathan Woodruff
+//     All rights reserved.
+//
+//     This software was developed by SRI International and the University of
+//     Cambridge Computer Laboratory (Department of Computer Science and
+//     Technology) under DARPA contract HR0011-18-C-0016 ("ECATS"), as part of the
+//     DARPA SSITH research programme.
+//-
+
 package P1_Core;
 
 // ================================================================
@@ -44,8 +57,7 @@ import Core     :: *;
 import PLIC :: *;    // for PLIC_Source_IFC type which is exposed at P2_Core interface
 
 // Main Fabric
-import AXI4_Types   :: *;
-import AXI4_Fabric  :: *;
+import AXI4         :: *;
 import Fabric_Defs  :: *;
 
 `ifdef INCLUDE_TANDEM_VERIF
@@ -68,10 +80,14 @@ interface P1_Core_IFC;
    // Core CPU interfaces
 
    // CPU IMem to Fabric master interface
-   interface AXI4_Master_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User) master0;
+   interface AXI4_Master_Synth #(Wd_MId, Wd_Addr, Wd_Data,
+                                 Wd_AW_User, Wd_W_User, Wd_B_User,
+                                 Wd_AR_User, Wd_R_User) master0;
 
    // CPU DMem (incl. I/O) to Fabric master interface
-   interface AXI4_Master_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User) master1;
+   interface AXI4_Master_Synth #(Wd_MId, Wd_Addr, Wd_Data,
+                                 Wd_AW_User, Wd_W_User, Wd_B_User,
+                                 Wd_AR_User, Wd_R_User) master1;
 
    // External interrupt sources
    (* always_ready, always_enabled, prefix="" *)

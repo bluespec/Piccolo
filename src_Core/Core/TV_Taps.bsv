@@ -1,5 +1,18 @@
 // Copyright (c) 2018-2019 Bluespec, Inc. All Rights Reserved.
 
+//-
+// AXI (user fields) modifications:
+//     Copyright (c) 2019 Alexandre Joannou
+//     Copyright (c) 2019 Peter Rugg
+//     Copyright (c) 2019 Jonathan Woodruff
+//     All rights reserved.
+//
+//     This software was developed by SRI International and the University of
+//     Cambridge Computer Laboratory (Department of Computer Science and
+//     Technology) under DARPA contract HR0011-18-C-0016 ("ECATS"), as part of the
+//     DARPA SSITH research programme.
+//-
+
 package TV_Taps;
 
 // ================================================================
@@ -25,6 +38,8 @@ import Connectable   :: *;
 
 import Semi_FIFOF  :: *;
 import GetPut_Aux  :: *;
+import SourceSink  :: *;
+import AXI4        :: *;
 
 // ================================================================
 // Project imports
@@ -33,26 +48,29 @@ import ISA_Decls      :: *;
 import DM_CPU_Req_Rsp :: *;
 import TV_Info        :: *;
 
-import AXI4_Types   :: *;
 import Fabric_Defs  :: *;
 
 // ================================================================
 // DM-to-memory tap
 
 interface DM_Mem_Tap_IFC;
-   interface AXI4_Slave_IFC  #(Wd_Id, Wd_Addr, Wd_Data, Wd_User)  slave;
-   interface AXI4_Master_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User)  master;
-   interface Get #(Trace_Data)                                    trace_data_out;
+   interface AXI4_Slave_Synth #(Wd_MId_2x3, Wd_Addr, Wd_Data,
+                                Wd_AW_User, Wd_W_User, Wd_B_User,
+                                Wd_AR_User, Wd_R_User) slave;
+   interface AXI4_Master_Synth #(Wd_MId_2x3, Wd_Addr, Wd_Data,
+                                 Wd_AW_User, Wd_W_User, Wd_B_User,
+                                 Wd_AR_User, Wd_R_User) master;
+   interface Get #(Trace_Data) trace_data_out;
 endinterface
 
 (* synthesize *)
 module mkDM_Mem_Tap (DM_Mem_Tap_IFC);
 
    // Transactor facing DM
-   AXI4_Slave_Xactor_IFC  #(Wd_Id, Wd_Addr, Wd_Data, Wd_User) slave_xactor  <- mkAXI4_Slave_Xactor;
+   let slave_xactor  <- mkAXI4_Slave_Xactor;
 
    // Transactor facing memory bus
-   AXI4_Master_Xactor_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User) master_xactor <- mkAXI4_Master_Xactor;
+   let master_xactor <- mkAXI4_Master_Xactor;
 
    // Tap output
    FIFOF #(Trace_Data)  f_trace_data <- mkFIFOF;
@@ -62,15 +80,12 @@ module mkDM_Mem_Tap (DM_Mem_Tap_IFC);
 
    // Snoop write requests
    rule write_reqs;
-      let wr_addr = slave_xactor.o_wr_addr.first;
-      slave_xactor.o_wr_addr.deq;
-
-      let wr_data = slave_xactor.o_wr_data.first;
-      slave_xactor.o_wr_data.deq;
+      let wr_addr <- get(slave_xactor.master.aw);
+      let wr_data <- get(slave_xactor.master.w);
 
       // Pass-through
-      master_xactor.i_wr_addr.enq (wr_addr);
-      master_xactor.i_wr_data.enq (wr_data);
+      master_xactor.slave.aw.put(wr_addr);
+      master_xactor.slave.w.put(wr_data);
 
       // Tap
       Bit #(64) paddr = ?;
@@ -95,17 +110,17 @@ module mkDM_Mem_Tap (DM_Mem_Tap_IFC);
    endrule
 
    // Read requests, write responses and read responses are not snooped
-   mkConnection (slave_xactor.o_rd_addr, master_xactor.i_rd_addr);
-   mkConnection (slave_xactor.i_wr_resp, master_xactor.o_wr_resp);
-   mkConnection (slave_xactor.i_rd_data, master_xactor.o_rd_data);
+   mkConnection (slave_xactor.master.ar, master_xactor.slave.ar);
+   mkConnection (slave_xactor.master.b, master_xactor.slave.b);
+   mkConnection (slave_xactor.master.r, master_xactor.slave.r);
 
    // ================================================================
    // INTERFACE
 
    // Facing DM
-   interface slave  = slave_xactor.axi_side;
+   interface slave  = slave_xactor.slaveSynth;
    // Facing bus
-   interface master = master_xactor.axi_side;
+   interface master = master_xactor.masterSynth;
    // Tap towards verifier
    interface Get trace_data_out = toGet (f_trace_data);
 

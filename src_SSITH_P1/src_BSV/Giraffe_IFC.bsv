@@ -1,12 +1,23 @@
 
+//-
+// AXI (user fields) modifications:
+//     Copyright (c) 2019 Alexandre Joannou
+//     Copyright (c) 2019 Peter Rugg
+//     Copyright (c) 2019 Jonathan Woodruff
+//     All rights reserved.
+//
+//     This software was developed by SRI International and the University of
+//     Cambridge Computer Laboratory (Department of Computer Science and
+//     Technology) under DARPA contract HR0011-18-C-0016 ("ECATS"), as part of the
+//     DARPA SSITH research programme.
+//-
+
 package Giraffe_IFC;
 
-import Axi ::*;
-import Axi4 ::*;
+import AXI4 ::*;
 import Bus ::*;
 import Connectable ::*;
 
-`include "TLM.defines"
 `include "Giraffe.defines"
 
 (* always_ready, always_enabled *)
@@ -107,10 +118,10 @@ instance Connectable#(DMI_IFC, DMI_Master_IFC);
 endinstance
 
 interface Core_IFC;
-   interface Axi4LRdWrMaster#(`TLM_PRM_Giraffe) master0;
-   interface Axi4LRdWrMaster#(`TLM_PRM_Giraffe) master1;
-   interface Axi4LRdWrMaster#(`TLM_PRM_Giraffe) master2;
-   interface Axi4LRdWrMaster#(`TLM_PRM_Giraffe) master3;
+   interface AXI4_Master_Synth#(`AXI4_PARAMS_Giraffe) master0;
+   interface AXI4_Master_Synth#(`AXI4_PARAMS_Giraffe) master1;
+   interface AXI4_Master_Synth#(`AXI4_PARAMS_Giraffe) master2;
+   interface AXI4_Master_Synth#(`AXI4_PARAMS_Giraffe) master3;
 
    (* always_ready, always_enabled *)
    (* prefix = "", result = "unused0" *)
@@ -134,10 +145,10 @@ interface Core_IFC;
 endinterface
 
 interface Platform_IFC;
-   interface Axi4LRdWrSlave#(`TLM_PRM_Giraffe) slave0;
-   interface Axi4LRdWrSlave#(`TLM_PRM_Giraffe) slave1;
-   interface Axi4LRdWrSlave#(`TLM_PRM_Giraffe) slave2;
-   interface Axi4LRdWrSlave#(`TLM_PRM_Giraffe) slave3;
+   interface AXI4_Slave_Synth#(`AXI4_PARAMS_Giraffe) slave0;
+   interface AXI4_Slave_Synth#(`AXI4_PARAMS_Giraffe) slave1;
+   interface AXI4_Slave_Synth#(`AXI4_PARAMS_Giraffe) slave2;
+   interface AXI4_Slave_Synth#(`AXI4_PARAMS_Giraffe) slave3;
 
    (* always_ready, always_enabled *)
    method Bit#(1) interrupt0;

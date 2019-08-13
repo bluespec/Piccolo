@@ -1,5 +1,18 @@
 // Copyright (c) 2016-2019 Bluespec, Inc. All Rights Reserved.
 
+//-
+// AXI (user fields) modifications:
+//     Copyright (c) 2019 Alexandre Joannou
+//     Copyright (c) 2019 Peter Rugg
+//     Copyright (c) 2019 Jonathan Woodruff
+//     All rights reserved.
+//
+//     This software was developed by SRI International and the University of
+//     Cambridge Computer Laboratory (Department of Computer Science and
+//     Technology) under DARPA contract HR0011-18-C-0016 ("ECATS"), as part of the
+//     DARPA SSITH research programme.
+//-
+
 package SoC_Top;
 
 // ================================================================
@@ -21,24 +34,21 @@ import GetPut        :: *;
 import ClientServer  :: *;
 import Connectable   :: *;
 import Memory        :: *;
+import Vector        :: *;
 
 // ----------------
 // BSV additional libs
 
 import Cur_Cycle   :: *;
 import GetPut_Aux  :: *;
+import Routable    :: *;
+import AXI4        :: *;
 
 // ================================================================
 // Project imports
 
-// Main fabric
-import AXI4_Types     :: *;
-import AXI4_Fabric    :: *;
-import AXI4_Deburster :: *;
-
 import Fabric_Defs :: *;
 import SoC_Map     :: *;
-import SoC_Fabric  :: *;
 
 // SoC components (CPU, mem, and IPs)
 
@@ -126,24 +136,19 @@ module mkSoC_Top (SoC_Top_IFC);
    // Core: CPU + Near_Mem_IO (CLINT) + PLIC + Debug module (optional) + TV (optional)
    Core_IFC #(N_External_Interrupt_Sources)  core <- mkCore;
 
-   // SoC Fabric
-   Fabric_AXI4_IFC  fabric <- mkFabric_AXI4;
-
    // SoC Boot ROM
    Boot_ROM_IFC  boot_rom <- mkBoot_ROM;
    // AXI4 Deburster in front of Boot_ROM
-   AXI4_Deburster_IFC #(Wd_Id,
-			Wd_Addr,
-			Wd_Data,
-			Wd_User)  boot_rom_axi4_deburster <- mkAXI4_Deburster_A;
+   AXI4_Shim#(Wd_SId, Wd_Addr, Wd_Data,
+              Wd_AW_User, Wd_W_User, Wd_B_User, Wd_AR_User, Wd_R_User)
+              boot_rom_axi4_deburster <- mkBurstToNoBurst;
 
    // SoC Memory
    Mem_Controller_IFC  mem0_controller <- mkMem_Controller;
    // AXI4 Deburster in front of SoC Memory
-   AXI4_Deburster_IFC #(Wd_Id,
-			Wd_Addr,
-			Wd_Data,
-			Wd_User)  mem0_controller_axi4_deburster <- mkAXI4_Deburster_A;
+   AXI4_Shim#(Wd_SId, Wd_Addr, Wd_Data,
+              Wd_AW_User, Wd_W_User, Wd_B_User, Wd_AR_User, Wd_R_User)
+              mem0_controller_axi4_deburster <- mkBurstToNoBurst;
 
    // SoC IPs
    UART_IFC   uart0  <- mkUART;
@@ -157,42 +162,66 @@ module mkSoC_Top (SoC_Top_IFC);
    // SoC fabric master connections
    // Note: see 'SoC_Map' for 'master_num' definitions
 
+   Vector#(Num_Masters, AXI4_Master_Synth #(Wd_MId, Wd_Addr, Wd_Data,
+                                            Wd_User, Wd_User, Wd_User,
+                                            Wd_User, Wd_User))
+                                            master_vector = newVector;
+
    // CPU IMem master to fabric
-   mkConnection (core.cpu_imem_master,  fabric.v_from_masters [imem_master_num]);
+   master_vector[imem_master_num] = core.cpu_imem_master;
 
    // CPU DMem master to fabric
-   mkConnection (core.cpu_dmem_master,  fabric.v_from_masters [dmem_master_num]);
+   master_vector[dmem_master_num] = core.cpu_dmem_master;
 
 `ifdef INCLUDE_ACCEL0
    // accel_aes0 to fabric
-   mkConnection (accel0.master,  fabric.v_from_masters [accel0_master_num]);
+   master_vector[accel0_master_num] = accel_aes0.master;
 `endif
 
    // ----------------
    // SoC fabric slave connections
    // Note: see 'SoC_Map' for 'slave_num' definitions
 
-   // Fabric to Boot ROM
-   mkConnection (fabric.v_to_slaves [boot_rom_slave_num], boot_rom_axi4_deburster.from_master);
-   mkConnection (boot_rom_axi4_deburster.to_slave,        boot_rom.slave);
+   Vector#(Num_Slaves, AXI4_Slave_Synth #(Wd_SId, Wd_Addr, Wd_Data,
+                                          Wd_User, Wd_User, Wd_User,
+                                          Wd_User, Wd_User))
+                                          slave_vector = newVector;
+   Vector#(Num_Slaves, Range#(Wd_Addr))   route_vector = newVector;
 
-   // Fabric to Deburster to Mem Controller
-   mkConnection (fabric.v_to_slaves [mem0_controller_slave_num], mem0_controller_axi4_deburster.from_master);
-   mkConnection (mem0_controller_axi4_deburster.to_slave,        mem0_controller.slave);
+   // Fabric to Boot ROM
+   let br <- fromAXI4_Slave_Synth(boot_rom.slave);
+   mkConnection(boot_rom_axi4_deburster.master, br);
+   let ug_boot_rom_slave <- toUnguarded_AXI4_Slave(boot_rom_axi4_deburster.slave);
+   slave_vector[boot_rom_slave_num] = toAXI4_Slave_Synth(ug_boot_rom_slave);
+   route_vector[boot_rom_slave_num] = soc_map.m_boot_rom_addr_range;
+
+   // Fabric to Mem Controller
+   let mem <- fromAXI4_Slave_Synth(mem0_controller.slave);
+   mkConnection(mem0_controller_axi4_deburster.master, mem);
+   let ug_mem0_slave <- toUnguarded_AXI4_Slave(mem0_controller_axi4_deburster.slave);
+   slave_vector[mem0_controller_slave_num] = toAXI4_Slave_Synth(ug_mem0_slave);
+   route_vector[mem0_controller_slave_num] = soc_map.m_mem0_controller_addr_range;
 
    // Fabric to UART0
-   mkConnection (fabric.v_to_slaves [uart0_slave_num],  uart0.slave);
+   slave_vector[uart0_slave_num] = uart0.slave;
+   route_vector[uart0_slave_num] = soc_map.m_uart0_addr_range;
 
 `ifdef INCLUDE_ACCEL0
-   // Fabric to accel0
-   mkConnection (fabric.v_to_slaves [accel0_slave_num], accel0.slave);
+   // Fabric to accel_aes0
+   slave_vector[accel0_slave_num] = accel_aes0.slave);
+   route_vector[accel0_slave_num] = soc_map.m_accel0_addr_range;
 `endif
 
 `ifdef HTIF_MEMORY
    AXI4_Slave_IFC#(Wd_Id, Wd_Addr, Wd_Data, Wd_User) htif <- mkAxi4LRegFile(bytes_per_htif);
 
-   mkConnection (fabric.v_to_slaves [htif_slave_num], htif);
+   slave_vector[htif_slave_num] = htif;
+   route_vector[htif_slave_num] = soc_map.m_htif_addr_range;
 `endif
+
+   // SoC Fabric
+   let bus <- mkAXI4Bus_Synth (routeFromMappingTable(route_vector),
+                               master_vector, slave_vector);
 
    // ----------------
    // Connect interrupt sources for CPU external interrupt request inputs.
@@ -238,7 +267,6 @@ module mkSoC_Top (SoC_Top_IFC);
 	 core.cpu_reset_server.request.put (running);
 	 mem0_controller.server_reset.request.put (?);
 	 uart0.server_reset.request.put (?);
-	 fabric.reset;
       endaction
    endfunction
 
@@ -249,13 +277,14 @@ module mkSoC_Top (SoC_Top_IFC);
 	 let uart0_rsp           <- uart0.server_reset.response.get;
 
 	 // Initialize address maps of slave IPs
-	 boot_rom.set_addr_map (soc_map.m_boot_rom_addr_base,
-				soc_map.m_boot_rom_addr_lim);
+	 boot_rom.set_addr_map (rangeBase(soc_map.m_boot_rom_addr_range),
+				rangeTop(soc_map.m_boot_rom_addr_range));
 
-	 mem0_controller.set_addr_map (soc_map.m_mem0_controller_addr_base,
-				       soc_map.m_mem0_controller_addr_lim);
+	 mem0_controller.set_addr_map (rangeBase(soc_map.m_mem0_controller_addr_range),
+				       rangeTop(soc_map.m_mem0_controller_addr_range));
 
-	 uart0.set_addr_map (soc_map.m_uart0_addr_base, soc_map.m_uart0_addr_lim);
+	 uart0.set_addr_map (rangeBase(soc_map.m_uart0_addr_range),
+                             rangeTop(soc_map.m_uart0_addr_range));
 
 `ifdef INCLUDE_ACCEL0
 	 accel0.init (fabric_default_id,
@@ -266,14 +295,14 @@ module mkSoC_Top (SoC_Top_IFC);
 	 if (verbosity != 0) begin
 	    $display ("  SoC address map:");
 	    $display ("  Boot ROM:        0x%0h .. 0x%0h",
-		      soc_map.m_boot_rom_addr_base,
-		      soc_map.m_boot_rom_addr_lim);
+		      rangeBase(soc_map.m_boot_rom_addr_range),
+		      rangeTop(soc_map.m_boot_rom_addr_range));
 	    $display ("  Mem0 Controller: 0x%0h .. 0x%0h",
-		      soc_map.m_mem0_controller_addr_base,
-		      soc_map.m_mem0_controller_addr_lim);
+		      rangeBase(soc_map.m_mem0_controller_addr_range),
+		      rangeTop(soc_map.m_mem0_controller_addr_range));
 	    $display ("  UART0:           0x%0h .. 0x%0h",
-		      soc_map.m_uart0_addr_base,
-		      soc_map.m_uart0_addr_lim);
+		      rangeBase(soc_map.m_uart0_addr_range),
+		      rangeTop(soc_map.m_uart0_addr_range));
 	 end
       endaction
    endfunction
@@ -376,7 +405,63 @@ module mkSoC_Top (SoC_Top_IFC);
       $display ("%0d:%m.rl_handle_external_req_err: unknown req.op", cur_cycle);
       $display ("    ", fshow (req));
    endrule
+
+   // ----------------------------------------------------------------
+   // NDM reset (all except Debug Module) request from debug module
+
+   rule rl_reset_start (rg_state != SOC_RESETTING);
+      let req <- core.dm_ndm_reset_req_get.get;
+
+      core.cpu_reset_server.request.put (?);
+      mem0_controller.server_reset.request.put (?);
+      uart0.server_reset.request.put (?);
+
+      boot_rom_axi4_deburster.clear;
+      mem0_controller_axi4_deburster.clear;
+
+      rg_state <= SOC_RESETTING;
+
+      $display ("%0d: SoC_Top.rl_reset_start (Debug Module NDM reset, all except debug module) ...",
+		cur_cycle);
+   endrule
 `endif
+
+   rule rl_reset_complete (rg_state == SOC_RESETTING);
+      let cpu_rsp             <- core.cpu_reset_server.response.get;
+      let mem0_controller_rsp <- mem0_controller.server_reset.response.get;
+      let uart0_rsp           <- uart0.server_reset.response.get;
+
+      // Initialize address maps of slave IPs
+      boot_rom.set_addr_map (rangeBase(soc_map.m_boot_rom_addr_range),
+			     rangeTop(soc_map.m_boot_rom_addr_range));
+
+      mem0_controller.set_addr_map (rangeBase(soc_map.m_mem0_controller_addr_range),
+				    rangeTop(soc_map.m_mem0_controller_addr_range));
+
+      uart0.set_addr_map (rangeBase(soc_map.m_uart0_addr_range),
+                          rangeTop(soc_map.m_uart0_addr_range));
+
+      rg_state <= SOC_IDLE;
+
+`ifdef INCLUDE_GDB_CONTROL
+      $display ("%0d: SoC_Top: NDM reset complete (all except debug module)", cur_cycle);
+`else
+      $display ("%0d: SoC_Top. Reset complete ...", cur_cycle);
+`endif
+
+      if (verbosity != 0) begin
+	 $display ("  SoC address map:");
+	 $display ("  Boot ROM:        0x%0h .. 0x%0h",
+		   rangeBase(soc_map.m_boot_rom_addr_range),
+		   rangeTop(soc_map.m_boot_rom_addr_range));
+	 $display ("  Mem0 Controller: 0x%0h .. 0x%0h",
+		   rangeBase(soc_map.m_mem0_controller_addr_range),
+		   rangeTop(soc_map.m_mem0_controller_addr_range));
+	 $display ("  UART0:           0x%0h .. 0x%0h",
+		   rangeBase(soc_map.m_uart0_addr_range),
+		   rangeTop(soc_map.m_uart0_addr_range));
+      end
+   endrule
 
    // ================================================================
    // INTERFACE
@@ -412,18 +497,6 @@ module mkSoC_Top (SoC_Top_IFC);
       mem0_controller.set_watch_tohost (watch_tohost, tohost_addr);
    endmethod
 endmodule: mkSoC_Top
-
-// ================================================================
-// Specialization of parameterized AXI4 Deburster for this SoC.
-
-(* synthesize *)
-module mkAXI4_Deburster_A (AXI4_Deburster_IFC #(Wd_Id,
-						Wd_Addr,
-						Wd_Data,
-						Wd_User));
-   let m <- mkAXI4_Deburster;
-   return m;
-endmodule
 
 // ================================================================
 

@@ -1,5 +1,18 @@
 // Copyright (c) 2017-2019 Bluespec, Inc. All Rights Reserved.
 
+//-
+// AXI (user fields) modifications:
+//     Copyright (c) 2019 Alexandre Joannou
+//     Copyright (c) 2019 Peter Rugg
+//     Copyright (c) 2019 Jonathan Woodruff
+//     All rights reserved.
+//
+//     This software was developed by SRI International and the University of
+//     Cambridge Computer Laboratory (Department of Computer Science and
+//     Technology) under DARPA contract HR0011-18-C-0016 ("ECATS"), as part of the
+//     DARPA SSITH research programme.
+//-
+
 package DM_System_Bus;
 
 // ================================================================
@@ -15,6 +28,8 @@ import FIFOF :: *;
 // Other library imports
 
 import Semi_FIFOF :: *;
+import SourceSink :: *;
+import AXI4       :: *;
 
 // ================================================================
 // Project Imports
@@ -22,7 +37,6 @@ import Semi_FIFOF :: *;
 import ISA_Decls :: *;
 import DM_Common :: *;
 
-import AXI4_Types  :: *;
 import Fabric_Defs :: *;
 
 // ================================================================
@@ -38,7 +52,9 @@ interface DM_System_Bus_IFC;
 
    // ----------------
    // Facing System
-   interface AXI4_Master_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User) master;
+   interface AXI4_Master_Synth #(Wd_MId_2x3, Wd_Addr, Wd_Data,
+                                 Wd_AW_User, Wd_W_User, Wd_B_User,
+                                 Wd_AR_User, Wd_R_User) master;
 endinterface
 
 // ================================================================
@@ -49,10 +65,10 @@ endinterface
 
 function AXI4_Size  fn_DM_sbaccess_to_AXI4_Size (DM_sbaccess sbaccess);
    AXI4_Size  axi4_size = case (sbaccess)
-			     DM_SBACCESS_8_BIT:  axsize_1;
-			     DM_SBACCESS_16_BIT: axsize_2;
-			     DM_SBACCESS_32_BIT: axsize_4;
-			     DM_SBACCESS_64_BIT: axsize_8;
+			     DM_SBACCESS_8_BIT:  1;
+			     DM_SBACCESS_16_BIT: 2;
+			     DM_SBACCESS_32_BIT: 4;
+			     DM_SBACCESS_64_BIT: 8;
 			  endcase;
    return axi4_size;
 endfunction
@@ -121,27 +137,27 @@ function Tuple4 #(Fabric_Addr,    // addr is 32b- or 64b-aligned
    Bit #(8)   strobe64    = 0;
    Bit #(3)   shift_bytes = addr [2:0];
    Bit #(6)   shift_bits  = { shift_bytes, 3'b0 };
-   AXI4_Size  axsize      = axsize_128;    // Will be updated in 'case' below
+   AXI4_Size  axsize      = 128;    // Will be updated in 'case' below
 
    case (sbaccess)
       DM_SBACCESS_8_BIT:  begin
 			     word64   = (word64 << shift_bits);
 			     strobe64 = ('b_1   << shift_bytes);
-			     axsize   = axsize_1;
+			     axsize   = 1;
 			  end
       DM_SBACCESS_16_BIT: begin
 			     word64   = (word64 << shift_bits);
 			     strobe64 = ('b_11  << shift_bytes);
-			     axsize   = axsize_2;
+			     axsize   = 2;
 			  end
       DM_SBACCESS_32_BIT: begin
 			     word64   = (word64  << shift_bits);
 			     strobe64 = ('b_1111 << shift_bytes);
-			     axsize   = axsize_4;
+			     axsize   = 4;
 			  end
       DM_SBACCESS_64_BIT: begin
 			     strobe64 = 'b_1111_1111;
-			     axsize   = axsize_8;
+			     axsize   = 8;
 			  end
    endcase
 
@@ -179,7 +195,10 @@ module mkDM_System_Bus (DM_System_Bus_IFC);
    // ----------------------------------------------------------------
 
    // Interface to memory fabric
-   AXI4_Master_Xactor_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User) master_xactor <- mkAXI4_Master_Xactor;
+   AXI4_Master_Xactor#(Wd_MId_2x3, Wd_Addr, Wd_Data,
+                       Wd_AW_User, Wd_W_User, Wd_B_User,
+                       Wd_AR_User, Wd_R_User)
+                       master_xactor <- mkAXI4_Master_Xactor;
 
    // ----------------------------------------------------------------
    // System Bus state
@@ -264,18 +283,18 @@ module mkDM_System_Bus (DM_System_Bus_IFC);
    function Action fa_fabric_send_read_req (Bit #(64)  addr64);
       action
 	 Fabric_Addr fabric_addr = truncate (addr64);
-	 let rda = AXI4_Rd_Addr {arid:     fabric_default_id,
-				 araddr:   fabric_addr,
-				 arlen:    0,                      // burst len = arlen+1
-				 arsize:   fn_DM_sbaccess_to_AXI4_Size (rg_sbcs_sbaccess),
-				 arburst:  fabric_default_burst,
-				 arlock:   fabric_default_lock,
-				 arcache:  fabric_default_arcache,
-				 arprot:   fabric_default_prot,
-				 arqos:    fabric_default_qos,
-				 arregion: fabric_default_region,
-				 aruser:   fabric_default_user};
-	 master_xactor.i_rd_addr.enq (rda);
+	 let rda = AXI4_ARFlit {arid:     fabric_2x3_default_mid,
+				araddr:   fabric_addr,
+				arlen:    0,                      // burst len = arlen+1
+				arsize:   fn_DM_sbaccess_to_AXI4_Size (rg_sbcs_sbaccess),
+				arburst:  fabric_default_burst,
+				arlock:   fabric_default_lock,
+				arcache:  fabric_default_arcache,
+				arprot:   fabric_default_prot,
+				arqos:    fabric_default_qos,
+				arregion: fabric_default_region,
+				aruser:   fabric_default_aruser};
+	 master_xactor.slave.ar.put(rda);
 
 	 // Save read-address for byte-lane extraction from later response
 	 // (since rg_sbaddress may be incremented by then).
@@ -305,24 +324,24 @@ module mkDM_System_Bus (DM_System_Bus_IFC);
 	 // fabric_strb identifies the lanes to be written
 	 // awsize is always the fabric width
 
-	 let wra = AXI4_Wr_Addr {awid:     fabric_default_id,
-				 awaddr:   fabric_addr,
-				 awlen:    0,                      // burst len = awlen+1
-				 awsize:   fabric_size,
-				 awburst:  fabric_default_burst,
-				 awlock:   fabric_default_lock,
-				 awcache:  fabric_default_awcache,
-				 awprot:   fabric_default_prot,
-				 awqos:    fabric_default_qos,
-				 awregion: fabric_default_region,
-				 awuser:   fabric_default_user};
-	 master_xactor.i_wr_addr.enq (wra);
+	 let wra = AXI4_AWFlit {awid:     fabric_2x3_default_mid,
+				awaddr:   fabric_addr,
+				awlen:    0,                      // burst len = awlen+1
+				awsize:   fabric_size,
+				awburst:  fabric_default_burst,
+				awlock:   fabric_default_lock,
+				awcache:  fabric_default_awcache,
+				awprot:   fabric_default_prot,
+				awqos:    fabric_default_qos,
+				awregion: fabric_default_region,
+				awuser:   fabric_default_awuser};
+	 master_xactor.slave.aw.put(wra);
 
-	 let wrd = AXI4_Wr_Data {wdata: fabric_data,
-				 wstrb: fabric_strb,
-				 wlast: True,
-				 wuser: fabric_default_user};
-	 master_xactor.i_wr_data.enq (wrd);
+	 let wrd = AXI4_WFlit {wdata: fabric_data,
+			       wstrb: fabric_strb,
+			       wlast: True,
+			       wuser: fabric_default_wuser};
+	 master_xactor.slave.w.put(wrd);
 
 	 if (verbosity != 0) begin
 	    $display ("    DM_System_Bus.fa_fabric_send_write_req:");
@@ -488,7 +507,7 @@ module mkDM_System_Bus (DM_System_Bus_IFC);
    (* descending_urgency = "rl_sb_read_finish, write" *)
    rule rl_sb_read_finish (   (rg_sb_state == SB_READ_FINISH)
 			   && (rg_sbcs_sberror == DM_SBERROR_NONE));
-      let rdr <- pop_o (master_xactor.o_rd_data);
+      let rdr <- get(master_xactor.slave.r);
       if (verbosity != 0)
 	 $display ("DM_System_Bus.rule_sb_read_finish: rdr = ", fshow (rdr));
 
@@ -496,7 +515,7 @@ module mkDM_System_Bus (DM_System_Bus_IFC);
       Bit #(64) rdata64 = zeroExtend (rdr.rdata);
       Bit #(64) data    = fn_extract_and_extend_bytes (rg_sbcs_sbaccess, rg_sbaddress_reading, rdata64);
 
-      if (rdr.rresp != axi4_resp_okay) begin
+      if (rdr.rresp != OKAY) begin
 	 $display ("DM_System_Bus.rule_sb_read_finish: setting rg_sbcs_sberror to DM_SBERROR_OTHER\n");
 	 $display ("    rdr = ", fshow (rdr));
 	 rg_sbcs_sberror <= DM_SBERROR_OTHER;
@@ -564,8 +583,8 @@ module mkDM_System_Bus (DM_System_Bus_IFC);
    // Consume write-responses
 
    rule rl_sb_write_response;
-      let wrr <- pop_o (master_xactor.o_wr_resp);
-      if (wrr.bresp != axi4_resp_okay)
+      let wrr <- get(master_xactor.slave.b);
+      if (wrr.bresp != OKAY)
 	 rg_sbcs_sberror <= DM_SBERROR_OTHER;
    endrule
 
@@ -654,7 +673,7 @@ module mkDM_System_Bus (DM_System_Bus_IFC);
 
    // ----------------
    // Facing System
-   interface AXI4_Master_IFC master = master_xactor.axi_side;
+   interface AXI4_Master_IFC master = master_xactor.masterSynth;
 endmodule
 
 // ================================================================
