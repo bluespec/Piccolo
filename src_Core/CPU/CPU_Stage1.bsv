@@ -217,7 +217,7 @@ module mkCPU_Stage1 #(Bit #(4)         verbosity,
 	 output_stage1.ostatus = OSTATUS_BUSY;
       end
 
-      // Trap on IMem exception
+      // Trap on fetch-exception
       else if (imem.exc) begin
 	 output_stage1.ostatus   = OSTATUS_NONPIPE;
 	 output_stage1.control   = CONTROL_TRAP;

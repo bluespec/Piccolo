@@ -695,9 +695,10 @@ module mkCPU (CPU_IFC);
       stage1.set_full (False);
       stage2.set_full (False);
 
-      // Accounting
-      csr_regfile.csr_minstret_incr;
+      // Accounting    TODO: should traps be counted as retired insrs?
+      // csr_regfile.csr_minstret_incr;
 
+      // Tandem Verification and Debug related actions
 `ifdef INCLUDE_TANDEM_VERIF
       // Trace Data
       let trace_data = rg_trap_trace_data;
