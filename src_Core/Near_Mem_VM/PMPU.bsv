@@ -213,23 +213,23 @@ module mkPMPU (PMPU_IFC);
       method WordXL pmpcfg_read   (Bit #(2) j);    // j = 0..3
 	 WordXL result = 0;
 
-	 if (xlen == 32) begin
-	    Bit #(4) k_init   = { j, 2'b0 };    // k_init = 0, 4, 8, 12
-	    for (Integer k = 0; k < 4; k = k + 1) begin
-	       Bit #(4) kk = k_init + fromInteger (k);
-	       Bit #(8) cfg_kk = ((kk <= fromInteger (num_pmp_regions-1)) ? vrg_pmpcfg [kk] : 0);
-	       result = { cfg_kk, result [31:8] };
-	    end
+`ifdef RV32
+         Bit #(4) k_init   = { j, 2'b0 };    // k_init = 0, 4, 8, 12
+	 for (Integer k = 0; k < 4; k = k + 1) begin
+	    Bit #(4) kk = k_init + fromInteger (k);
+	    Bit #(8) cfg_kk = ((kk <= fromInteger (num_pmp_regions-1)) ? vrg_pmpcfg [kk] : 0);
+	    result = { cfg_kk, result [31:8] };
 	 end
+`endif
 
-	 if (xlen == 64) begin
-	    Bit #(5) k_init   = { j, 3'b0 };    // k_init = 0, 8, 16, 24
-	    for (Integer k = 0; k < 8; k = k + 1) begin
-	       Bit #(5) kk = k_init + fromInteger (k);
-	       Bit #(8) cfg_kk = ((kk <= fromInteger (num_pmp_regions-1)) ? vrg_pmpcfg [kk] : 0);
-	       result = { cfg_kk, result [63:8] };
-	    end
+`ifdef RV64
+	 Bit #(5) k_init   = { j, 3'b0 };    // k_init = 0, 8, 16, 24
+	 for (Integer k = 0; k < 8; k = k + 1) begin
+	    Bit #(5) kk = k_init + fromInteger (k);
+	    Bit #(8) cfg_kk = ((kk <= fromInteger (num_pmp_regions-1)) ? vrg_pmpcfg [kk] : 0);
+	    result = { cfg_kk, result [63:8] };
 	 end
+`endif
 
 	 return result;
       endmethod
@@ -238,6 +238,7 @@ module mkPMPU (PMPU_IFC);
       method ActionValue #(WordXL) pmpcfg_write  (Bit #(2) j, WordXL x);    // j = 0..3
 	 WordXL result = x;
 
+`ifdef RV32
 	 if (xlen == 32) begin
 	    Bit #(4) k_init = { j, 2'b0 };    // k_init = 0, 4, 8, 12
 	    for (Integer k = 0; k < 4; k = k + 1) begin
@@ -248,7 +249,9 @@ module mkPMPU (PMPU_IFC);
 	       x = { 8'b0, x [31:8] };
 	    end
 	 end
+`endif
 
+`ifdef RV64
 	 if (xlen == 64) begin
 	    Bit #(5) k_init = { j, 3'b0 };    // k_init = 0, 8, 16, 24
 	    for (Integer k = 0; k < 8; k = k + 1) begin
@@ -259,6 +262,7 @@ module mkPMPU (PMPU_IFC);
 	       x = { 8'b0, x [63:8] };
 	    end
 	 end
+`endif
 
 	 return x;
       endmethod

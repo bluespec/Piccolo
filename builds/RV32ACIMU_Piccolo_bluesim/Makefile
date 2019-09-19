@@ -17,6 +17,7 @@ BSC_COMPILATION_FLAGS += \
 	-D SHIFT_BARREL    \
 	-D MULT_SYNTH    \
 	-D Near_Mem_Caches    \
+	-D INCLUDE_PMPS    \
 	-D FABRIC64    \
 
 
