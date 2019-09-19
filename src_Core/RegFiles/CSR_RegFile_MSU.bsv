@@ -330,9 +330,6 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
    Reg #(MCause)     rg_mcause   <- mkRegU;
    Reg #(Word)       rg_mtval    <- mkRegU;
 
-   // RegFile #(Bit #(2), WordXL)  rf_pmpcfg   <- mkRegFileFull;
-   // Vector #(16, Reg #(WordXL))  vrg_pmpaddr <- replicateM (mkRegU);
-
    // mcycle is needed even for user-mode RDCYCLE instruction
    // It can be updated by a CSR instruction (in Priv_M), and by the clock
    Reg #(Bit #(64))   rg_mcycle <- mkReg (0);
@@ -530,28 +527,29 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
 		     || (csr_addr == csr_addr_mtval)
 		     || (csr_addr == csr_addr_mip)
 
-		     // TODO: Phys Mem Protection regs
-		     // (csr_addr == csr_pmpcfg0)
-		     // (csr_addr == csr_pmpcfg1)
-		     // (csr_addr == csr_pmpcfg2)
-		     // (csr_addr == csr_pmpcfg3)
+`ifdef INCLUDE_PMPS
+		     || (csr_addr == csr_addr_pmpcfg0)
+		     || (csr_addr == csr_addr_pmpcfg1)
+		     || (csr_addr == csr_addr_pmpcfg2)
+		     || (csr_addr == csr_addr_pmpcfg3)
 
-		     // (csr_addr == csr_pmpaddr0)
-		     // (csr_addr == csr_pmpaddr1)
-		     // (csr_addr == csr_pmpaddr2)
-		     // (csr_addr == csr_pmpaddr3)
-		     // (csr_addr == csr_pmpaddr4)
-		     // (csr_addr == csr_pmpaddr5)
-		     // (csr_addr == csr_pmpaddr6)
-		     // (csr_addr == csr_pmpaddr7)
-		     // (csr_addr == csr_pmpaddr8)
-		     // (csr_addr == csr_pmpaddr9)
-		     // (csr_addr == csr_pmpaddr10)
-		     // (csr_addr == csr_pmpaddr11)
-		     // (csr_addr == csr_pmpaddr12)
-		     // (csr_addr == csr_pmpaddr13)
-		     // (csr_addr == csr_pmpaddr14)
-		     // (csr_addr == csr_pmpaddr15)
+		     || (csr_addr == csr_addr_pmpaddr0)
+		     || (csr_addr == csr_addr_pmpaddr1)
+		     || (csr_addr == csr_addr_pmpaddr2)
+		     || (csr_addr == csr_addr_pmpaddr3)
+		     || (csr_addr == csr_addr_pmpaddr4)
+		     || (csr_addr == csr_addr_pmpaddr5)
+		     || (csr_addr == csr_addr_pmpaddr6)
+		     || (csr_addr == csr_addr_pmpaddr7)
+		     || (csr_addr == csr_addr_pmpaddr8)
+		     || (csr_addr == csr_addr_pmpaddr9)
+		     || (csr_addr == csr_addr_pmpaddr10)
+		     || (csr_addr == csr_addr_pmpaddr11)
+		     || (csr_addr == csr_addr_pmpaddr12)
+		     || (csr_addr == csr_addr_pmpaddr13)
+		     || (csr_addr == csr_addr_pmpaddr14)
+		     || (csr_addr == csr_addr_pmpaddr15)
+`endif
 
 		     || (csr_addr == csr_addr_mcycle)
 		     || (csr_addr == csr_addr_minstret)
@@ -661,28 +659,7 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
 	    csr_addr_mtval:      m_csr_value = tagged Valid rg_mtval;
 	    csr_addr_mip:        m_csr_value = tagged Valid (csr_mip.fv_read);
 
-	    // TODO: Phys Mem Protection regs
-	    // csr_pmpcfg0:   m_csr_value = tagged Valid rf_pmpcfg.sub (0);
-	    // csr_pmpcfg1:   m_csr_value = tagged Valid rf_pmpcfg.sub (1);
-	    // csr_pmpcfg2:   m_csr_value = tagged Valid rf_pmpcfg.sub (2);
-	    // csr_pmpcfg3:   m_csr_value = tagged Valid rf_pmpcfg.sub (3);
-
-	    // csr_pmpaddr0:   m_csr_value = tagged Valid vrg_pmpaddr [0];
-	    // csr_pmpaddr1:   m_csr_value = tagged Valid vrg_pmpaddr [1];
-	    // csr_pmpaddr2:   m_csr_value = tagged Valid vrg_pmpaddr [2];
-	    // csr_pmpaddr3:   m_csr_value = tagged Valid vrg_pmpaddr [3];
-	    // csr_pmpaddr4:   m_csr_value = tagged Valid vrg_pmpaddr [4];
-	    // csr_pmpaddr5:   m_csr_value = tagged Valid vrg_pmpaddr [5];
-	    // csr_pmpaddr6:   m_csr_value = tagged Valid vrg_pmpaddr [6];
-	    // csr_pmpaddr7:   m_csr_value = tagged Valid vrg_pmpaddr [7];
-	    // csr_pmpaddr8:   m_csr_value = tagged Valid vrg_pmpaddr [8];
-	    // csr_pmpaddr9:   m_csr_value = tagged Valid vrg_pmpaddr [9];
-	    // csr_pmpaddr10:  m_csr_value = tagged Valid vrg_pmpaddr [10];
-	    // csr_pmpaddr11:  m_csr_value = tagged Valid vrg_pmpaddr [11];
-	    // csr_pmpaddr12:  m_csr_value = tagged Valid vrg_pmpaddr [12];
-	    // csr_pmpaddr13:  m_csr_value = tagged Valid vrg_pmpaddr [13];
-	    // csr_pmpaddr14:  m_csr_value = tagged Valid vrg_pmpaddr [14];
-	    // csr_pmpaddr15:  m_csr_value = tagged Valid vrg_pmpaddr [15];
+	    // Note: Phys Mem Protection CSRs (pmpcfg and pmpaddr) are done elsewhere
 
 	    csr_addr_mcycle:    m_csr_value = tagged Valid (truncate (rg_mcycle));
 	    csr_addr_minstret:  m_csr_value = tagged Valid (truncate (rg_minstret));
@@ -876,28 +853,7 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
 	       csr_addr_mip:        begin
 				       result <- csr_mip.fav_write (misa, wordxl);
 				    end
-	       // TODO: PMPs
-	       // csr_pmpcfg0:   rf_pmpcfg.upd (0, wordxl);
-	       // csr_pmpcfg1:   rf_pmpcfg.upd (1, wordxl);
-	       // csr_pmpcfg2:   rf_pmpcfg.upd (2, wordxl);
-	       // csr_pmpcfg3:   rf_pmpcfg.upd (3, wordxl);
-
-	       // csr_pmpaddr0:  vrg_pmpaddr [0] <= wordxl;
-	       // csr_pmpaddr1:  vrg_pmpaddr [1] <= wordxl;
-	       // csr_pmpaddr2:  vrg_pmpaddr [2] <= wordxl;
-	       // csr_pmpaddr3:  vrg_pmpaddr [3] <= wordxl;
-	       // csr_pmpaddr4:  vrg_pmpaddr [4] <= wordxl;
-	       // csr_pmpaddr5:  vrg_pmpaddr [5] <= wordxl;
-	       // csr_pmpaddr6:  vrg_pmpaddr [6] <= wordxl;
-	       // csr_pmpaddr7:  vrg_pmpaddr [7] <= wordxl;
-	       // csr_pmpaddr8:  vrg_pmpaddr [8] <= wordxl;
-	       // csr_pmpaddr9:  vrg_pmpaddr [9] <= wordxl;
-	       // csr_pmpaddr10: vrg_pmpaddr [10] <= wordxl;
-	       // csr_pmpaddr11: vrg_pmpaddr [11] <= wordxl;
-	       // csr_pmpaddr12: vrg_pmpaddr [12] <= wordxl;
-	       // csr_pmpaddr13: vrg_pmpaddr [13] <= wordxl;
-	       // csr_pmpaddr14: vrg_pmpaddr [14] <= wordxl;
-	       // csr_pmpaddr15: vrg_pmpaddr [15] <= wordxl;
+	       // Note: Phys Mem Protection CSRs (pmpcfg and pmpaddr) are done elsewhere
 
 `ifdef RV32
 	       csr_addr_mcycle:     begin

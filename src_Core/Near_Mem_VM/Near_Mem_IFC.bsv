@@ -33,8 +33,9 @@ import Cur_Cycle :: *;
 // ================================================================
 // Project imports
 
-import ISA_Decls       :: *;
+import ISA_Decls :: *;
 
+import PMPU_IFC    :: *;
 import AXI4_Types  :: *;
 import Fabric_Defs :: *;
 
@@ -71,6 +72,9 @@ interface Near_Mem_IFC;
 
    // SFENCE_VMA
    method Action sfence_vma;
+
+   // CSR reads and writes of PMPs
+   interface PMPU_CSR_IFC  pmp_csrs;
 endinterface
    
 // ================================================================

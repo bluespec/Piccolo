@@ -40,6 +40,7 @@ import GetPut_Aux :: *;
 import ISA_Decls    :: *;
 import Near_Mem_IFC :: *;
 import MMU_Cache    :: *;
+import PMPU_IFC     :: *;
 import AXI4_Types   :: *;
 import Fabric_Defs  :: *;
 
@@ -236,6 +237,42 @@ module mkNear_Mem (Near_Mem_IFC);
       icache.tlb_flush;
       dcache.tlb_flush;
    endmethod
+
+   // ----------------
+   // CSR reads and writes of PMPs
+   // Note: imem and dmem each have their own copy of PMP CSRs
+   //       These are maintained in sync (updated together).
+
+   interface PMPU_CSR_IFC  pmp_csrs;
+
+      // ----------------
+      method WordXL pmpcfg_read   (Bit #(2) j);    // j = 0..3
+	 // Arbtitrarily choose to get it from the copy in imem
+	 return icache.pmp_csrs.pmpcfg_read (j);
+      endmethod
+
+      // ----------------
+      method ActionValue #(WordXL) pmpcfg_write  (Bit #(2) j, WordXL x);    // j = 0..3
+	 // Update both copies in imem and dmem
+	 let y1 <- icache.pmp_csrs.pmpcfg_write (j, x);
+	 let y2 <- dcache.pmp_csrs.pmpcfg_write (j, x);
+	 return y1;
+      endmethod
+
+      // ----------------
+      method WordXL pmpaddr_read  (Bit #(4) j);    // j = 0..15
+	 // Arbtitrarily choose to get it from the copy in imem
+	 return icache.pmp_csrs.pmpaddr_read (j);
+      endmethod
+
+      // ----------------
+      method ActionValue #(WordXL) pmpaddr_write (Bit #(4) j, WordXL addr);    // j = 0..15
+	 // Update both copies in imem and dmem
+	 let y1 <- icache.pmp_csrs.pmpaddr_write (j, addr);
+	 let y2 <- dcache.pmp_csrs.pmpaddr_write (j, addr);
+	 return y1;
+      endmethod
+   endinterface
 endmodule
 
 // ================================================================
