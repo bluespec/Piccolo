@@ -40,7 +40,7 @@ interface PMPU_IFC;
    method Bit #(5) m_num_pmp_regions;    // 0..16
 
    // Access permitted?
-   method ActionValue #(Bool) permitted (WordXL      phys_addr,
+   method ActionValue #(Bool) permitted (PA          phys_addr,
 					 MemReqSize  req_size,
 					 Priv_Mode   priv,
 					 Access_RWX  rwx);

@@ -10,6 +10,20 @@ package PMPU_Config;
 //      Section 3.6.1
 
 // ================================================================
+// BSV library imports
+
+// none
+
+// BSV additional libs
+
+// none
+
+// ================================================================
+// Project imports
+
+import ISA_Decls   :: *;
+
+// ================================================================
 // Configuration constants: edit these as desired.
 
 // ----------------
@@ -43,7 +57,9 @@ Integer num_pmp_regions = valueOf (Num_PMP_Regions);
 
 // "In general, the PMP grain is 2^{G+2} bytes and must be the same across all regions"
 
-typedef  18  PMP_G;    // PMP region granularity is 2^{G+2}
+// Largest grain size is 2^{XLEN+3}, hence largest G is XLEN+1
+
+typedef  TAdd #(XLEN,1)  PMP_G;    // PMP region granularity is 2^{G+2}
 
 Integer pmp_G = valueOf (PMP_G);
 

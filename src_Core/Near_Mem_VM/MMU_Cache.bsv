@@ -413,8 +413,8 @@ endfunction
 function Reg #(t) fn_genNullRegIfc (t x) provisos (Literal#(t));
    return (
       interface Reg;
-         method _read = 0;
-         method _write (x) = noAction;
+         method _read = x;
+         method _write (y) = noAction;
       endinterface
    );
 endfunction
@@ -490,7 +490,7 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 `else
    // VM-SYNTH-OPT
    // Dummy registers in non-VM mode
-   Priv_Mode x = ?;
+   Priv_Mode x = m_Priv_Mode;
    Reg #(Priv_Mode)  rg_priv        = fn_genNullRegIfc (x);
 
    Bit #(1) y = ?;
@@ -1947,9 +1947,9 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 		       WordXL     satp);    // { VM_Mode, ASID, PPN_for_page_table }
 
       if (cfg_verbosity > 1) begin
-	 $display ("%0d: %s.req: op:", cur_cycle, d_or_i, fshow (op),
-		   " f3:%0d addr:0x%0h st_value:0x%0h priv:",
-		   f3,    addr,      st_value,      fshow_Priv_Mode (priv),
+	 $display ("%0d: %m.req: op:", cur_cycle, fshow (op),
+		   " f3:%0d addr:0x%0h st_value:0x%0h", f3, addr, st_value);
+	 $display ("    priv:", fshow_Priv_Mode (priv),
 		   " sstatus_SUM:%0d mstatus_MXR:%0d satp:0x%0h",
 		   sstatus_SUM,    mstatus_MXR,    satp);
 `ifdef ISA_A
