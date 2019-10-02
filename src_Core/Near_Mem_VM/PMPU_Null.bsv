@@ -43,7 +43,7 @@ module mkPMPU (PMPU_IFC);
 
    messageM ("INFO: mkPMPU is a null module (no PMPs)");
 
-   // ----------------
+   // ----------------------------------------------------------------
    // Reset requests and responses
    FIFOF #(Token) f_reset_reqs <- mkFIFOF;
    FIFOF #(Token) f_reset_rsps <- mkFIFOF;

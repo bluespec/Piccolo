@@ -529,9 +529,9 @@ module mkCSR_RegFile (CSR_RegFile_IFC);
 
 `ifdef INCLUDE_PMPS
 		     || (csr_addr == csr_addr_pmpcfg0)
-		     || (csr_addr == csr_addr_pmpcfg1)
+		     || ((csr_addr == csr_addr_pmpcfg1) && (xlen == 32))
 		     || (csr_addr == csr_addr_pmpcfg2)
-		     || (csr_addr == csr_addr_pmpcfg3)
+		     || ((csr_addr == csr_addr_pmpcfg3) && (xlen == 32))
 
 		     || (csr_addr == csr_addr_pmpaddr0)
 		     || (csr_addr == csr_addr_pmpaddr1)

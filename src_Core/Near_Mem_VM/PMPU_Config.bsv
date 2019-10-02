@@ -59,7 +59,7 @@ Integer num_pmp_regions = valueOf (Num_PMP_Regions);
 
 // Largest grain size is 2^{XLEN+3}, hence largest G is XLEN+1
 
-typedef  TAdd #(XLEN,1)  PMP_G;    // PMP region granularity is 2^{G+2}
+typedef  0  PMP_G;    // PMP region granularity is 2^{G+2}
 
 Integer pmp_G = valueOf (PMP_G);
 
