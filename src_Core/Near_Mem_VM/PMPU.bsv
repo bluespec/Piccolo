@@ -112,7 +112,9 @@ deriving (Eq, Bits, FShow);
 (* synthesize *)
 module mkPMPU (PMPU_IFC);
 
-   Integer verbosity = 1;    // For debugging only
+   messageM ("INFO: PMPU.bsv: compiling with PMPs");
+
+   Integer verbosity = 0;    // For debugging only
 
    // ----------------
    // Reset requests and responses
@@ -123,10 +125,15 @@ module mkPMPU (PMPU_IFC);
    // We keep pmpcfg regs in separate registers, combining them into
    // their CSR packed form as needed during CSR reads and writes.
 
-   messageM ("INFO: PMPU.bsv: compiling with PMPs");
    Vector #(Num_PMP_Regions, Reg #(Bit #(8)))   vrg_pmpcfg  <- replicateM (mkReg (0));
 
    Vector #(Num_PMP_Regions, Reg #(Bit #(64)))  vrg_pmpaddr <- replicateM (mkRegU);
+
+   // We pre-compute address masks for NAPOT whenever the CSR is
+   // updated, to avoid lengthening the critical path of memory
+   // access by doing it during address checks.
+
+   Vector #(Num_PMP_Regions, Reg #(Bit #(64)))  vrg_NAPOT_mask <- replicateM (mkRegU);
 
    // ----------------------------------------------------------------
    // For debugging only
@@ -149,8 +156,9 @@ module mkPMPU (PMPU_IFC);
 	 end
 `endif
 
-	 for (Integer k = 0; k < num_pmp_regions; k = k + 1)
-	    $display ("    pmpaddr [%0d] = 0x%08h", k, vrg_pmpaddr [k]);
+	 for (Integer j = 0; j < num_pmp_regions; j = j + 1)
+	    $display ("    pmpaddr [%0d] = 0x%0h  NAPOT_mask = 0x%0h",
+		      j, vrg_pmpaddr [j], vrg_NAPOT_mask [j]);
       endaction
    endfunction
 
@@ -158,8 +166,8 @@ module mkPMPU (PMPU_IFC);
    // Check if addrs in the range lo..hi inclusive match PMP j
 
    function ActionValue #(PMP_Match) fav_addr_match (Integer     j,
-						     Bit #(64)   addr_lo,
-						     Bit #(64)   addr_hi,
+						     Bit #(64)   addr_base,
+						     Bit #(64)   addr_lim,
 						     Priv_Mode   priv,
 						     Access_RWX  rwx);
       actionvalue
@@ -173,21 +181,21 @@ module mkPMPU (PMPU_IFC);
 	 let  pmpaddr_prev = ((j == 0) ? 0 : vrg_pmpaddr [j-1]);
 	 let  pmpaddr      = vrg_pmpaddr [j];
 
-	 let  region_lo    = (  (cfg_A == pmpcfg_A_TOR)
+	 let  region_base  = (  (cfg_A == pmpcfg_A_TOR)
 			      ? (pmpaddr_prev & pmpaddr_mask_G)
-			      : (pmpaddr      & pmpaddr_mask_G)) << 2;
-	 let  region_hi    = (  (cfg_A == pmpcfg_A_TOR)
+			      : (pmpaddr      & (~ (vrg_NAPOT_mask [j])))) << 2;
+	 let  region_lim   = (  (cfg_A == pmpcfg_A_TOR)
 			      ? (((pmpaddr & pmpaddr_mask_G) << 2) - 1)
-			      : (((pmpaddr | (~ pmpaddr_mask_G)) << 2) | 'h3));
+			      : (((pmpaddr | vrg_NAPOT_mask [j]) << 2) | 'h3));
 	 if (verbosity != 0)
-	    $display ("    fav_addr_match [%0d]  cfg 0x%0h  cfg_A %0d  region_lo 0x%0h  region_hi 0x%0h",
-		      j, cfg, cfg_A, region_lo, region_hi);
+	    $display ("    fav_addr_match [%0d]  cfg 0x%0h  cfg_A %0d  region_base 0x%0h  region_lim 0x%0h",
+		      j, cfg, cfg_A, region_base, region_lim);
 
 	 // Do any bytes of the access lie in the pmp region?
-	 Bool addr_overlap  = ! ((addr_hi < region_lo) || (region_hi < addr_lo));
+	 Bool addr_overlap  = ! ((addr_lim < region_base) || (region_lim < addr_base));
 
 	 // Do all bytes of the access lie in the pmp region?
-	 Bool addr_in_range = ((region_lo <= addr_lo) && (addr_hi <= region_hi));
+	 Bool addr_in_range = ((region_base <= addr_base) && (addr_lim <= region_lim));
 
 	 if (verbosity != 0)
 	    $display ("        addr_overlap = %0d  addr_in_range = %0d",  addr_overlap, addr_in_range);
@@ -223,13 +231,13 @@ module mkPMPU (PMPU_IFC);
 				    : ((req_size == f3_SIZE_H) ? 2
 				       : ((req_size == f3_SIZE_W) ? 4
 					  : 8)));
-	 Bit #(64) addr_lo = zeroExtend (phys_addr);
-	 Bit #(64) addr_hi = addr_lo + zeroExtend (req_size_bytes - 1);
+	 Bit #(64) addr_base = zeroExtend (phys_addr);
+	 Bit #(64) addr_lim  = addr_base + zeroExtend (req_size_bytes - 1);
 
 	 // Scan match results sequentially for first match-succeed or match-fail, if any.
 	 PMP_Match pmp_match = PMP_MATCH_NULL;
 	 for (Integer j = 0; j < num_pmp_regions; j = j + 1) begin
-	    PMP_Match match_j <- fav_addr_match (j, addr_lo, addr_hi, priv, rwx);
+	    PMP_Match match_j <- fav_addr_match (j, addr_base, addr_lim, priv, rwx);
 	    if ((pmp_match == PMP_MATCH_NULL) && (match_j != PMP_MATCH_NULL))
 	       pmp_match = match_j;
 	 end
@@ -258,11 +266,12 @@ module mkPMPU (PMPU_IFC);
 
       // Set PMP 0 (if it exists) to NAPOT, full memory
       if (num_pmp_regions != 0) begin
-	 vrg_pmpcfg [0] <= (  (zeroExtend (pmpcfg_A_NAPOT) << pmpcfg_A_bitpos)
-			    | (1              << pmpcfg_X_bitpos)
-			    | (1              << pmpcfg_W_bitpos)
-			    | (1              << pmpcfg_R_bitpos));
-	 vrg_pmpaddr [0] <= '1;
+	 vrg_pmpcfg [0]     <= (  (zeroExtend (pmpcfg_A_NAPOT) << pmpcfg_A_bitpos)
+				| (1              << pmpcfg_X_bitpos)
+				| (1              << pmpcfg_W_bitpos)
+				| (1              << pmpcfg_R_bitpos));
+	 vrg_pmpaddr [0]    <= '1;
+	 vrg_NAPOT_mask [0] <= '1;
       end
 
       // Switch off all remaining PMPs
@@ -270,9 +279,9 @@ module mkPMPU (PMPU_IFC);
 	 vrg_pmpcfg [j] <= (zeroExtend (pmpcfg_A_OFF) << pmpcfg_A_bitpos);
 	 
       f_reset_rsps.enq (tok);
-      // if (verbosity != 0)
-	 $display ("%0d: %m.rl_reset: PMPU has %0d regions with granularity G=%0d",
-		   cur_cycle, num_pmp_regions, pmp_G);
+
+      $display ("%0d: %m.rl_reset: PMPU has %0d regions with granularity parameter G=%0d (0x%0h bytes)",
+		cur_cycle, num_pmp_regions, pmp_G, (2 ** (pmp_G + 2)));
    endrule
 
    // ----------------------------------------------------------------
@@ -345,8 +354,12 @@ module mkPMPU (PMPU_IFC);
 	 for (Integer k = 0; k < 4; k = k + 1) begin
 	    Bit #(4) kk = k_init + fromInteger (k);
 	    if (kk <= fromInteger (num_pmp_regions - 1))
-	       if (fn_pmpcfg_L (vrg_pmpcfg [kk]) == 1'b0)    // is not locked
-		  vrg_pmpcfg [kk] <= x [7:0];
+	       if (fn_pmpcfg_L (vrg_pmpcfg [kk]) == 1'b0) begin    // is not locked
+		  Bit #(8) cfg = x [7:0];
+		  if ((pmp_G >= 1) && (fn_pmpcfg_A (cfg)== pmpcfg_A_NA4))
+		     cfg = (cfg | (zeroExtend (pmpcfg_A_NAPOT) << pmpcfg_A_bitpos));
+		  vrg_pmpcfg [kk] <= cfg;
+	       end
 	    x = { 8'b0, x [31:8] };
 	 end
 `elsif RV64
@@ -356,8 +369,12 @@ module mkPMPU (PMPU_IFC);
 	 for (Integer k = 0; k < 8; k = k + 1) begin
 	    Bit #(4) kk = k_init + fromInteger (k);
 	    if (kk <= fromInteger (num_pmp_regions - 1))
-	       if (fn_pmpcfg_L (vrg_pmpcfg [kk]) == 1'b0)    // is not locked
-		  vrg_pmpcfg [kk] <= x [7:0];
+	       if (fn_pmpcfg_L (vrg_pmpcfg [kk]) == 1'b0) begin   // is not locked
+		  Bit #(8) cfg = x [7:0];
+		  if ((pmp_G >= 1) && (fn_pmpcfg_A (cfg)== pmpcfg_A_NA4))
+		     cfg = (cfg | (zeroExtend (pmpcfg_A_NAPOT) << pmpcfg_A_bitpos));
+		  vrg_pmpcfg [kk] <= cfg;
+	       end
 	    x = { 8'b0, x [63:8] };
 	 end
 `endif
@@ -402,7 +419,9 @@ module mkPMPU (PMPU_IFC);
 		  $display ("    Ignoring: locked = %0d, is_locked_TOR_base = %0d", locked, is_locked_TOR_base);
 	    end
 	    else begin
-	       vrg_pmpaddr [j] <= zeroExtend (addr4);
+	       Bit #(64) x = zeroExtend (addr4);
+	       vrg_pmpaddr    [j] <= x;
+	       vrg_NAPOT_mask [j] <= (((x + 1) ^ x) | (~ pmpaddr_mask_G));
 	       result = addr4;
 	    end
 	 end
