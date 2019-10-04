@@ -493,7 +493,7 @@ module mkCPU (CPU_IFC);
 
    // Stage 1 contains an architectural (not mis-predicted) instruction
    Bool stage1_has_arch_instr = (   (stage1.out.ostatus == OSTATUS_PIPE)
-			         || (stage1.out.ostatus == OSTATUS_NONPIPE));
+				 || (stage1.out.ostatus == OSTATUS_NONPIPE));
 
    // Debugger stop and step should only happen on architectural instructions
 `ifdef INCLUDE_GDB_CONTROL
@@ -530,8 +530,8 @@ module mkCPU (CPU_IFC);
       action
 `ifdef INCLUDE_GDB_CONTROL
 	 if (   stage1_has_arch_instr
-	    && csr_regfile.read_dcsr_step
-	    && (rg_step_count == 0)) begin
+	     && csr_regfile.read_dcsr_step
+	     && (rg_step_count == 0)) begin
 
 	    rg_step_count <= 1;
 	 end
