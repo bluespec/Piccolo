@@ -155,6 +155,8 @@ module mkCPU (CPU_IFC);
    // Current verbosity, taking into account log delay
    Bit #(4)  cur_verbosity = ((minstret < cfg_logdelay) ? 0 : cfg_verbosity);
 
+   Reg #(Bool) rg_retiring <- mkReg (False);
+
    // ----------------
    // Major CPU states
    Reg #(CPU_State)  rg_state    <- mkReg (CPU_RESET1);
@@ -425,6 +427,8 @@ module mkCPU (CPU_IFC);
       rg_step_count <= 0;
 `endif
 
+      rg_retiring <= True;
+
 `ifdef INCLUDE_TANDEM_VERIF
       let trace_data = mkTrace_RESET;
       f_trace_data.enq (trace_data);
@@ -596,6 +600,8 @@ module mkCPU (CPU_IFC);
 	 stage3.enq (stage2.out.data_to_stage3);  stage3_full = True;
 	 stage2.deq;                              stage2_full = False;
 
+	 rg_retiring <= True;
+
 `ifdef INCLUDE_TANDEM_VERIF
 	 // To Verifier
 	 let trace_data = stage2.out.trace_data;
@@ -736,6 +742,8 @@ module mkCPU (CPU_IFC);
       // Accounting    TODO: should traps be counted as retired insrs?
       // csr_regfile.csr_minstret_incr;
 
+      rg_retiring <= True;
+
       // Tandem Verification and Debug related actions
 `ifdef INCLUDE_TANDEM_VERIF
       // Trace data
@@ -866,6 +874,8 @@ module mkCPU (CPU_IFC);
 	 // Restart the pipe
 	 rg_state <= CPU_CSRRX_RESTART;
 
+	 rg_retiring <= True;
+
 `ifdef INCLUDE_TANDEM_VERIF
 	 // Trace data
 	 let trace_data = rg_trap_trace_data;
@@ -983,6 +993,8 @@ module mkCPU (CPU_IFC);
 	 // Restart the pipe
 	 rg_state <= CPU_CSRRX_RESTART;
 
+	 rg_retiring <= True;
+
 `ifdef INCLUDE_TANDEM_VERIF
 	 // Trace data
 	 let trace_data = rg_trap_trace_data;
@@ -1066,6 +1078,8 @@ module mkCPU (CPU_IFC);
       // Accounting
       csr_regfile.csr_minstret_incr;
 
+      rg_retiring <= True;
+
 `ifdef INCLUDE_TANDEM_VERIF
       // Trace data
       let td  = stage1.out.data_to_stage2.trace_data;
@@ -1097,6 +1111,8 @@ module mkCPU (CPU_IFC);
 
       // Accounting
       csr_regfile.csr_minstret_incr;
+
+      rg_retiring <= True;
 
 `ifdef INCLUDE_TANDEM_VERIF
       // Trace data
@@ -1154,6 +1170,8 @@ module mkCPU (CPU_IFC);
 
       // Accounting
       csr_regfile.csr_minstret_incr;
+
+      rg_retiring <= True;
 
 `ifdef INCLUDE_TANDEM_VERIF
       // Trace data
@@ -1221,6 +1239,8 @@ module mkCPU (CPU_IFC);
       // Accounting
       csr_regfile.csr_minstret_incr;
 
+      rg_retiring <= True;
+
 `ifdef INCLUDE_TANDEM_VERIF
       // Trace data
       let trace_data = stage1.out.data_to_stage2.trace_data;
@@ -1274,6 +1294,8 @@ module mkCPU (CPU_IFC);
 
       // Accounting
       csr_regfile.csr_minstret_incr;
+
+      rg_retiring <= True;
 
 `ifdef INCLUDE_TANDEM_VERIF
       // Trace data
