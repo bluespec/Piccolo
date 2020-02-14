@@ -83,7 +83,7 @@ interface P1_Core_IFC;
    // packed output tuples (n,vb),/ where 'vb' is a vector of
    // bytes with relevant bytes in locations [0]..[n-1]
 
-      interface AXI4_Stream_Master_IFC #(Wd_SId, Wd_SDest, Wd_SData, Wd_SUser)  tv_verifier_info_tx;
+   interface AXI4_Stream_Master_IFC #(Wd_SId, Wd_SDest, Wd_SData, Wd_SUser)  tv_verifier_info_tx;
 `endif
 
 `ifdef INCLUDE_GDB_CONTROL
