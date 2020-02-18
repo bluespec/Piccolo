@@ -1281,7 +1281,7 @@ module mkCPU (CPU_IFC);
       rg_state <= CPU_RUNNING;
 
       fa_start_ifetch (rg_next_pc, rg_cur_priv, mstatus_MXR, sstatus_SUM);
-      stage1.set_full (True);    fa_step_check;
+      stage1.set_full (True);
    endrule: rl_WFI_resume
 
    // ----------------
