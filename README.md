@@ -253,3 +253,41 @@ that simulator as usual:
         $ make compile simulator test isa_tests
 
 ----------------------------------------------------------------
+### Compilation issue re. version of C compiler used
+
+When you compile for Bluesim, after building the executable, you may
+see a dynamic-linker error like this:
+
+        $ ./exe_HW_sim
+        Error: dlopen: ./exe_HW_sim.so: undefined symbol: _Z27dollar_test_dollar_plusargsP9tSimStatePKcPKSs
+            invoked from within
+        "sim load $model_name $top_module"
+            invoked from within
+        "if {$wait} {
+        sim load $model_name $top_module wait
+        } else {
+        sim load $model_name $top_module
+        }"
+            (file "/home/nikhil/NoBak/Bluespec-2019.05.beta2-debian9stretch-amd64/lib/tcllib/bluespec/bluesim.tcl" line 176)
+
+This is due to an incompatibility between the C compiler version used in the released libraries of bsc vs. the C compiler you used to create the Bluesim executable.  C compilers changed their ABI recently.
+
+Here's how to fix it.  In the file
+
+        Piccolo/builds/Resources/Include_bluesim.mk/Include_bluesim.mk
+
+there is a section:
+
+        BSC_C_FLAGS += \
+            -Xc++  -D_GLIBCXX_USE_CXX11_ABI=0 \
+            -Xl -v \
+            -Xc -O3 -Xc++ -O3 \
+
+Please comment out or remove the ABI line:
+
+        BSC_C_FLAGS += \
+            -Xl -v \
+            -Xc -O3 -Xc++ -O3 \
+
+Then, please rebuild from scratch ('make full_clean', then 'make
+compile simulator').  It should now work.
