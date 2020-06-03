@@ -1,4 +1,4 @@
-// Copyright (c) 2013-2019 Bluespec, Inc. All Rights Reserved
+// Copyright (c) 2013-2020 Bluespec, Inc. All Rights Reserved
 
 // ================================================================
 // Definition of Tandem Verifier Packets.
@@ -57,7 +57,7 @@ typedef struct {
    Bit #(64)  word3;    // Wider than WordXL because can contain paddr (in RV32, paddr can be 34 bits)
    WordXL     word4;
 `ifdef ISA_F
-   WordFL     word5;
+   Bit #(64)  word5;    // In order to accomodate RV64 MSTATUS in ISA_F system
 `endif
    } Trace_Data
 deriving (Bits);
@@ -155,7 +155,11 @@ function Trace_Data mkTrace_F_FRD (WordXL pc, ISize isize, Bit #(32) instr, RegN
    td.rd       = rd;
    td.word2    = extend (fflags);
    td.word4    = mstatus;
+`ifdef ISA_D
    td.word5    = rdval;
+`else
+   td.word5    = extend (rdval);
+`endif
    return td;
 endfunction
 
@@ -219,7 +223,11 @@ function Trace_Data mkTrace_F_LOAD (WordXL pc, ISize isize, Bit #(32) instr, Reg
    td.rd       = rd;
    td.word3    = zeroExtend (eaddr);
    td.word4    = mstatus;
+`ifdef ISA_D
    td.word5    = rdval;
+`else
+   td.word5    = extend (rdval);
+`endif
    return td;
 endfunction
 
@@ -233,13 +241,17 @@ function Trace_Data mkTrace_F_STORE (WordXL pc, Bit #(3) funct3, ISize isize, Bi
    td.instr_sz = isize;
    td.instr    = instr;
    td.word3    = zeroExtend (eaddr);
+`ifdef ISA_D
    td.word5    = stval;
+`else
+   td.word5    = extend (stval);
+`endif
    return td;
 endfunction
 
-function Trace_Data fv_trace_update_mstatus_fs (Trace_Data td, Bit #(2) fs);
+function Trace_Data fv_trace_update_mstatus_fs (Trace_Data td, WordXL new_mstatus);
    let ntd = td;
-   ntd.word4 = fv_assign_bits (td.word4, fromInteger (mstatus_fs_bitpos), fs);
+   ntd.word4 = new_mstatus;
    return (ntd);
 endfunction
 
@@ -301,10 +313,14 @@ function Trace_Data mkTrace_RET (WordXL pc, ISize isize, Bit #(32) instr, Priv_M
 endfunction
 
 // CSRRX
-// op    pc    instr_sz    instr    rd    word1    word2    word3    word4
-// x     x     x           x        x     rdval    csrvalid csraddr  csrval
+// op    pc    instr_sz    instr    rd    word1    word2              word3    word4   word5
+// x     x     x           x        x     rdval    [1] mstatus_valid  csraddr  csrval  mstatus
+//                                                 [0] csrvalid
 function Trace_Data mkTrace_CSRRX (WordXL pc, ISize isize, Bit #(32) instr,
-				   RegName rd, WordXL rdval, Bool csrvalid, CSR_Addr csraddr, WordXL csrval);
+				   RegName rd, WordXL rdval,
+				   Bool csrvalid, CSR_Addr csraddr, WordXL csrval,
+				   Bool   mstatus_valid,
+				   WordXL mstatus);
    Trace_Data td = ?;
    td.op       = TRACE_CSRRX;
    td.pc       = pc;
@@ -312,9 +328,16 @@ function Trace_Data mkTrace_CSRRX (WordXL pc, ISize isize, Bit #(32) instr,
    td.instr    = instr;
    td.rd       = rd;
    td.word1    = rdval;
-   td.word2    = (csrvalid ? 1 : 0);
+   td.word2    = ((mstatus_valid ? 2 : 0) | (csrvalid ? 1 : 0));
    td.word3    = zeroExtend (csraddr);
    td.word4    = csrval;
+`ifdef ISA_F
+`ifdef RV32
+   td.word5    = extend (mstatus);
+`else
+   td.word5    = mstatus;
+`endif
+`endif
    return td;
 endfunction
 

@@ -219,7 +219,7 @@ module mkCPU_Stage1 #(Bit #(4)         verbosity,
 	 output_stage1.ostatus = OSTATUS_BUSY;
       end
 
-      // Stall if bypass pending for rs1 or rs2
+      // Stall if bypass pending for GPR rs1 or rs2
       else if (rs1_busy || rs2_busy) begin
 	 output_stage1.ostatus = OSTATUS_BUSY;
       end

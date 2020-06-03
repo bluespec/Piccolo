@@ -67,7 +67,7 @@ endfunction
 // ----------------
 // 32b version
 
-function Tuple3 #(Bool,                // 
+function Tuple3 #(Bool,                // err: misaligned, or bad data_width
 		  Bit #(4),            // strobe
 		  Bit #(32))           // lane-adjusted data
          fn_lane_adjust_32b (Bit #(32) addr, Bit #(3) dw, Bit #(32) data);
@@ -125,12 +125,12 @@ function Tuple3 #(Bool,                // err: misaligned, or bad data_width
 	    3'b110: begin strobe = 'b_1100_0000; data = (data << 48); end
 	    default: err = True;
 	 endcase
-      3: case (addr [2:0])
+      4: case (addr [2:0])
 	    3'b000: begin strobe = 'b_0000_1111;                      end
 	    3'b100: begin strobe = 'b_1111_0000; data = (data << 32); end
 	    default: err = True;
 	 endcase
-      4: case (addr [2:0])
+      8: case (addr [2:0])
 	    3'b000: begin strobe = 'b_1111_1111; end
 	    default: err = True;
 	 endcase

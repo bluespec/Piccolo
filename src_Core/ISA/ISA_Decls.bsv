@@ -1,4 +1,4 @@
-// Copyright (c) 2013-2019 Bluespec, Inc. All Rights Reserved
+// Copyright (c) 2013-2020 Bluespec, Inc. All Rights Reserved
 
 // ================================================================
 // ISA defs for UC Berkeley RISC V
@@ -107,13 +107,15 @@ endfunction
 // FLEN and related constants, for floating point data
 // Can have one or two fpu sizes (should they be merged sooner than later ?).
 
-// Cannot define ISA_D unless ISA_F is also defined
+// ISA_D => ISA_F (ISA_D implies ISA_F)
+// The combination ISA_D and !ISA_F is not permitted
+
 // ISA_F - 32 bit FPU
 // ISA_D - 64 bit FPU
 
 `ifdef ISA_F
 
-`ifdef ISA_D   // ISA_D precludes ISA_F
+`ifdef ISA_D
 typedef 64 FLEN;
 Bool hasFpu32 = False;
 Bool hasFpu64 = True;
@@ -131,12 +133,6 @@ typedef  TLog #(Bytes_per_WordFL)              Bits_per_Byte_in_WordFL;
 typedef  Bit #(Bits_per_Byte_in_WordFL)        Byte_in_WordFL;
 typedef  Vector #(Bytes_per_WordFL, Byte)      WordFL_B;
 
-`endif
-
-`ifdef ISA_F
-`ifdef ISA_D
-`define ISA_F_AND_D
-`endif
 `endif
 
 // ================================================================
@@ -360,6 +356,14 @@ RegName reg_s6   = 22; RegName reg_s7  = 23; RegName reg_s8 = 24; RegName reg_s9
 RegName reg_s10  = 26; RegName reg_s11 = 27;
 
 RegName reg_t3   = 28; RegName reg_t4  = 29; RegName reg_t5 = 30; RegName reg_t6 = 31;
+
+// ----------------
+// Is 'r' a standard register for PC save/restore on call/return?
+// This function is used in branch-predictors for managing the return-address stack.
+
+function Bool fn_reg_is_link (RegName  r);
+   return ((r == x1) || (r == x5));
+endfunction
 
 // ================================================================
 // Kinds of memory access (excluding AMOs)
@@ -836,8 +840,10 @@ function Bool fv_is_fp_instr_legal (
       if (    (f7 == f7_FADD_S)  
           ||  (f7 == f7_FSUB_S)  
           ||  (f7 == f7_FMUL_S)  
-`ifdef ISA_FD_DIV
+`ifdef INCLUDE_FDIV
           ||  (f7 == f7_FDIV_S)  
+`endif
+`ifdef INCLUDE_FSQRT
           ||  (f7 == f7_FSQRT_S) 
 `endif
           || ((f7 == f7_FSGNJ_S)  && ( rm == 0))
@@ -867,8 +873,10 @@ function Bool fv_is_fp_instr_legal (
           ||  (f7 == f7_FADD_D)  
           ||  (f7 == f7_FSUB_D)  
           ||  (f7 == f7_FMUL_D)  
-`ifdef ISA_FD_DIV
+`ifdef INCLUDE_FDIV
           ||  (f7 == f7_FDIV_D)  
+`endif
+`ifdef INCLUDE_FSQRT
           ||  (f7 == f7_FSQRT_D) 
 `endif
           || ((f7 == f7_FSGNJ_D)  && ( rm == 0))
