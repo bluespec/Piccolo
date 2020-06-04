@@ -224,6 +224,13 @@ module mkCPU_Stage1 #(Bit #(4)         verbosity,
 	 output_stage1.ostatus = OSTATUS_BUSY;
       end
 
+`ifdef ISA_F
+      // Stall if bypass pending for FPR rs1, rs2 or rs3
+      else if (frs1_busy || frs2_busy || frs3_busy) begin
+	 output_stage1.ostatus = OSTATUS_BUSY;
+      end
+`endif
+
       // Trap on fetch-exception
       else if (imem.exc) begin
 	 output_stage1.ostatus   = OSTATUS_NONPIPE;

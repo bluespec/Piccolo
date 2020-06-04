@@ -120,12 +120,10 @@ module mkCPU_Stage3 #(Bit #(4)         verbosity,
 `ifdef ISA_F
       let fbypass = fbypass_base;
       if (rg_stage3.rd_in_fpr) begin
-         bypass.bypass_state = BYPASS_RD_NONE;
          fbypass.bypass_state = (rg_full && rg_stage3.rd_valid) ? BYPASS_RD_RDVAL
                                                                 : BYPASS_RD_NONE;
       end
       else begin
-         fbypass.bypass_state = BYPASS_RD_NONE;
          bypass.bypass_state = (rg_full && rg_stage3.rd_valid) ? BYPASS_RD_RDVAL
                                                                : BYPASS_RD_NONE;
       end

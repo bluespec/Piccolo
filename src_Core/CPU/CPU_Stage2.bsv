@@ -287,8 +287,21 @@ module mkCPU_Stage2 #(Bit #(4)         verbosity,
 		  // (the bypassing is effectively delayed until the next stage).
 		  fbypass.bypass_state = BYPASS_RD;
                end
-`endif
 
+               // Bypassing GPR values
+               else if (rg_stage2.rd != 0) begin    // TODO: is this test necessary?
+		  // Choose one of the following two options
+
+		  // Option 1: longer critical path, since the data is bypassed back into previous stage.
+		  // We use data_to_stage3.rd_val since nanboxing has been done.
+		  // bypass.bypass_state = ((ostatus == OSTATUS_PIPE) ? BYPASS_RD_RDVAL : BYPASS_RD);
+		  // bypass.rd_val       = result;
+
+		  // Option 2: shorter critical path, since the data is not bypassed into previous stage,
+		  // (the bypassing is effectively delayed until the next stage).
+		  bypass.bypass_state = BYPASS_RD;
+	       end
+`else
                // Bypassing GPR values
                if (rg_stage2.rd != 0) begin    // TODO: is this test necessary?
 		  // Choose one of the following two options
@@ -302,6 +315,7 @@ module mkCPU_Stage2 #(Bit #(4)         verbosity,
 		  // (the bypassing is effectively delayed until the next stage).
 		  bypass.bypass_state = BYPASS_RD;
 	       end
+`endif
 	    end
 
 `ifdef INCLUDE_TANDEM_VERIF
