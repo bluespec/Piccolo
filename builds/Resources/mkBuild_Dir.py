@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-# Copyright (c) 2018-2019 Bluespec, Inc.
+# Copyright (c) 2018-2020 Bluespec, Inc.
 # See LICENSE for license details
 
 # ================================================================
@@ -244,14 +244,16 @@ def make_build_dir (repo, repobase, arch, sim, debug, tv):
         arch_flags = arch_flags + "  -D ISA_A"
         arch_flags = arch_flags + "  -D ISA_F"
         arch_flags = arch_flags + "  -D ISA_D"
-        arch_flags = arch_flags + "  -D ISA_FD_DIV"
+        arch_flags = arch_flags + "  -D INCLUDE_FDIV"
+        arch_flags = arch_flags + "  -D INCLUDE_FSQRT"
     else:
         if ("I" in arch): arch_flags = arch_flags + "  -D ISA_I"
         if ("M" in arch): arch_flags = arch_flags + "  -D ISA_M"
         if ("A" in arch): arch_flags = arch_flags + "  -D ISA_A"
         if ("F" in arch): arch_flags = arch_flags + "  -D ISA_F"
         if ("D" in arch): arch_flags = arch_flags + "  -D ISA_D"
-        if (("F" in arch) or ("D" in arch)): arch_flags = arch_flags + "  -D ISA_FD_DIV"
+        if (("F" in arch) or ("D" in arch)): arch_flags = arch_flags + "  -D INCLUDE_FDIV"
+        if (("F" in arch) or ("D" in arch)): arch_flags = arch_flags + "  -D INCLUDE_FSQRT"
     if ("C" in arch): arch_flags = arch_flags + "  -D ISA_C"
     fo.write ("\t{0}  \\\n".format (arch_flags.lstrip()))
 
@@ -270,6 +272,9 @@ def make_build_dir (repo, repobase, arch, sim, debug, tv):
 
     # Bluespec HW implementation choice for fabric data width
     fo.write ("\t-D FABRIC64    \\\n")
+
+    # Bluespec testing: observe writes to <tohost> and terminate when non-zero
+    fo.write ("\t-D WATCH_TOHOST    \\\n")
 
     # Support for RISC-V Debug Module
     if (debug != ""):

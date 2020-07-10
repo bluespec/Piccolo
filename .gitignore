@@ -10,6 +10,7 @@ Mem.hex
 exe*
 *.log
 Tests/Logs
+log_*.txt
 *_edited.v
 *.trace_mem_load
 AA_*
