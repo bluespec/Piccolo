@@ -277,6 +277,7 @@ endinstance
 // - Shifter Box request (SLL/SLLI, SRL/SRLI, SRA/SRAI)
 // - MBox request (integer multiply/divide)
 // - FDBox request (floating point ops)
+// - Accelerator request (custom opcode)
 
 typedef enum {  OP_Stage2_ALU         // Pass-through (non mem, M, FD, AMO)
 	      , OP_Stage2_LD
@@ -296,6 +297,11 @@ typedef enum {  OP_Stage2_ALU         // Pass-through (non mem, M, FD, AMO)
 
 `ifdef ISA_F
 	      , OP_Stage2_FD
+`endif
+
+`ifdef ISA_X
+	      , OP_Stage2_X0
+	      , OP_Stage2_X1
 `endif
    } Op_Stage2
 deriving (Eq, Bits, FShow);

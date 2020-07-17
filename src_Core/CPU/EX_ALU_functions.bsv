@@ -95,6 +95,10 @@ typedef struct {
    WordXL     val2;           // Branch: branch target (for Tandem Verification)
 		              // OP_Stage2_ST: store-val
                               // OP_Stage2_M: arg2
+`ifdef ISA_X
+   Bool       no_rd_upd;      // Custom opcode does not update a rd
+`endif
+
 `ifdef ISA_F
    WordFL     fval1;          // OP_Stage2_FD: arg1
    WordFL     fval2;          // OP_Stage2_FD: arg2
@@ -127,6 +131,9 @@ ALU_Outputs alu_outputs_base
 	       addr        : ?,
 	       val1        : ?,
 	       val2        : ?,
+`ifdef ISA_X
+               no_rd_upd   : ?,
+`endif
 `ifdef ISA_F
 	       fval1       : ?,
 	       fval2       : ?,
@@ -1013,6 +1020,56 @@ function ALU_Outputs fv_FP (ALU_Inputs inputs);
 endfunction
 `endif
 
+
+// ----------------------------------------------------------------
+// CUSTOM Ops
+// Just pass through to the TCA
+
+`ifdef ISA_X
+function ALU_Outputs fv_X (ALU_Inputs inputs);
+   let opcode = inputs.decoded_instr.opcode;
+   let funct3 = inputs.decoded_instr.funct3;
+   let funct7 = inputs.decoded_instr.funct7;
+   let rs2    = inputs.decoded_instr.rs2;
+
+   // Check instruction legality
+   // Is the instruction legal. If MSTATUS.XS = fs_xs_off, custom instructions
+   // are always illegal. For now this is the only check applicable.
+   let inst_is_legal = ( !(fv_mstatus_xs (inputs.mstatus) == fs_xs_off));
+
+   let alu_outputs         = alu_outputs_base;
+   alu_outputs.control     = inst_is_legal ? CONTROL_STRAIGHT : CONTROL_TRAP;
+
+   // The two custom opcodes direct to two different accelerators.
+   // These are treated as independent stage2 functional units
+   alu_outputs.op_stage2   = (opcode == op_CUSTOM0) ? OP_Stage2_X0 : OP_Stage2_X1;
+
+   alu_outputs.rd          = inputs.decoded_instr.rd;
+
+   // Operand values
+   // Just copy the rs*_val values from inputs to outputs -- the
+   // accelerator (for now) only works with GPR data
+   alu_outputs.val1     = inputs.rs1_val;
+   alu_outputs.val2     = inputs.rs2_val;
+
+   alu_outputs.no_rd_upd = fv_does_custom_upd_rd (funct3);
+
+`ifdef INCLUDE_TANDEM_VERIF
+   // Normal trace output (if no trap)
+   // XXX Revisit. Will not work for cases where the accelerator
+   // updates memory. Will only work for cases where the rd is
+   // updated. Accelerator will require a new Trace packet
+   // constructor.
+   alu_outputs.trace_data = mkTrace_I_RD  (fall_through_pc (inputs),
+                                           fv_trace_isize (inputs),
+                                           fv_trace_instr (inputs),
+                                           inputs.decoded_instr.rd,
+                                           rd_val);
+`endif
+   return alu_outputs;
+endfunction
+`endif
+
 // ----------------------------------------------------------------
 // AMO
 // Just pass through to the memory stage
@@ -1176,6 +1233,12 @@ function ALU_Outputs fv_ALU (ALU_Inputs inputs);
             || (inputs.decoded_instr.opcode == op_FNMSUB)
             || (inputs.decoded_instr.opcode == op_FNMADD))
       alu_outputs = fv_FP (inputs);
+`endif
+
+`ifdef ISA_X
+   else if (   (inputs.decoded_instr.opcode == op_CUSTOM0) 
+            || (inputs.decoded_instr.opcode == op_CUSTOM1))
+      alu_outputs = fv_X (inputs);
 `endif
 
    else begin

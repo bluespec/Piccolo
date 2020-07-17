@@ -294,6 +294,11 @@ Bit #(2) fs_xs_initial  = 2'h1;
 Bit #(2) fs_xs_clean    = 2'h2;
 Bit #(2) fs_xs_dirty    = 2'h3;
 
+// Extract MSTATUS.XS field
+function Bit #(2) fv_mstatus_xs (WordXL mstatus);
+   return (fv_get_bits (mstatus, fromInteger (mstatus_xs_bitpos)));
+endfunction
+
 // Extract MSTATUS.FS field
 function Bit #(2) fv_mstatus_fs (WordXL mstatus);
    return (fv_get_bits (mstatus, fromInteger (mstatus_fs_bitpos)));

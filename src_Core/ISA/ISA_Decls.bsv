@@ -936,6 +936,21 @@ function Bool fv_fp_val1_from_gpr (Opcode opcode, Bit#(7) f7, RegName rs2);
 endfunction
 `endif
 
+`ifdef ISA_X
+// ================================================================
+// Custom instructions for tightly coupled accelerators
+// Sub-opcodes are left to the acelerator's implementation
+Opcode op_CUSTOM0 = 7'b00_010_11;
+Opcode op_CUSTOM1 = 7'b01_010_11;
+
+// Check if the custom op will update a destination register. This
+// is controlled by the xd bit (bit 2) of the f3 field.
+function Bool fv_does_X_upd_rd (Bit #(3) f3);
+   return (f3[2] == 1'b1);
+endfunction
+
+`endif
+
 // ================================================================
 // System Instructions
 Opcode op_SYSTEM = 7'b11_100_11;
