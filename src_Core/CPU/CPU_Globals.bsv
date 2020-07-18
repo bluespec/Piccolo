@@ -321,6 +321,10 @@ typedef struct {
    WordXL     val2;              // OP_Stage2_ST: store-val;
                                  // OP_Stage2_M and OP_Stage2_FD: arg2
 
+`ifdef ISA_X
+   Bool       no_rd_upd;         // This (custom) instrn does not update a rd
+`endif
+
 `ifdef ISA_F
    // Floating point fields
    WordFL     fval1;             // OP_Stage2_FD: arg1
@@ -340,14 +344,22 @@ deriving (Bits);
 
 instance FShow #(Data_Stage1_to_Stage2);
    function Fmt fshow (Data_Stage1_to_Stage2 x);
-      Fmt fmt =   $format ("data_to_Stage 2 {pc:%h  instr:%h  priv:%0d\n", x.pc, x.instr, x.priv);
-      fmt = fmt + $format ("            op_stage2:", fshow (x.op_stage2), "  rd:%0d\n", x.rd);
-      fmt = fmt + $format ("            addr:%h  val1:%h  val2:%h}",
-			   x.addr, x.val1, x.val2);
+      Fmt fmt =   $format (  "data_to_Stage 2 {pc:%h  instr:%h  priv:%0d\n"
+                           , x.pc, x.instr, x.priv);
+`ifdef ISA_X
+      fmt = fmt + $format (  "            op_stage2:", fshow (x.op_stage2)
+                           , "  rd:%0d\n", x.rd
+                           , "  no_rd_upd:", fshow (x.no_rd_upd));
+`else
+      fmt = fmt + $format (  "            op_stage2:", fshow (x.op_stage2)
+                           , "  rd:%0d\n", x.rd);
+`endif
+      fmt = fmt + $format (  "            addr:%h  val1:%h  val2:%h}"
+                           , x.addr, x.val1, x.val2);
 `ifdef ISA_F
       fmt = fmt + $format ("\n");
-      fmt = fmt + $format ("            fval1:%h  fval2:%h  fval3:%h}",
-			   x.fval1, x.fval2, x.fval3);
+      fmt = fmt + $format (  "            fval1:%h  fval2:%h  fval3:%h}"
+			   , x.fval1, x.fval2, x.fval3);
 `endif
       return fmt;
    endfunction
@@ -400,6 +412,10 @@ typedef struct {
    RegName   rd;
    WordXL    rd_val;
 
+`ifdef ISA_X
+   Bool      no_rd_upd;
+`endif
+
 `ifdef ISA_F
    Bool      upd_flags;
    Bool      rd_in_fpr;
@@ -418,6 +434,9 @@ instance FShow #(Data_Stage2_to_Stage3);
       Fmt fmt =   $format ("data_to_Stage3 {pc:%h  instr:%h  priv:%0d\n", x.pc, x.instr, x.priv);
       fmt = fmt + $format ("        rd_valid:", fshow (x.rd_valid));
 
+`ifdef ISA_X
+      fmt = fmt + $format ("        no_rd_upd:", fshow (x.no_rd_upd));
+`endif
 `ifdef ISA_F
       if (x.upd_flags)
          fmt = fmt + $format ("  fflags: %05b", fshow (x.fpr_flags));

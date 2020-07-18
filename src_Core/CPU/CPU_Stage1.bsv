@@ -189,6 +189,9 @@ module mkCPU_Stage1 #(Bit #(4)         verbosity,
 					       addr          : alu_outputs.addr,
 					       val1          : alu_outputs.val1,
 					       val2          : alu_outputs.val2,
+`ifdef ISA_X
+					       no_rd_upd     : alu_outputs.no_rd_upd,
+`endif
 `ifdef ISA_F
 					       fval1         : alu_outputs.fval1,
 					       fval2         : alu_outputs.fval2,

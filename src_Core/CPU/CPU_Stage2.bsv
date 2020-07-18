@@ -89,9 +89,14 @@ endinterface
 // ================================================================
 // Implementation module
 
-module mkCPU_Stage2 #(Bit #(4)         verbosity,
-		      CSR_RegFile_IFC  csr_regfile,    // for SATP and SSTATUS: TODO carry in Data_Stage1_to_Stage2
-		      DMem_IFC         dcache)
+module mkCPU_Stage2 #(  Bit #(4)         verbosity
+                      // for SATP and SSTATUS: TODO carry in Data_Stage1_to_Stage2
+		      , CSR_RegFile_IFC  csr_regfile
+		      , DMem_IFC         dcache
+`ifdef ISA_X
+                      , Near_Accel_IFC   abox
+`endif
+                     )
                     (CPU_Stage2_IFC);
 
    FIFOF #(Token) f_reset_reqs <- mkFIFOF;
@@ -143,6 +148,9 @@ module mkCPU_Stage2 #(Bit #(4)         verbosity,
       , rd_valid:   False
       , rd:         rg_stage2.rd
       , rd_val:     rg_stage2.val1
+`ifdef ISA_X
+      , no_rd_upd:  False
+`endif
 `ifdef ISA_F
       , rd_in_fpr:  False
       , upd_flags:  False
@@ -164,6 +172,13 @@ module mkCPU_Stage2 #(Bit #(4)         verbosity,
 				    exc_code: exc_code_ILLEGAL_INSTRUCTION,
 				    tval:     0 };
 `endif
+
+`ifdef ISA_X
+   let  trap_info_abox = Trap_Info {epc:      rg_stage2.pc,
+				    exc_code: abox.exc_code,
+				    tval:     0 };
+`endif
+
 
    // ----------------------------------------------------------------
    // BEHAVIOR
@@ -492,13 +507,44 @@ module mkCPU_Stage2 #(Bit #(4)         verbosity,
 					trap_info       : trap_info_fbox,
 					data_to_stage3  : data_to_stage3,
 					bypass          : bypass
-`ifdef ISA_F
 					, fbypass       : fbypass
-`endif
          };
       end
 `endif
+`ifdef ISA_X
+      // This stage is doing a custom op. Custom ops are handled
+      // by the Near_Accel box which sits at the CPU level. It is
+      // analogous to the Near_Mem.
+      else if (rg_stage2.op_stage2 == OP_Stage2_X) begin
+	 let ostatus = ((! abox.valid) ? OSTATUS_BUSY : OSTATUS_PIPE);
+         let ostatus = (  (! abox.valid)
+                        ? (OSTATUS_BUSY)
+                        : (abox.exc ? OSTATUS_NONPIPE : OSTATUS_PIPE));
 
+	 WordXL result = truncate (abox.word64);
+	 let data_to_stage3 = data_to_stage3_base;
+	 data_to_stage3.rd_valid = (ostatus == OSTATUS_PIPE);
+
+         // Writebacks to rd=0 are ignored. This assumption holds
+         // only for GPR writeback. If, in the future, the abox
+         // results are to be written to the FPR, no_rd_upd would
+         // have to be sent to stage3.
+         data_to_stage3.rd = rg_stage2.no_rd_upd ? 0 : rg_stage2.rd;
+	 data_to_stage3.rd_val = result;
+
+         // Bypass values
+	 let bypass = bypass_base;
+	 if (ostatus != OSTATUS_NONPIPE) bypass.bypass_state = BYPASS_RD;
+         output_stage2 = Output_Stage2 {ostatus         : ostatus,
+                                        trap_info       : trap_info_abox,
+                                        data_to_stage3  : data_to_stage3,
+                                        bypass          : bypass
+`ifdef ISA_F
+                                        , fbypass       : no_bypass
+`endif
+                                        };
+      end
+`endif
       return output_stage2;
    endfunction
 
@@ -603,6 +649,15 @@ module mkCPU_Stage2 #(Bit #(4)         verbosity,
 		      val1,
 		      extend (x.fval2),
 		      extend (x.fval3));
+         end
+`endif
+`ifdef ISA_X
+	 else if (x.op_stage2 == OP_Stage2_X) begin
+            let opcode = instr_opcode (x.instr);
+	    let funct7 = instr_funct7 (x.instr);
+	    let funct3 = instr_funct3 (x.instr);
+
+	    abox.req (opcode, funct7, funct3, x.val1, x.val2);
          end
 `endif
       endaction
