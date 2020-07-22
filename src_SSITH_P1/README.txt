@@ -1,3 +1,13 @@
+The feature-ndmreset branch:
+This incorporates some changes to the reset arrangements.
+o  There is a "completion of bitstream loading" Reset (aka power-on reset
+"por"), which is used to reset the debug module.
+o  P1_Core exports a Reset ndm_reset, stimulated by the ndm reset client of
+the debug module, and asserted for a parameterizable number of cycles.  (It is
+expected that this will be used to reset all or most of the surrounding SoC.)
+o  A little consequential plumbing.
+
+>================================================================
 Copyright (c) 2019 Bluespec, Inc.  All Rights Reserved.
 
 This directory is intended for DARPA SSITH users; others may safely ignore it.
