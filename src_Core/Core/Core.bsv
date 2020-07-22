@@ -74,7 +74,7 @@ import TV_Taps :: *;
 // The Core module
 
 (* synthesize *)
-module mkCore (Core_IFC #(N_External_Interrupt_Sources));
+module mkCore #(Reset por_reset) (Core_IFC #(N_External_Interrupt_Sources));
 
    // ================================================================
    // STATE
@@ -107,7 +107,7 @@ module mkCore (Core_IFC #(N_External_Interrupt_Sources));
 
 `ifdef INCLUDE_GDB_CONTROL
    // Debug Module
-   Debug_Module_IFC  debug_module <- mkDebug_Module;
+   Debug_Module_IFC  debug_module <- mkDebug_Module (reset_by por_reset);
 `endif
 
    // ================================================================
