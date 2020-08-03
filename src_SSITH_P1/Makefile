@@ -31,7 +31,7 @@ BSC_COMPILATION_FLAGS += \
 	-D FABRIC64    \
 	-D INCLUDE_GDB_CONTROL \
 	-D JTAG_TAP \
-	-D XILINX_BSCAN  -D XILINX_XCVU9P \
+	-D XILINX_BSCAN -D XILINX_XC7K325T \
 
 # ================================================================
 # Search path for bsc for .bsv files
