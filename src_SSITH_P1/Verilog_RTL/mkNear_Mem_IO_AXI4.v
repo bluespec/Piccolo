@@ -448,6 +448,7 @@ module mkNear_Mem_IO_AXI4(CLK,
   reg [31 : 0] v__h9462;
   reg [31 : 0] v__h9572;
   reg [31 : 0] v__h9679;
+  reg [31 : 0] v__h10044;
   reg [31 : 0] v__h1846;
   reg [31 : 0] v__h2089;
   reg [31 : 0] v__h2263;
@@ -461,7 +462,6 @@ module mkNear_Mem_IO_AXI4(CLK,
   reg [31 : 0] v__h9456;
   reg [31 : 0] v__h9566;
   reg [31 : 0] v__h9673;
-  reg [31 : 0] v__h10044;
   reg [31 : 0] v__h10176;
   // synopsys translate_on
 
