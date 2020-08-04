@@ -925,17 +925,13 @@ module mkDM_System_Bus(CLK,
 	     { master_rid, master_rdata, master_rresp, master_rlast } ;
   assign master_xactor_f_rd_data$ENQ =
 	     master_rvalid && master_xactor_f_rd_data$FULL_N ;
-  assign master_xactor_f_rd_data$DEQ =
-	     master_xactor_f_rd_data$EMPTY_N && rg_sb_state == 2'd1 &&
-	     rg_sbcs_sberror == 3'd0 ;
+  assign master_xactor_f_rd_data$DEQ = CAN_FIRE_RL_rl_sb_read_finish ;
   assign master_xactor_f_rd_data$CLR = 1'b0 ;
 
   // submodule master_xactor_f_wr_addr
   assign master_xactor_f_wr_addr$D_IN =
 	     { 4'd0, sbaddress__h638, 8'd0, x__h4263, 18'd65536 } ;
-  assign master_xactor_f_wr_addr$ENQ =
-	     EN_write &&
-	     write_dm_addr_EQ_0x3C_60_AND_rg_sb_state_EQ_0__ETC___d322 ;
+  assign master_xactor_f_wr_addr$ENQ = MUX_rg_sbdata0$write_1__SEL_3 ;
   assign master_xactor_f_wr_addr$DEQ =
 	     master_xactor_f_wr_addr$EMPTY_N && master_awready ;
   assign master_xactor_f_wr_addr$CLR = 1'b0 ;
@@ -943,9 +939,7 @@ module mkDM_System_Bus(CLK,
   // submodule master_xactor_f_wr_data
   assign master_xactor_f_wr_data$D_IN =
 	     { wrd_wdata__h4358, wrd_wstrb__h4359, 1'd1 } ;
-  assign master_xactor_f_wr_data$ENQ =
-	     EN_write &&
-	     write_dm_addr_EQ_0x3C_60_AND_rg_sb_state_EQ_0__ETC___d322 ;
+  assign master_xactor_f_wr_data$ENQ = MUX_rg_sbdata0$write_1__SEL_3 ;
   assign master_xactor_f_wr_data$DEQ =
 	     master_xactor_f_wr_data$EMPTY_N && master_wready ;
   assign master_xactor_f_wr_data$CLR = 1'b0 ;
