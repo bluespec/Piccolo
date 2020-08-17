@@ -800,15 +800,16 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 	 ctr_wr_rsps_pending.clear;
       end
 
-      $display ("%0d: %s: cache size %0d KB, associativity %0d, line size %0d bytes (= %0d XLEN words)",
-		cur_cycle, d_or_i, kb_per_cache, ways_per_cset,
-		(word64s_per_cline * 8),
+      if (cfg_verbosity != 0)
+         $display ("%0d: %s: cache size %0d KB, associativity %0d, line size %0d bytes (= %0d XLEN words)",
+                   cur_cycle, d_or_i, kb_per_cache, ways_per_cset,
+                   (word64s_per_cline * 8),
 `ifdef RV32
-		(word64s_per_cline * 2)
+                   (word64s_per_cline * 2)
 `else
-		(word64s_per_cline * 1)
+                   (word64s_per_cline * 1)
 `endif
-		);
+                   );
    endrule
 
    // This rule loops over csets, setting state of each cline in the set to EMPTY

@@ -409,14 +409,16 @@ module mkCPU (CPU_IFC);
       let run_on_reset <- pop (f_reset_reqs);
       rg_run_on_reset <= run_on_reset;
 
-      $display ("================================================================");
-      $write   ("CPU: Bluespec  RISC-V  Piccolo  v3.0");
-      if (rv_version == RV32)
-	 $display (" (RV32)");
-      else
-	 $display (" (RV64)");
-      $display ("Copyright (c) 2016-2020 Bluespec, Inc. All Rights Reserved.");
-      $display ("================================================================");
+      if (cfg_verbosity != 0) begin
+         $display ("================================================================");
+         $write   ("CPU: Bluespec  RISC-V  Piccolo  v3.0");
+         if (rv_version == RV32)
+            $display (" (RV32)");
+         else
+            $display (" (RV64)");
+         $display ("Copyright (c) 2016-2020 Bluespec, Inc. All Rights Reserved.");
+         $display ("================================================================");
+      end
 
       gpr_regfile.server_reset.request.put (?);
 `ifdef ISA_F
@@ -475,7 +477,8 @@ module mkCPU (CPU_IFC);
       f_reset_rsps.enq (rg_run_on_reset);
 
       if (rg_run_on_reset) begin
-	 $display ("%0d: %m.rl_reset_complete: restart at PC = 0x%0h", mcycle, dpc);
+         if (cfg_verbosity != 0)
+            $display ("%0d: %m.rl_reset_complete: restart at PC = 0x%0h", mcycle, dpc);
 	 fa_restart (dpc);
       end
       else begin
@@ -484,7 +487,8 @@ module mkCPU (CPU_IFC);
 	 csr_regfile.write_dcsr_cause_priv (DCSR_CAUSE_HALTREQ, m_Priv_Mode);
 	 csr_regfile.write_dpc (dpc);
 `endif
-	 $display ("%0d: %m.rl_reset_complete: entering DEBUG_MODE", mcycle);
+         if (cfg_verbosity != 0)
+            $display ("%0d: %m.rl_reset_complete: entering DEBUG_MODE", mcycle);
       end
    endrule: rl_reset_complete
 
