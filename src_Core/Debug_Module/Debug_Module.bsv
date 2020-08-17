@@ -141,7 +141,8 @@ module mkDebug_Module (Debug_Module_IFC);
    // Reset all three parts when dm_run_control.dmactive is low
 
    rule rl_reset (! dm_run_control.dmactive);
-      $display ("%0d: Debug_Module reset", cur_cycle);
+      if (verbosity != 0)
+         $display ("%0d: Debug_Module reset", cur_cycle);
       dm_run_control.reset;
       dm_abstract_commands.reset;
       dm_system_bus.reset;
