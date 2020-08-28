@@ -154,7 +154,8 @@ module mkCPU (CPU_IFC);
 
    // Take imem as is from near_mem, or use wrapper for 'C' extension
 `ifdef ISA_C
-   IMem_IFC imem <- mkCPU_Fetch_C (near_mem.imem);
+   IMem_C_IFC imem_c <- mkCPU_Fetch_C (near_mem.imem);
+   IMem_IFC imem = imem_c.imem;
 `else
    IMem_IFC imem = near_mem.imem;
 `endif
@@ -424,6 +425,9 @@ module mkCPU (CPU_IFC);
 `endif
       csr_regfile.server_reset.request.put (?);
       near_mem.server_reset.request.put (?);
+`ifdef ISA_C
+      imem_c.reset_request.put (?);
+`endif
 
       stage1.server_reset.request.put (?);
       stage2.server_reset.request.put (?);
@@ -452,10 +456,10 @@ module mkCPU (CPU_IFC);
 
 `ifdef ISA_C
    // TODO: analyze this carefully; added to resolve a blockage.
-   // imem_rl_fetch_next_32b is in CPU_Fetch_C.bsv, and calls imem32.req (near_mem.imem_req).
+   // imem_c_rl_fetch_next_32b is in CPU_Fetch_C.bsv, and calls imem32.req (near_mem.imem_req).
    // fa_restart calls stageF.enq which also calls imem.req which calls imem32.req.
    // But cond_i32_odd_fetch_next should make these rules mutually exclusive; why doesn't bsc realize this?
-   (* descending_urgency = "imem_rl_fetch_next_32b, rl_reset_complete" *)
+   (* descending_urgency = "imem_c_rl_fetch_next_32b, rl_reset_complete" *)
 `endif
 
    rule rl_reset_complete (rg_state == CPU_RESET2);
@@ -582,10 +586,10 @@ module mkCPU (CPU_IFC);
 
 `ifdef ISA_C
    // TODO: analyze this carefully; added to resolve a blockage
-   // imem_rl_fetch_next_32b is in CPU_Fetch_C.bsv, and calls imem32.req (near_mem.imem_req).
+   // imem_c_rl_fetch_next_32b is in CPU_Fetch_C.bsv, and calls imem32.req (near_mem.imem_req).
    // fa_restart calls stageF.enq which also calls imem.req which calls imem32.req.
    // But cond_i32_odd_fetch_next should make these rules mutually exclusive; why doesn't bsc realize this?
-   (* descending_urgency = "imem_rl_fetch_next_32b, rl_pipe" *)
+   (* descending_urgency = "imem_c_rl_fetch_next_32b, rl_pipe" *)
 `endif
 
    rule rl_pipe (   (rg_state == CPU_RUNNING)
@@ -1186,10 +1190,10 @@ module mkCPU (CPU_IFC);
 
 `ifdef ISA_C
    // TODO: analyze this carefully; added to resolve a blockage
-   // imem_rl_fetch_next_32b is in CPU_Fetch_C.bsv, and calls imem32.req (near_mem.imem_req).
+   // imem_c_rl_fetch_next_32b is in CPU_Fetch_C.bsv, and calls imem32.req (near_mem.imem_req).
    // fa_restart calls stageF.enq which also calls imem.req which calls imem32.req.
    // But cond_i32_odd_fetch_next should make these rules mutually exclusive; why doesn't bsc realize this?
-   (* descending_urgency = "imem_rl_fetch_next_32b, rl_stage1_SFENCE_VMA" *)
+   (* descending_urgency = "imem_c_rl_fetch_next_32b, rl_stage1_SFENCE_VMA" *)
 `endif
 
    rule rl_stage1_SFENCE_VMA (   (rg_state== CPU_RUNNING)
@@ -1336,6 +1340,13 @@ module mkCPU (CPU_IFC);
 
       // Flush both caches -- using the same interface as that used by FENCE_I
       near_mem.server_fence_i.request.put (?);
+`ifdef ISA_C
+      // The breakpoint may occur across an odd i32 instruction.
+      // In that case the cached half of the earlier fetched word
+      // must be discarded. So, sending a flush-like request to
+      // Fetch_C as well. (issue #89 - explorer)
+      imem_c.fence_request.put (?);
+`endif
 
       // Notify debugger that we've halted
       f_run_halt_rsps.enq (False);
@@ -1426,6 +1437,13 @@ module mkCPU (CPU_IFC);
 
       // Flush both caches -- using the same interface as that used by FENCE_I
       near_mem.server_fence_i.request.put (?);
+`ifdef ISA_C
+      // The stoppage may occur across an odd i32 instruction.
+      // In that case the cached half of the earlier fetched word
+      // must be discarded. So, sending a flush-like request to
+      // Fetch_C as well. (issue #89 - explorer)
+      imem_c.fence_request.put (?);
+`endif
 
       // Accounting: none (instruction is abandoned)
    endrule: rl_stage1_stop

@@ -119,6 +119,14 @@ interface IMem_IFC;
    (* always_ready *)  method WordXL   tval;        // can be different from PC
 endinterface
 
+`ifdef ISA_C
+interface IMem_C_IFC;
+   interface IMem_IFC imem;
+   interface Put#(Token) reset_request;
+   interface Put#(Token) fence_request;
+endinterface
+`endif
+
 // ================================================================
 // DMem interface
 
