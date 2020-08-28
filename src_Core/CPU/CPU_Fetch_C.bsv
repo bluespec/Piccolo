@@ -69,7 +69,7 @@ endfunction
 // Wrapper: wraps 32-bit aligned IMem to allow 16-bit instrs and 32-bit instrs,
 // aligned to 16b or 32b boundaries.
 
-module mkCPU_Fetch_C #(IMem_IFC  imem32) (IMem_IFC);
+module mkCPU_Fetch_C #(IMem_IFC  imem32) (IMem_C_IFC);
 
    // imem32 is the underlying 32-bit-aligned memory.
    // imem32.req is only given 32-bit aligned addrs,
@@ -85,7 +85,7 @@ module mkCPU_Fetch_C #(IMem_IFC  imem32) (IMem_IFC);
 
    // These registers caches the last output of imem32 (imem32.pc, and imem32.instr [31:16])
    Reg #(WordXL)    rg_cache_addr <- mkReg ('1);
-   Reg #(Bit #(16)) rg_cache_b16  <- mkRegU;
+   Reg #(Maybe #(Bit #(16))) rg_cache_b16  <- mkRegU;
 
    // The following hold args of the 'req' method.
    Reg #(Bit #(3))  rg_f3          <- mkRegU;
@@ -104,7 +104,9 @@ module mkCPU_Fetch_C #(IMem_IFC  imem32) (IMem_IFC);
    Bool cond_i32_odd = (   is_addr_odd16 (rg_pc)
 			&& eq_b32_addr (rg_pc, rg_cache_addr)
 			&& (imem32.pc == rg_pc + 2)
-			&& is_32b_instr (rg_cache_b16));
+			&& (isValid (rg_cache_b16) ? is_32b_instr (rg_cache_b16.Valid)
+                                                   : False)
+                        );
 
    // Condition: 32b instr from imem [31:0]
    Bool cond_i32_even = (   is_addr_even16 (rg_pc)
@@ -116,7 +118,11 @@ module mkCPU_Fetch_C #(IMem_IFC  imem32) (IMem_IFC);
 			 && (   (   eq_b32_addr (rg_pc, imem32.pc)
 				 && is_16b_instr (imem32.instr [31:16]))
 			     || (   eq_b32_addr (rg_pc, rg_cache_addr)
-				 && is_16b_instr (rg_cache_b16))));
+				 && (isValid (rg_cache_b16) ? is_16b_instr (rg_cache_b16.Valid)
+                                                            : False)
+                                )
+                            )
+                        );
 
    // Condition: 16b instr from imem [15:0]
    Bool cond_i16_even = (   is_addr_even16 (rg_pc)
@@ -135,7 +141,7 @@ module mkCPU_Fetch_C #(IMem_IFC  imem32) (IMem_IFC);
    function Bit #(32) fn_instr_out ();
       Bit #(32) instr_out = imem32.instr;
       if (cond_i32_odd)
-	 instr_out = { imem32.instr [15:0], rg_cache_b16 };
+	 instr_out = { imem32.instr [15:0], rg_cache_b16.Valid };
 
       else if (cond_i16_even)
 	 instr_out = { 16'b0, imem32.instr [15:0] };
@@ -144,7 +150,7 @@ module mkCPU_Fetch_C #(IMem_IFC  imem32) (IMem_IFC);
 	 if (eq_b32_addr (rg_pc, imem32.pc))
 	    instr_out = { 16'b0, imem32.instr [31:16] };
 	 else
-	    instr_out = { 16'b0, rg_cache_b16 };
+	    instr_out = { 16'b0, fromMaybe (0, rg_cache_b16) };
       end
       return instr_out;
    endfunction
@@ -158,8 +164,8 @@ module mkCPU_Fetch_C #(IMem_IFC  imem32) (IMem_IFC);
    endrule
 
    rule rl_debug_conds (False && (verbosity != 0) && imem32.valid);
-      $display ("%0d: imem32.pc 0x%0h  pc 0x%0h  rg_f3 %0d  imem32.instr 0x%08h  rg_cache_b16 0x%04h",
-		cur_cycle, imem32.pc,  rg_pc,  rg_f3,  imem32.instr,  rg_cache_b16);
+      $display ("%0d: imem32.pc 0x%0h  pc 0x%0h  rg_f3 %0d  imem32.instr 0x%08h  rg_cache_b16 ",
+		cur_cycle, imem32.pc,  rg_pc,  rg_f3,  imem32.instr,  fshow (rg_cache_b16));
       $display ("    cond_i32_odd  = ", fshow (cond_i32_odd));
       $display ("    cond_i32_even = ", fshow (cond_i32_even));
       $display ("    cond_i16_odd  = ", fshow (cond_i16_odd));
@@ -178,7 +184,7 @@ module mkCPU_Fetch_C #(IMem_IFC  imem32) (IMem_IFC);
       Addr next_b32_addr = imem32.pc + 4;
       imem32.req (rg_f3, next_b32_addr, rg_priv, rg_sstatus_SUM, rg_mstatus_MXR, rg_satp);
       rg_cache_addr <= imem32.pc;
-      rg_cache_b16  <= imem32.instr [31:16];
+      rg_cache_b16  <= tagged Valid imem32.instr [31:16];
       rg_tval       <= next_b32_addr;
 
       if (verbosity != 0)
@@ -188,62 +194,77 @@ module mkCPU_Fetch_C #(IMem_IFC  imem32) (IMem_IFC);
 
    // ================================================================
    // INTERFACE
+   interface Put fence_request;
+      method Action put (Token t);
+         rg_cache_b16 <= tagged Invalid;
+      endmethod
+   endinterface
 
-   // CPU side: IMem request
-   method Action  req (Bit #(3)   f3,
-		       WordXL     addr,
-		       // The following  args for VM
-		       Priv_Mode  priv,
-		       Bit #(1)   sstatus_SUM,
-		       Bit #(1)   mstatus_MXR,
-		       WordXL     satp               // { VM_Mode, ASID, PPN_for_page_table }
-		       ) if (! cond_i32_odd_fetch_next);
-      rg_f3          <= f3;
-      rg_pc          <= addr;
-      rg_priv        <= priv;
-      rg_sstatus_SUM <= sstatus_SUM;
-      rg_mstatus_MXR <= mstatus_MXR;
-      rg_satp        <= satp;
-      rg_tval        <= addr;
+   // Reset -- immediate reset possible. Have not created a
+   // separate reset state machine. Also no response path
+   interface Put reset_request;
+      method Action put (Token t);
+         rg_cache_b16 <= tagged Invalid;
+      endmethod
+   endinterface
 
-      // Cache the previous output, if valid
-      if (imem32.valid) begin
-	 rg_cache_addr     <= imem32.pc;
-	 rg_cache_b16 <= imem32.instr [31:16];
-      end
+   interface IMem_IFC imem;
+      // CPU side: IMem request
+      method Action  req (Bit #(3)   f3,
+                          WordXL     addr,
+                          // The following  args for VM
+                          Priv_Mode  priv,
+                          Bit #(1)   sstatus_SUM,
+                          Bit #(1)   mstatus_MXR,
+                          WordXL     satp               // { VM_Mode, ASID, PPN_for_page_table }
+                          ) if (! cond_i32_odd_fetch_next);
+         rg_f3          <= f3;
+         rg_pc          <= addr;
+         rg_priv        <= priv;
+         rg_sstatus_SUM <= sstatus_SUM;
+         rg_mstatus_MXR <= mstatus_MXR;
+         rg_satp        <= satp;
+         rg_tval        <= addr;
 
-      WordXL addr_of_b32 = fn_to_b32_addr (addr);
+         // Cache the previous output, if valid
+         if (imem32.valid) begin
+            rg_cache_addr     <= imem32.pc;
+            rg_cache_b16 <= tagged Valid imem32.instr [31:16];
+         end
 
-      // Fetch next 32b word if request is odd-16b aligned, we've already got those 16b, and it's a 32b instr
-      // (the 16b we've already got is saved in r16_cache_b16).
-      // Note: since we know it's a 32b instr, this next fetch is not speculative, so ok if it page faults.
-      if (   is_addr_odd16 (addr)
-	  && imem32.valid
-	  && (addr_of_b32 == imem32.pc)
-	  && is_32b_instr (imem32.instr [31:16]))
-	 begin
-	    addr_of_b32 = addr_of_b32 + 4;
-	 end
+         WordXL addr_of_b32 = fn_to_b32_addr (addr);
 
-      imem32.req (f3, addr_of_b32, priv, sstatus_SUM, mstatus_MXR, satp);
-      if (verbosity > 0) begin
-	 $display ("CPU_Fetch_C.req: addr 0x%0h, addr_of_b32 0x%0h", addr, addr_of_b32);
-      end
-   endmethod
+         // Fetch next 32b word if request is odd-16b aligned, we've already got those 16b, and it's a 32b instr
+         // (the 16b we've already got is saved in r16_cache_b16).
+         // Note: since we know it's a 32b instr, this next fetch is not speculative, so ok if it page faults.
+         if (   is_addr_odd16 (addr)
+             && imem32.valid
+             && (addr_of_b32 == imem32.pc)
+             && is_32b_instr (imem32.instr [31:16]))
+            begin
+               addr_of_b32 = addr_of_b32 + 4;
+            end
 
-   // CPU side: IMem response
-   method Bool     valid    = (imem32.valid && (   cond_i32_odd
-						|| cond_i32_even
-						|| cond_i16_odd
-						|| cond_i16_even));
+         imem32.req (f3, addr_of_b32, priv, sstatus_SUM, mstatus_MXR, satp);
+         if (verbosity > 0) begin
+            $display ("CPU_Fetch_C.req: addr 0x%0h, addr_of_b32 0x%0h", addr, addr_of_b32);
+         end
+      endmethod
 
-   method Bool     is_i32_not_i16 = (cond_i32_odd || cond_i32_even);
+      // CPU side: IMem response
+      method Bool     valid    = (imem32.valid && (   cond_i32_odd
+                                                   || cond_i32_even
+                                                   || cond_i16_odd
+                                                   || cond_i16_even));
 
-   method WordXL   pc       = rg_pc;
-   method Instr    instr    = fn_instr_out ();
-   method Bool     exc      = imem32.exc;
-   method Exc_Code exc_code = imem32.exc_code;
-   method WordXL   tval     = rg_tval;        // Can be different from rg_pc
+      method Bool     is_i32_not_i16 = (cond_i32_odd || cond_i32_even);
+
+      method WordXL   pc       = rg_pc;
+      method Instr    instr    = fn_instr_out ();
+      method Bool     exc      = imem32.exc;
+      method Exc_Code exc_code = imem32.exc_code;
+      method WordXL   tval     = rg_tval;        // Can be different from rg_pc
+   endinterface
 
 endmodule
 
