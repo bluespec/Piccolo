@@ -16,3 +16,4 @@ log_*.txt
 AA_*
 symbol_table.txt
 vpi_wrapper_*
+Verilog_RTL
