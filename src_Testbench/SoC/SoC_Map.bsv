@@ -1,4 +1,4 @@
-// Copyright (c) 2013-2019 Bluespec, Inc. All Rights Reserved
+// Copyright (c) 2013-2020 Bluespec, Inc. All Rights Reserved
 
 package SoC_Map;
 
@@ -35,7 +35,12 @@ export  Num_Slaves;
 export  boot_rom_slave_num;
 export  mem0_controller_slave_num;
 export  uart0_slave_num;
+`ifdef INCLUDE_ACCEL0
 export  accel0_slave_num;
+`endif
+`ifdef Near_Mem_TCM
+export  dma_server_num;
+`endif
 
 export  N_External_Interrupt_Sources;
 export  n_external_interrupt_sources;
@@ -50,7 +55,11 @@ export  irq_num_accel0;
 // ================================================================
 // Project imports
 
-import Fabric_Defs :: *;    // Only for type Fabric_Addr
+import Fabric_Defs   :: *; // Only for type Fabric_Addr
+
+`ifdef Near_Mem_TCM
+import TCM_Decls     :: *;
+`endif
 
 // ================================================================
 // Interface and module for the address map
@@ -88,6 +97,11 @@ interface SoC_Map_IFC;
 
    (* always_ready *)
    method  Bool  m_is_mem_addr (Fabric_Addr addr);
+
+`ifdef Near_Mem_TCM
+   (* always_ready *)
+   method  Bool  m_is_tcm_addr (Fabric_Addr addr);
+`endif
 
    (* always_ready *)
    method  Bool  m_is_IO_addr (Fabric_Addr addr);
@@ -164,37 +178,32 @@ module mkSoC_Map (SoC_Map_IFC);
       return ((boot_rom_addr_base <= addr) && (addr < boot_rom_addr_lim));
    endfunction
 
-   // ----------------------------------------------------------------
-   // Main Mem Controller 0
-
-   Fabric_Addr mem0_controller_addr_base = 'h_8000_0000;
-   Fabric_Addr mem0_controller_addr_size = 'h_1000_0000;    // 256 MB
-   Fabric_Addr mem0_controller_addr_lim  = mem0_controller_addr_base + mem0_controller_addr_size;
-
-   function Bool fn_is_mem0_controller_addr (Fabric_Addr addr);
-      return ((mem0_controller_addr_base <= addr) && (addr < mem0_controller_addr_lim));
-   endfunction
-
+   // When TCMs are enabled, the TCM address base is at the address usually
+   // used for the mem0_controller. This avoids changing the start location
+   // of bare-metal programs.
+`ifdef Near_Mem_TCM
    // ----------------------------------------------------------------
    // Tightly-coupled memory ('TCM'; optional)
-
-`ifdef Near_Mem_TCM
-// Integer kB_per_TCM = 'h4;         // 4KB
-// Integer kB_per_TCM = 'h40;     // 64KB
-// Integer kB_per_TCM = 'h80;     // 128KB
-// Integer kB_per_TCM = 'h400;    // 1 MB
-   Integer kB_per_TCM = 'h4000;    // 16 MB
-`else
-   Integer kB_per_TCM = 0;
-`endif
-   Integer bytes_per_TCM = kB_per_TCM * 'h400;
-
-   Fabric_Addr tcm_addr_base = 'h_0000_0000;
+   Fabric_Addr tcm_addr_base = 'h_8000_0000;
    Fabric_Addr tcm_addr_size = fromInteger (bytes_per_TCM);
    Fabric_Addr tcm_addr_lim  = tcm_addr_base + tcm_addr_size;
 
    function Bool fn_is_tcm_addr (Fabric_Addr addr);
       return ((tcm_addr_base <= addr) && (addr < tcm_addr_lim));
+   endfunction
+
+   // ----------------------------------------------------------------
+   // Main Mem Controller 0
+
+   Fabric_Addr mem0_controller_addr_base = 'h_9000_0000;
+`else
+   Fabric_Addr mem0_controller_addr_base = 'h_8000_0000;
+`endif
+   Fabric_Addr mem0_controller_addr_size = 'h_1000_0000;    // 256 MB
+   Fabric_Addr mem0_controller_addr_lim  = mem0_controller_addr_base + mem0_controller_addr_size;
+
+   function Bool fn_is_mem0_controller_addr (Fabric_Addr addr);
+      return ((mem0_controller_addr_base <= addr) && (addr < mem0_controller_addr_lim));
    endfunction
 
    // ----------------------------------------------------------------
@@ -205,7 +214,9 @@ module mkSoC_Map (SoC_Map_IFC);
    function Bool fn_is_mem_addr (Fabric_Addr addr);
       return (   fn_is_boot_rom_addr (addr)
 	      || fn_is_mem0_controller_addr (addr)
+`ifdef Near_Mem_TCM
 	      || fn_is_tcm_addr (addr)
+`endif
 	      );
    endfunction
 
@@ -267,6 +278,9 @@ module mkSoC_Map (SoC_Map_IFC);
    method  Fabric_Addr  m_tcm_addr_lim  = tcm_addr_lim;
 
    method  Bool  m_is_mem_addr (Fabric_Addr addr) = fn_is_mem_addr (addr);
+`ifdef Near_Mem_TCM
+   method  Bool  m_is_tcm_addr (Fabric_Addr addr) = fn_is_tcm_addr (addr);
+`endif
 
    method  Bool  m_is_IO_addr (Fabric_Addr addr) = fn_is_IO_addr (addr);
 
@@ -278,6 +292,8 @@ module mkSoC_Map (SoC_Map_IFC);
    // Non-maskable interrupt vector
    method  Bit #(64)  m_nmivec_reset_value = nmivec_reset_value;
 endmodule
+
+// ================================================================
 
 // ================================================================
 // Count and master-numbers of masters in the fabric.
@@ -300,20 +316,18 @@ typedef 2 Num_Masters;
 // Count and slave-numbers of slaves in the fabric.
 
 `ifdef INCLUDE_ACCEL0
-
-typedef 4 Num_Slaves;
-
+typedef 5 Num_Slaves;
 `else
-
-typedef 3 Num_Slaves;
-
+typedef 4 Num_Slaves;
 `endif
-
 
 Integer boot_rom_slave_num        = 0;
 Integer mem0_controller_slave_num = 1;
 Integer uart0_slave_num           = 2;
-Integer accel0_slave_num          = 3;
+Integer dma_server_num            = 3;
+`ifdef INCLUDE_ACCEL0
+Integer accel0_slave_num          = 4;
+`endif
 
 // ================================================================
 // Interrupt request numbers (== index in to vector of
