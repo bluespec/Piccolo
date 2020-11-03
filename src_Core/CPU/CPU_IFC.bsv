@@ -28,6 +28,10 @@ import DM_CPU_Req_Rsp :: *;
 import TV_Info         :: *;
 `endif
 
+`ifdef Near_Mem_TCM
+import Near_Mem_IFC    :: *;
+`endif
+
 // ================================================================
 // CPU interface
 
@@ -44,6 +48,11 @@ interface CPU_IFC;
    // DMem to Fabric master interface
    interface AXI4_Master_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User)  dmem_master;
 
+`ifdef Near_Mem_TCM
+   // ----------------------------------------------------------------
+   // AXI4 DMA target interface (for backdoor loading of TCMs)
+   interface AXI4_Slave_IFC #(Wd_Id_Dma, Wd_Addr_Dma, Wd_Data_Dma, Wd_User_Dma)  dma_server;
+`endif
    // ----------------------------------------------------------------
    // Optional AXI4-Lite D-cache slave interface
 

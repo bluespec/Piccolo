@@ -1196,6 +1196,7 @@ module mkCPU (CPU_IFC);
    (* descending_urgency = "imem_c_rl_fetch_next_32b, rl_stage1_SFENCE_VMA" *)
 `endif
 
+`ifdef ISA_PRIV_S
    rule rl_stage1_SFENCE_VMA (   (rg_state== CPU_RUNNING)
 			      && (! halting)
 			      && (stage3.out.ostatus == OSTATUS_EMPTY)
@@ -1244,6 +1245,7 @@ module mkCPU (CPU_IFC);
       if (cur_verbosity > 1)
 	 $display ("    CPU.rl_finish_SFENCE_VMA");
    endrule: rl_finish_SFENCE_VMA
+`endif
 
    // ================================================================
    // Stage1: nonpipe special: WFI
@@ -1638,13 +1640,20 @@ module mkCPU (CPU_IFC);
    interface  imem_master = near_mem.imem_master;
 
    // DMem to fabric master interface
-   interface  dmem_master = near_mem.dmem_master;
+   interface  dmem_master = near_mem.mem_master;
 
    // ----------------------------------------------------------------
    // Optional AXI4-Lite D-cache slave interface
 
 `ifdef INCLUDE_DMEM_SLAVE
    interface  dmem_slave = near_mem.dmem_slave;
+`endif
+
+`ifdef Near_Mem_TCM
+   // ----------------
+   // Interface to 'coherent DMA' port of optional L2 cache
+   // (non-coherent DMA backdoor for TCMs)
+   interface AXI4_Slave_IFC dma_server = near_mem.dma_server;
 `endif
 
    // ----------------

@@ -299,7 +299,13 @@ module mkCPU_Stage1 #(Bit #(4)         verbosity,
 
    // ---- Input
    method Action enq (Addr next_pc, Priv_Mode priv, Bit #(1) sstatus_SUM, Bit #(1) mstatus_MXR, WordXL satp);
-      imem.req (f3_LW, next_pc, priv, sstatus_SUM, mstatus_MXR, satp);
+      imem.req (
+           f3_LW
+         , next_pc
+`ifdef ISA_PRIV_S
+         , priv, sstatus_SUM, mstatus_MXR, satp
+`endif
+         );
 
       if (verbosity > 1)
 	 $display ("    CPU_Stage1.enq: 0x%08h", next_pc);
