@@ -1,0 +1,3 @@
+[submodule "src_Core/Near_Mem"]
+	path = src_Core/Near_Mem
+	url = https://github.com/bluespec/Near_Mem
