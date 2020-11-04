@@ -22,6 +22,7 @@ import ClientServer  :: *;
 // ================================================================
 // Project imports
 
+import Near_Mem_IFC :: *;    // For Wd_{Id,Addr,Data,User}_Dma
 // Main fabric
 import AXI4_Types   :: *;
 import Fabric_Defs  :: *;
@@ -47,11 +48,6 @@ import Debug_Module  :: *;
 interface Core_IFC #(numeric type t_n_interrupt_sources);
 
    // ----------------------------------------------------------------
-   // Debugging: set core's verbosity
-
-   method Action  set_verbosity (Bit #(4)  verbosity, Bit #(64)  logdelay);
-
-   // ----------------------------------------------------------------
    // Soft reset
    // 'Bool' is initial 'running' state
 
@@ -71,6 +67,12 @@ interface Core_IFC #(numeric type t_n_interrupt_sources);
 
 `ifdef INCLUDE_DMEM_SLAVE
    interface AXI4_Lite_Slave_IFC #(Wd_Addr, Wd_Data, Wd_User) cpu_dmem_slave;
+`endif
+
+`ifdef Near_Mem_TCM
+   // ----------------------------------------------------------------
+   // Interface to 'coherent DMA' port of optional L2 cache
+   interface AXI4_Slave_IFC #(Wd_Id_Dma, Wd_Addr_Dma, Wd_Data_Dma, Wd_User_Dma)  dma_server;
 `endif
 
    // ----------------------------------------------------------------
@@ -109,6 +111,28 @@ interface Core_IFC #(numeric type t_n_interrupt_sources);
 
    interface Client #(Bool, Bool) ndm_reset_client;
 `endif
+   // ----------------------------------------------------------------
+   // Misc. control and status
+
+   // ----------------
+   // Debugging: set core's verbosity
+
+   method Action  set_verbosity (Bit #(4)  verbosity, Bit #(64)  logdelay);
+
+   // ----------------
+   // For ISA tests: watch memory writes to <tohost> addr
+
+`ifdef WATCH_TOHOST
+   method Action set_watch_tohost (Bool watch_tohost, Bit #(64) tohost_addr);
+   method Bit #(64) mv_tohost_value;
+`endif
+
+   // Inform core that DDR4 has been initialized and is ready to accept requests
+   method Action ma_ddr4_ready;
+
+   // Misc. status; 0 = running, no error
+   (* always_ready *)
+   method Bit #(8) mv_status;
 endinterface
 
 // ================================================================

@@ -18,7 +18,7 @@ BSC_COMPILATION_FLAGS += \
 	-D MULT_SYNTH    \
 	-D Near_Mem_TCM       \
 	-D FABRIC64    \
-	-D SYNTHESIS \
+	-D WATCH_TOHOST \
 
 # Default ISA test
 

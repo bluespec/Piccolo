@@ -46,7 +46,7 @@ else ifeq ($(CACHES),WB_L1_L2)
 else ifeq ($(CACHES),TCM)
   NEAR_MEM_VM_DIR=Near_Mem/Near_Mem_TCM
 else
-  NEAR_MEM_VM_DIR=Near_Mem_VM	# WT caches, default for piccolo
+  NEAR_MEM_VM_DIR=Near_Mem_VM
 endif
 
 # ================================================================
@@ -61,10 +61,10 @@ BSC_PATH = $(CUSTOM_DIRS):$(CORE_DIRS):$(TESTBENCH_DIRS):+
 # ----------------
 # Top-level file and module
 
-#TOPFILE   ?= $(REPO)/src_Testbench/Top/Top_HW_Side.bsv
-#TOPMODULE ?= mkTop_HW_Side
-TOPFILE   ?= $(REPO)/src_Core/CPU/CPU.bsv
-TOPMODULE ?= mkCPU
+TOPFILE   ?= $(REPO)/src_Testbench/Top/Top_HW_Side.bsv
+TOPMODULE ?= mkTop_HW_Side
+#TOPFILE   ?= $(REPO)/src_Core/CPU/CPU.bsv
+#TOPMODULE ?= mkCPU
 
 # ================================================================
 # bsc compilation flags

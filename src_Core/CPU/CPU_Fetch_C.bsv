@@ -89,10 +89,12 @@ module mkCPU_Fetch_C #(IMem_IFC  imem32) (IMem_C_IFC);
 
    // The following hold args of the 'req' method.
    Reg #(Bit #(3))  rg_f3          <- mkRegU;
+`ifdef ISA_PRIV_S
    Reg #(Priv_Mode) rg_priv        <- mkRegU;
    Reg #(Bit #(1))  rg_sstatus_SUM <- mkRegU;
    Reg #(Bit #(1))  rg_mstatus_MXR <- mkRegU;
    Reg #(WordXL)    rg_satp        <- mkRegU;
+`endif
 
    // Holds a faulting address
    Reg #(WordXL)    rg_tval        <- mkRegU;
@@ -182,7 +184,16 @@ module mkCPU_Fetch_C #(IMem_IFC  imem32) (IMem_C_IFC);
    (* no_implicit_conditions, fire_when_enabled *)
    rule rl_fetch_next_32b (imem32.valid && cond_i32_odd_fetch_next);
       Addr next_b32_addr = imem32.pc + 4;
-      imem32.req (rg_f3, next_b32_addr, rg_priv, rg_sstatus_SUM, rg_mstatus_MXR, rg_satp);
+      imem32.req (
+           rg_f3
+         , next_b32_addr
+`ifdef ISA_PRIV_S
+         , rg_priv
+         , rg_sstatus_SUM
+         , rg_mstatus_MXR
+         , rg_satp
+`endif
+      );
       rg_cache_addr <= imem32.pc;
       rg_cache_b16  <= tagged Valid imem32.instr [31:16];
       rg_tval       <= next_b32_addr;
@@ -210,20 +221,25 @@ module mkCPU_Fetch_C #(IMem_IFC  imem32) (IMem_C_IFC);
 
    interface IMem_IFC imem;
       // CPU side: IMem request
-      method Action  req (Bit #(3)   f3,
-                          WordXL     addr,
-                          // The following  args for VM
-                          Priv_Mode  priv,
-                          Bit #(1)   sstatus_SUM,
-                          Bit #(1)   mstatus_MXR,
-                          WordXL     satp               // { VM_Mode, ASID, PPN_for_page_table }
-                          ) if (! cond_i32_odd_fetch_next);
+      method Action  req (
+         Bit #(3)   f3
+         , WordXL     addr
+`ifdef ISA_PRIV_S
+         // The following  args for VM
+         , Priv_Mode  priv
+         , Bit #(1)   sstatus_SUM
+         , Bit #(1)   mstatus_MXR
+         , WordXL     satp               // { VM_Mode, ASID, PPN_for_page_table }
+`endif
+      ) if (! cond_i32_odd_fetch_next);
          rg_f3          <= f3;
          rg_pc          <= addr;
+`ifdef ISA_PRIV_S
          rg_priv        <= priv;
          rg_sstatus_SUM <= sstatus_SUM;
          rg_mstatus_MXR <= mstatus_MXR;
          rg_satp        <= satp;
+`endif
          rg_tval        <= addr;
 
          // Cache the previous output, if valid
@@ -245,7 +261,16 @@ module mkCPU_Fetch_C #(IMem_IFC  imem32) (IMem_C_IFC);
                addr_of_b32 = addr_of_b32 + 4;
             end
 
-         imem32.req (f3, addr_of_b32, priv, sstatus_SUM, mstatus_MXR, satp);
+         imem32.req (
+              f3
+            , addr_of_b32
+`ifdef ISA_PRIV_S
+            , priv
+            , sstatus_SUM
+            , mstatus_MXR
+            , satp
+`endif
+         );
          if (verbosity > 0) begin
             $display ("CPU_Fetch_C.req: addr 0x%0h, addr_of_b32 0x%0h", addr, addr_of_b32);
          end
