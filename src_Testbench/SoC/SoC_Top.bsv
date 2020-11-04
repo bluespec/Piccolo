@@ -46,9 +46,10 @@ import SoC_Fabric  :: *;
 
 // SoC components (CPU, mem, and IPs)
 
-import Core_IFC :: *;
-import Core     :: *;
-import PLIC     :: *;    // For interface to PLIC interrupt sources, in Core_IFC
+import Near_Mem_IFC :: *;    // For Wd_{Id,Addr,Data,User}_Dma
+import Core_IFC     :: *;
+import Core         :: *;
+import PLIC         :: *;    // For interface to PLIC interrupt sources, in Core_IFC
 
 import Boot_ROM       :: *;
 import Mem_Controller :: *;
@@ -76,9 +77,6 @@ import Debug_Module     :: *;
 // The outermost interface of the SoC
 
 interface SoC_Top_IFC;
-   // Set core's verbosity
-   method Action  set_verbosity (Bit #(4)  verbosity, Bit #(64)  logdelay);
-
 `ifdef INCLUDE_GDB_CONTROL
    // To external controller (E.g., GDB)
    interface Server #(Control_Req, Control_Rsp) server_external_control;
@@ -96,12 +94,32 @@ interface SoC_Top_IFC;
    interface Get #(Bit #(8)) get_to_console;
    interface Put #(Bit #(8)) put_from_console;
 
-   // Catch-all status; return-value can identify the origin (0 = none)
+   // Catch-all status; return-value can identify the origin (0 = none) (unused)
    (* always_ready *)
    method Bit #(8) status;
 
+   // ----------------------------------------------------------------
+   // Misc. control and status
+
+   // ----------------
+   // Debugging: set core's verbosity
+   method Action  set_verbosity (Bit #(4)  verbosity, Bit #(64)  logdelay);
+
+   // ----------------
    // For ISA tests: watch memory writes to <tohost> addr
+`ifdef WATCH_TOHOST
    method Action set_watch_tohost (Bool  watch_tohost, Fabric_Addr  tohost_addr);
+   method Bit #(64) mv_tohost_value;
+`endif
+
+   // ----------------
+   // Inform core that DDR4 has been initialized and is ready to accept requests
+   method Action ma_ddr4_ready;
+
+   // ----------------
+   // Memory status; 0 = running, no error. Used to terminate simulation
+   (* always_ready *)
+   method Bit #(8) mv_status;
 endinterface
 
 // ================================================================
@@ -132,6 +150,11 @@ module mkSoC_Top (SoC_Top_IFC);
 
    // SoC Fabric
    Fabric_AXI4_IFC  fabric <- mkFabric_AXI4;
+   // AXI4 Deburster in front of Core's DMA Server
+   AXI4_Deburster_IFC #(Wd_Id,
+			Wd_Addr,
+			Wd_Data,
+			Wd_User) dma_server_axi4_deburster <- mkAXI4_Deburster_A;
 
    // SoC Boot ROM
    Boot_ROM_IFC  boot_rom <- mkBoot_ROM;
@@ -139,7 +162,7 @@ module mkSoC_Top (SoC_Top_IFC);
    AXI4_Deburster_IFC #(Wd_Id,
 			Wd_Addr,
 			Wd_Data,
-			Wd_User)  boot_rom_axi4_deburster <- mkAXI4_Deburster_A;
+			Wd_User) boot_rom_axi4_deburster <- mkAXI4_Deburster_A;
 
    // SoC Memory
    Mem_Controller_IFC  mem0_controller <- mkMem_Controller;
@@ -147,7 +170,7 @@ module mkSoC_Top (SoC_Top_IFC);
    AXI4_Deburster_IFC #(Wd_Id,
 			Wd_Addr,
 			Wd_Data,
-			Wd_User)  mem0_controller_axi4_deburster <- mkAXI4_Deburster_A;
+			Wd_User) mem0_controller_axi4_deburster <- mkAXI4_Deburster_A;
 
    // SoC IPs
    UART_IFC   uart0  <- mkUART;
@@ -176,6 +199,9 @@ module mkSoC_Top (SoC_Top_IFC);
    // SoC fabric slave connections
    // Note: see 'SoC_Map' for 'slave_num' definitions
 
+   // Fabric to DMA server connections for back-door to TCMs
+   mkConnection (fabric.v_to_slaves [dma_server_num], dma_server_axi4_deburster.from_master);
+   mkConnection (dma_server_axi4_deburster.to_slave, core.dma_server);
    // Fabric to Boot ROM
    mkConnection (fabric.v_to_slaves [boot_rom_slave_num], boot_rom_axi4_deburster.from_master);
    mkConnection (boot_rom_axi4_deburster.to_slave,        boot_rom.slave);
@@ -398,10 +424,6 @@ module mkSoC_Top (SoC_Top_IFC);
    // ================================================================
    // INTERFACE
 
-   method Action  set_verbosity (Bit #(4)  verbosity1, Bit #(64)  logdelay);
-      core.set_verbosity (verbosity1, logdelay);
-   endmethod
-
    // To external controller (E.g., GDB)
 `ifdef INCLUDE_GDB_CONTROL
    interface server_external_control = toGPServer (f_external_control_reqs, f_external_control_rsps);
@@ -418,15 +440,35 @@ module mkSoC_Top (SoC_Top_IFC);
    // UART to external console
    interface get_to_console   = uart0.get_to_console;
    interface put_from_console = uart0.put_from_console;
-
    // Catch-all status; return-value can identify the origin (0 = none)
-   method Bit #(8) status;
-      return mem0_controller.status;
+   method Bit #(8) status = 0;
+
+   // ----------------------------------------------------------------
+   // Misc. control and status
+
+   method Action  set_verbosity (Bit #(4)  verbosity1, Bit #(64)  logdelay);
+      core.set_verbosity (verbosity1, logdelay);
    endmethod
 
+`ifdef WATCH_TOHOST
    // For ISA tests: watch memory writes to <tohost> addr
    method Action set_watch_tohost (Bool  watch_tohost, Fabric_Addr  tohost_addr);
-      mem0_controller.set_watch_tohost (watch_tohost, tohost_addr);
+      core.set_watch_tohost (watch_tohost, tohost_addr);
+   endmethod
+
+   method Bit #(64) mv_tohost_value;
+      Bit #(64) tohost_value = 0;
+      tohost_value = core.mv_tohost_value;
+      return tohost_value;
+   endmethod
+`endif
+
+   method Action ma_ddr4_ready;
+      core.ma_ddr4_ready;
+   endmethod
+
+   method Bit #(8) mv_status;
+      return core.mv_status;    // 0 = running, no error
    endmethod
 endmodule: mkSoC_Top
 

@@ -53,10 +53,10 @@ interface CPU_IFC;
    // AXI4 DMA target interface (for backdoor loading of TCMs)
    interface AXI4_Slave_IFC #(Wd_Id_Dma, Wd_Addr_Dma, Wd_Data_Dma, Wd_User_Dma)  dma_server;
 `endif
-   // ----------------------------------------------------------------
-   // Optional AXI4-Lite D-cache slave interface
 
 `ifdef INCLUDE_DMEM_SLAVE
+   // ----------------------------------------------------------------
+   // Optional AXI4-Lite D-cache slave interface
    interface AXI4_Lite_Slave_IFC #(Wd_Addr, Wd_Data, Wd_User)  dmem_slave;
 `endif
 
@@ -85,11 +85,6 @@ interface CPU_IFC;
    method Action  nmi_req (Bool set_not_clear);
 
    // ----------------
-   // Set core's verbosity
-
-   method Action  set_verbosity (Bit #(4)  verbosity, Bit #(64)  logdelay);
-
-   // ----------------
    // Optional interface to Tandem Verifier
 
 `ifdef INCLUDE_TANDEM_VERIF
@@ -115,6 +110,25 @@ interface CPU_IFC;
    // CSR access
    interface Server #(DM_CPU_Req #(12, XLEN), DM_CPU_Rsp #(XLEN)) hart0_csr_mem_server;
 `endif
+
+   // ----------------------------------------------------------------
+   // Misc. control and status
+
+   // ----------------
+   // Set core's verbosity
+   method Action  set_verbosity (Bit #(4)  verbosity, Bit #(64)  logdelay);
+
+`ifdef WATCH_TOHOST
+   method Action set_watch_tohost (Bool watch_tohost, Bit #(64) tohost_addr);
+   method Bit #(64) mv_tohost_value;
+`endif
+
+   // Inform core that DDR4 has been initialized and is ready to accept requests
+   method Action ma_ddr4_ready;
+
+   // Misc. status; 0 = running, no error
+   (* always_ready *)
+   method Bit #(8) mv_status;
 
 endinterface
 

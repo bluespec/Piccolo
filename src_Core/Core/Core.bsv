@@ -54,6 +54,7 @@ import CPU               :: *;
 
 import Fabric_2x3        :: *;
 
+import Near_Mem_IFC      :: *;    // For Wd_{Id,Addr,Data,User}_Dma
 import Near_Mem_IO_AXI4  :: *;
 import PLIC              :: *;
 import PLIC_16_2_7       :: *;
@@ -348,13 +349,6 @@ module mkCore #(Reset por_reset) (Core_IFC #(N_External_Interrupt_Sources));
    // INTERFACE
 
    // ----------------------------------------------------------------
-   // Debugging: set core's verbosity
-
-   method Action  set_verbosity (Bit #(4)  verbosity, Bit #(64)  logdelay);
-      cpu.set_verbosity (verbosity, logdelay);
-   endmethod
-
-   // ----------------------------------------------------------------
    // Soft reset
 
    interface Server  cpu_reset_server = toGPServer (f_reset_reqs, f_reset_rsps);
@@ -373,6 +367,13 @@ module mkCore #(Reset por_reset) (Core_IFC #(N_External_Interrupt_Sources));
 
 `ifdef INCLUDE_DMEM_SLAVE
    interface AXI4_Lite_Slave_IFC  cpu_dmem_slave = cpu.dmem_slave;
+`endif
+
+`ifdef Near_Mem_TCM
+   // ----------------------------------------------------------------
+   // Interface to 'coherent DMA' port of optional L2 cache or as
+   // back-door to ITCM
+   interface AXI4_Slave_IFC  dma_server = cpu.dma_server;
 `endif
 
    // ----------------------------------------------------------------
@@ -415,6 +416,36 @@ module mkCore #(Reset por_reset) (Core_IFC #(N_External_Interrupt_Sources));
    interface Client ndm_reset_client = debug_module.ndm_reset_client;
 `endif
 
+   // ----------------------------------------------------------------
+   // Misc. control and status
+
+   // ----------------
+   // Debugging: set core's verbosity
+
+   method Action  set_verbosity (Bit #(4)  verbosity, Bit #(64)  logdelay);
+      cpu.set_verbosity (verbosity, logdelay);
+   endmethod
+
+   // ----------------
+   // For ISA tests: watch memory writes to <tohost> addr
+
+`ifdef WATCH_TOHOST
+   method Action set_watch_tohost (Bool watch_tohost, Bit #(64) tohost_addr);
+      cpu.set_watch_tohost (watch_tohost, tohost_addr);
+   endmethod
+
+   method Bit #(64) mv_tohost_value = cpu.mv_tohost_value;
+`endif
+
+   // Inform core that DDR4 has been initialized and is ready to accept requests
+   method Action ma_ddr4_ready;
+      cpu.ma_ddr4_ready;
+   endmethod
+
+   // Misc. status; 0 = running, no error
+   method Bit #(8) mv_status;
+      return cpu.mv_status;
+   endmethod
 endmodule: mkCore
 
 endpackage

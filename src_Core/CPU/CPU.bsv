@@ -1193,7 +1193,9 @@ module mkCPU (CPU_IFC);
    // imem_c_rl_fetch_next_32b is in CPU_Fetch_C.bsv, and calls imem32.req (near_mem.imem_req).
    // fa_restart calls stageF.enq which also calls imem.req which calls imem32.req.
    // But cond_i32_odd_fetch_next should make these rules mutually exclusive; why doesn't bsc realize this?
+`ifdef ISA_PRIV_S
    (* descending_urgency = "imem_c_rl_fetch_next_32b, rl_stage1_SFENCE_VMA" *)
+`endif
 `endif
 
 `ifdef ISA_PRIV_S
@@ -1676,14 +1678,6 @@ module mkCPU (CPU_IFC);
    endmethod
 
    // ----------------
-   // For tracing
-
-   method Action  set_verbosity (Bit #(4)  verbosity, Bit #(64)  logdelay);
-      cfg_verbosity <= verbosity;
-      cfg_logdelay  <= logdelay;
-   endmethod
-
-   // ----------------
    // Optional interface to Tandem Verifier
 
 `ifdef INCLUDE_TANDEM_VERIF
@@ -1714,6 +1708,38 @@ module mkCPU (CPU_IFC);
    // CSR access
    interface Server  hart0_csr_mem_server = toGPServer (f_csr_reqs, f_csr_rsps);
 `endif
+
+   // ----------------------------------------------------------------
+   // Misc. control and status
+
+   // ----------------
+   // For tracing
+
+   method Action  set_verbosity (Bit #(4)  verbosity, Bit #(64)  logdelay);
+      cfg_verbosity <= verbosity;
+      cfg_logdelay  <= logdelay;
+   endmethod
+
+   // ----------------
+   // For ISA tests: watch memory writes to <tohost> addr
+
+`ifdef WATCH_TOHOST
+   method Action set_watch_tohost (Bool watch_tohost, Bit #(64) tohost_addr);
+      near_mem.set_watch_tohost (watch_tohost, tohost_addr);
+   endmethod
+
+   method Bit #(64) mv_tohost_value = near_mem.mv_tohost_value;
+`endif
+
+   // Inform core that DDR4 has been initialized and is ready to accept requests
+   method Action ma_ddr4_ready;
+      near_mem.ma_ddr4_ready;
+   endmethod
+
+   // Misc. status; 0 = running, no error
+   method Bit #(8) mv_status;
+      return near_mem.mv_status;
+   endmethod
 
 endmodule: mkCPU
 
