@@ -91,17 +91,28 @@ interface SoC_Map_IFC;
    (* always_ready *)   method  Fabric_Addr  m_mem0_controller_addr_size;
    (* always_ready *)   method  Fabric_Addr  m_mem0_controller_addr_lim;
 
-   (* always_ready *)   method  Fabric_Addr  m_tcm_addr_base;
-   (* always_ready *)   method  Fabric_Addr  m_tcm_addr_size;
-   (* always_ready *)   method  Fabric_Addr  m_tcm_addr_lim;
+`ifdef Near_Mem_TCM
+   (* always_ready *)   method  Fabric_Addr  m_itcm_addr_base;
+   (* always_ready *)   method  Fabric_Addr  m_itcm_addr_size;
+   (* always_ready *)   method  Fabric_Addr  m_itcm_addr_lim;
+   
+   // These two ports are needed for supporting simultaneous R and W accesses
+   // on the DMA server to the ITCM. If we were to constrain that the DMA
+   // initiator either writes or reads the ITCM, then we can do with a single
+   // port
+   (* always_ready *)   method  Bool         m_is_itcm_addr_1 (Fabric_Addr addr);
+   (* always_ready *)   method  Bool         m_is_itcm_addr_2 (Fabric_Addr addr);
+
+   (* always_ready *)   method  Fabric_Addr  m_dtcm_addr_base;
+   (* always_ready *)   method  Fabric_Addr  m_dtcm_addr_size;
+   (* always_ready *)   method  Fabric_Addr  m_dtcm_addr_lim;
+   (* always_ready *)   method  Bool         m_is_dtcm_addr (Fabric_Addr addr);
+
+   (* always_ready *)   method  Bool         m_is_tcm_addr (Fabric_Addr addr);
+`endif
 
    (* always_ready *)
    method  Bool  m_is_mem_addr (Fabric_Addr addr);
-
-`ifdef Near_Mem_TCM
-   (* always_ready *)
-   method  Bool  m_is_tcm_addr (Fabric_Addr addr);
-`endif
 
    (* always_ready *)
    method  Bool  m_is_IO_addr (Fabric_Addr addr);
@@ -178,18 +189,41 @@ module mkSoC_Map (SoC_Map_IFC);
       return ((boot_rom_addr_base <= addr) && (addr < boot_rom_addr_lim));
    endfunction
 
-   // When TCMs are enabled, the TCM address base is at the address usually
-   // used for the mem0_controller. This avoids changing the start location
-   // of bare-metal programs.
 `ifdef Near_Mem_TCM
    // ----------------------------------------------------------------
    // Tightly-coupled memory ('TCM'; optional)
-   Fabric_Addr tcm_addr_base = 'h_8000_0000;
-   Fabric_Addr tcm_addr_size = fromInteger (bytes_per_TCM);
-   Fabric_Addr tcm_addr_lim  = tcm_addr_base + tcm_addr_size;
+   // When TCMs are enabled, the iTCM address base is at the address usually
+   // used for the mem0_controller. This avoids changing the start location
+   // of bare-metal programs.
+   //
+   // The "main" memory now starts from 0x9000_0000, effectively
+   // leaving 256 MB for the two TCMs
+   // 
+   // Currently the TCMs are of the same size, controlled by a
+   // single tcm_addr_size value.
+   Fabric_Addr itcm_addr_base = 'h_8000_0000;
+   Fabric_Addr itcm_addr_size = fromInteger (bytes_per_TCM);
+   Fabric_Addr itcm_addr_lim  = itcm_addr_base + itcm_addr_size;
+
+   // Tightly-coupled memory ('TCM'; optional)
+   Fabric_Addr dtcm_addr_base = 'h_8800_0000;
+   Fabric_Addr dtcm_addr_size = fromInteger (bytes_per_TCM);
+   Fabric_Addr dtcm_addr_lim  = dtcm_addr_base + dtcm_addr_size;
+
+   function Bool fn_is_dtcm_addr (Fabric_Addr addr);
+      return (
+            (dtcm_addr_base <= addr) && (addr < dtcm_addr_lim)
+      );
+   endfunction
+
+   function Bool fn_is_itcm_addr (Fabric_Addr addr);
+      return (
+            (itcm_addr_base <= addr) && (addr < itcm_addr_lim)
+      );
+   endfunction
 
    function Bool fn_is_tcm_addr (Fabric_Addr addr);
-      return ((tcm_addr_base <= addr) && (addr < tcm_addr_lim));
+      return (fn_is_itcm_addr (addr) || fn_is_dtcm_addr (addr));
    endfunction
 
    // ----------------------------------------------------------------
@@ -273,14 +307,22 @@ module mkSoC_Map (SoC_Map_IFC);
    method  Fabric_Addr  m_mem0_controller_addr_size = mem0_controller_addr_size;
    method  Fabric_Addr  m_mem0_controller_addr_lim  = mem0_controller_addr_lim;
 
-   method  Fabric_Addr  m_tcm_addr_base = tcm_addr_base;
-   method  Fabric_Addr  m_tcm_addr_size = tcm_addr_size;
-   method  Fabric_Addr  m_tcm_addr_lim  = tcm_addr_lim;
+`ifdef Near_Mem_TCM
+   method  Fabric_Addr  m_itcm_addr_base = itcm_addr_base;
+   method  Fabric_Addr  m_itcm_addr_size = itcm_addr_size;
+   method  Fabric_Addr  m_itcm_addr_lim  = itcm_addr_lim;
+
+   method  Fabric_Addr  m_dtcm_addr_base = dtcm_addr_base;
+   method  Fabric_Addr  m_dtcm_addr_size = dtcm_addr_size;
+   method  Fabric_Addr  m_dtcm_addr_lim  = dtcm_addr_lim;
+
+   method  Bool  m_is_tcm_addr (Fabric_Addr addr) = fn_is_tcm_addr (addr);
+   method  Bool  m_is_itcm_addr_1 (Fabric_Addr addr) = fn_is_itcm_addr (addr);
+   method  Bool  m_is_itcm_addr_2 (Fabric_Addr addr) = fn_is_itcm_addr (addr);
+   method  Bool  m_is_dtcm_addr (Fabric_Addr addr) = fn_is_dtcm_addr (addr);
+`endif
 
    method  Bool  m_is_mem_addr (Fabric_Addr addr) = fn_is_mem_addr (addr);
-`ifdef Near_Mem_TCM
-   method  Bool  m_is_tcm_addr (Fabric_Addr addr) = fn_is_tcm_addr (addr);
-`endif
 
    method  Bool  m_is_IO_addr (Fabric_Addr addr) = fn_is_IO_addr (addr);
 
