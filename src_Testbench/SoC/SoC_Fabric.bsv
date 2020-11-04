@@ -52,8 +52,8 @@ module mkFabric_AXI4 (Fabric_AXI4_IFC);
 
 `ifdef Near_Mem_TCM
       // TCM DMA Server
-      else if (   (soc_map.m_tcm_addr_base <= addr)
-	       && (addr < soc_map.m_tcm_addr_lim))
+      else if (   (soc_map.m_itcm_addr_base <= addr)
+	       && (addr < soc_map.m_itcm_addr_lim))
 	 return tuple2 (True, fromInteger (dma_server_num));
 `endif
 
