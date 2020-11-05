@@ -756,7 +756,7 @@
         <spirit:parameters>
           <spirit:parameter>
             <spirit:name>viewChecksum</spirit:name>
-            <spirit:value>b82abc15</spirit:value>
+            <spirit:value>e3b7fa65</spirit:value>
           </spirit:parameter>
         </spirit:parameters>
       </spirit:view>
@@ -772,7 +772,7 @@
         <spirit:parameters>
           <spirit:parameter>
             <spirit:name>viewChecksum</spirit:name>
-            <spirit:value>cd968d7d</spirit:value>
+            <spirit:value>e28d5fbc</spirit:value>
           </spirit:parameter>
         </spirit:parameters>
       </spirit:view>
@@ -866,7 +866,7 @@
         <spirit:wire>
           <spirit:direction>out</spirit:direction>
           <spirit:vector>
-            <spirit:left spirit:format="long">63</spirit:left>
+            <spirit:left spirit:format="long">31</spirit:left>
             <spirit:right spirit:format="long">0</spirit:right>
           </spirit:vector>
           <spirit:wireTypeDefs>
@@ -1044,7 +1044,7 @@
         <spirit:wire>
           <spirit:direction>out</spirit:direction>
           <spirit:vector>
-            <spirit:left spirit:format="long">63</spirit:left>
+            <spirit:left spirit:format="long">31</spirit:left>
             <spirit:right spirit:format="long">0</spirit:right>
           </spirit:vector>
           <spirit:wireTypeDefs>
@@ -1206,7 +1206,7 @@
         <spirit:wire>
           <spirit:direction>out</spirit:direction>
           <spirit:vector>
-            <spirit:left spirit:format="long">63</spirit:left>
+            <spirit:left spirit:format="long">31</spirit:left>
             <spirit:right spirit:format="long">0</spirit:right>
           </spirit:vector>
           <spirit:wireTypeDefs>
@@ -1407,7 +1407,7 @@
         <spirit:wire>
           <spirit:direction>in</spirit:direction>
           <spirit:vector>
-            <spirit:left spirit:format="long">63</spirit:left>
+            <spirit:left spirit:format="long">31</spirit:left>
             <spirit:right spirit:format="long">0</spirit:right>
           </spirit:vector>
           <spirit:wireTypeDefs>
@@ -1506,7 +1506,7 @@
         <spirit:wire>
           <spirit:direction>out</spirit:direction>
           <spirit:vector>
-            <spirit:left spirit:format="long">63</spirit:left>
+            <spirit:left spirit:format="long">31</spirit:left>
             <spirit:right spirit:format="long">0</spirit:right>
           </spirit:vector>
           <spirit:wireTypeDefs>
@@ -1684,7 +1684,7 @@
         <spirit:wire>
           <spirit:direction>out</spirit:direction>
           <spirit:vector>
-            <spirit:left spirit:format="long">63</spirit:left>
+            <spirit:left spirit:format="long">31</spirit:left>
             <spirit:right spirit:format="long">0</spirit:right>
           </spirit:vector>
           <spirit:wireTypeDefs>
@@ -1846,7 +1846,7 @@
         <spirit:wire>
           <spirit:direction>out</spirit:direction>
           <spirit:vector>
-            <spirit:left spirit:format="long">63</spirit:left>
+            <spirit:left spirit:format="long">31</spirit:left>
             <spirit:right spirit:format="long">0</spirit:right>
           </spirit:vector>
           <spirit:wireTypeDefs>
@@ -2047,7 +2047,7 @@
         <spirit:wire>
           <spirit:direction>in</spirit:direction>
           <spirit:vector>
-            <spirit:left spirit:format="long">63</spirit:left>
+            <spirit:left spirit:format="long">31</spirit:left>
             <spirit:right spirit:format="long">0</spirit:right>
           </spirit:vector>
           <spirit:wireTypeDefs>
@@ -2365,7 +2365,7 @@
       <spirit:file>
         <spirit:name>hdl/mkP1_Core.v</spirit:name>
         <spirit:fileType>verilogSource</spirit:fileType>
-        <spirit:userFileType>CHECKSUM_a687c78d</spirit:userFileType>
+        <spirit:userFileType>CHECKSUM_bcde6e69</spirit:userFileType>
       </spirit:file>
     </spirit:fileSet>
     <spirit:fileSet>
@@ -2544,8 +2544,8 @@
       </xilinx:taxonomies>
       <xilinx:displayName>mkP1_Core_v1_0</xilinx:displayName>
       <xilinx:definitionSource>package_project</xilinx:definitionSource>
-      <xilinx:coreRevision>17</xilinx:coreRevision>
-      <xilinx:coreCreationDateTime>2020-07-07T21:09:35Z</xilinx:coreCreationDateTime>
+      <xilinx:coreRevision>19</xilinx:coreRevision>
+      <xilinx:coreCreationDateTime>2020-11-03T21:02:27Z</xilinx:coreCreationDateTime>
       <xilinx:tags>
         <xilinx:tag xilinx:name="nopcore"/>
         <xilinx:tag xilinx:name="ssith:user:ssith_processor:1.0_ARCHIVE_LOCATION">/tmp/stoy/gfe/bluespec-processors/P1/Piccolo/src_SSITH_P1/xilinx_ip</xilinx:tag>
@@ -2596,14 +2596,25 @@
         <xilinx:tag xilinx:name="ui.data.coregen.dd@672fae00_ARCHIVE_LOCATION">/home/stoy/minSoC1/bluespec-processors/P1/Piccolo/src_SSITH_P1/xilinx_ip</xilinx:tag>
         <xilinx:tag xilinx:name="ui.data.coregen.dd@52043478_ARCHIVE_LOCATION">/home/stoy/minSoC1/bluespec-processors/P1/Piccolo/src_SSITH_P1/xilinx_ip</xilinx:tag>
         <xilinx:tag xilinx:name="ui.data.coregen.dd@67f993a6_ARCHIVE_LOCATION">/home/stoy/minSoC1/bluespec-processors/P1/Piccolo/src_SSITH_P1/xilinx_ip</xilinx:tag>
+        <xilinx:tag xilinx:name="ui.data.coregen.dd@2cd906e4_ARCHIVE_LOCATION">/home/stoy/work/minSoC1/bluespec-processors/P1/Piccolo/src_SSITH_P1/xilinx_ip</xilinx:tag>
+        <xilinx:tag xilinx:name="ui.data.coregen.dd@7e002031_ARCHIVE_LOCATION">/home/stoy/work/minSoC1/bluespec-processors/P1/Piccolo/src_SSITH_P1/xilinx_ip</xilinx:tag>
+        <xilinx:tag xilinx:name="ui.data.coregen.dd@6f3c70ac_ARCHIVE_LOCATION">/home/stoy/work/minSoC1/bluespec-processors/P1/Piccolo/src_SSITH_P1/xilinx_ip</xilinx:tag>
+        <xilinx:tag xilinx:name="ui.data.coregen.dd@c6b7741_ARCHIVE_LOCATION">/home/stoy/work/minSoC1/bluespec-processors/P1/Piccolo/src_SSITH_P1/xilinx_ip</xilinx:tag>
+        <xilinx:tag xilinx:name="ui.data.coregen.dd@7ce1c5b7_ARCHIVE_LOCATION">/home/stoy/work/minSoC1/bluespec-processors/P1/Piccolo/src_SSITH_P1/xilinx_ip</xilinx:tag>
+        <xilinx:tag xilinx:name="ui.data.coregen.dd@292da706_ARCHIVE_LOCATION">/home/stoy/work/minSoC1/bluespec-processors/P1/Piccolo/src_SSITH_P1/xilinx_ip</xilinx:tag>
+        <xilinx:tag xilinx:name="ui.data.coregen.dd@5e004de7_ARCHIVE_LOCATION">/home/stoy/work/minSoC1/bluespec-processors/P1/Piccolo/src_SSITH_P1/xilinx_ip</xilinx:tag>
+        <xilinx:tag xilinx:name="ui.data.coregen.dd@8940d6c_ARCHIVE_LOCATION">/home/stoy/work/minSoC1/bluespec-processors/P1/Piccolo/src_SSITH_P1/xilinx_ip</xilinx:tag>
+        <xilinx:tag xilinx:name="ui.data.coregen.dd@33a5b03c_ARCHIVE_LOCATION">/home/stoy/work/minSoC1/bluespec-processors/P1/Piccolo/src_SSITH_P1/xilinx_ip</xilinx:tag>
+        <xilinx:tag xilinx:name="ui.data.coregen.dd@4ce113a2_ARCHIVE_LOCATION">/home/stoy/work/minSoC1/bluespec-processors/P1/Piccolo/src_SSITH_P1/xilinx_ip</xilinx:tag>
+        <xilinx:tag xilinx:name="ui.data.coregen.dd@2563b08f_ARCHIVE_LOCATION">/home/stoy/work/minSoC1/bluespec-processors/P1/Piccolo/src_SSITH_P1/xilinx_ip</xilinx:tag>
       </xilinx:tags>
     </xilinx:coreExtensions>
     <xilinx:packagingInfo>
       <xilinx:xilinxVersion>2019.1</xilinx:xilinxVersion>
       <xilinx:checksum xilinx:scope="busInterfaces" xilinx:value="1b423d2d"/>
       <xilinx:checksum xilinx:scope="addressSpaces" xilinx:value="3315be85"/>
-      <xilinx:checksum xilinx:scope="fileGroups" xilinx:value="58f04e3f"/>
-      <xilinx:checksum xilinx:scope="ports" xilinx:value="f065567f"/>
+      <xilinx:checksum xilinx:scope="fileGroups" xilinx:value="87e421d2"/>
+      <xilinx:checksum xilinx:scope="ports" xilinx:value="7650ef59"/>
       <xilinx:checksum xilinx:scope="parameters" xilinx:value="781af562"/>
     </xilinx:packagingInfo>
   </spirit:vendorExtensions>

@@ -409,7 +409,7 @@ endfunction
 // ****************************************************************
 // ****************************************************************
 // The module implementation
-                
+
 (* synthesize *)
 module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 
@@ -1627,7 +1627,7 @@ module mkMMU_Cache  #(parameter Bool dmem_not_imem)  (MMU_Cache_IFC);
 	 $display ("    ", fshow (rd_data));
       end
 
-      let ld_val = fn_extract_and_extend_bytes(rg_f3, rg_addr, zeroExtend (rd_data.rdata));
+      let ld_val = fn_extract_and_extend_bytes(rg_f3, rg_addr, truncate ({rd_data.rdata, rd_data.rdata}));
       rg_ld_val <= ld_val;
 
       // Successful read
