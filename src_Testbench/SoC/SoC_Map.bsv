@@ -225,10 +225,11 @@ module mkSoC_Map (SoC_Map_IFC);
    function Bool fn_is_tcm_addr (Fabric_Addr addr);
       return (fn_is_itcm_addr (addr) || fn_is_dtcm_addr (addr));
    endfunction
+`endif
 
    // ----------------------------------------------------------------
    // Main Mem Controller 0
-
+`ifdef Near_Mem_TCM
    Fabric_Addr mem0_controller_addr_base = 'h_9000_0000;
 `else
    Fabric_Addr mem0_controller_addr_base = 'h_8000_0000;
