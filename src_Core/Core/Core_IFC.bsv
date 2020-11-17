@@ -69,10 +69,13 @@ interface Core_IFC #(numeric type t_n_interrupt_sources);
    interface AXI4_Lite_Slave_IFC #(Wd_Addr, Wd_Data, Wd_User) cpu_dmem_slave;
 `endif
 
+`ifdef INCLUDE_GDB_CONTROL
 `ifdef Near_Mem_TCM
    // ----------------------------------------------------------------
    // Interface to 'coherent DMA' port of optional L2 cache
-   interface AXI4_Slave_IFC #(Wd_Id_Dma, Wd_Addr_Dma, Wd_Data_Dma, Wd_User_Dma)  dma_server;
+   interface AXI4_Slave_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User)  imem_dma_server;
+   interface AXI4_Slave_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User)  dmem_dma_server;
+`endif
 `endif
 
    // ----------------------------------------------------------------

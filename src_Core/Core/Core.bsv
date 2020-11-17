@@ -369,11 +369,14 @@ module mkCore #(Reset por_reset) (Core_IFC #(N_External_Interrupt_Sources));
    interface AXI4_Lite_Slave_IFC  cpu_dmem_slave = cpu.dmem_slave;
 `endif
 
+`ifdef INCLUDE_GDB_CONTROL
 `ifdef Near_Mem_TCM
    // ----------------------------------------------------------------
    // Interface to 'coherent DMA' port of optional L2 cache or as
    // back-door to ITCM
-   interface AXI4_Slave_IFC  dma_server = cpu.dma_server;
+   interface AXI4_Slave_IFC  imem_dma_server = cpu.imem_dma_server;
+   interface AXI4_Slave_IFC  dmem_dma_server = cpu.dmem_dma_server;
+`endif
 `endif
 
    // ----------------------------------------------------------------
@@ -437,15 +440,6 @@ module mkCore #(Reset por_reset) (Core_IFC #(N_External_Interrupt_Sources));
    method Bit #(64) mv_tohost_value = cpu.mv_tohost_value;
 `endif
 
-   // Inform core that DDR4 has been initialized and is ready to accept requests
-   method Action ma_ddr4_ready;
-      cpu.ma_ddr4_ready;
-   endmethod
-
-   // Misc. status; 0 = running, no error
-   method Bit #(8) mv_status;
-      return cpu.mv_status;
-   endmethod
 endmodule: mkCore
 
 endpackage

@@ -48,10 +48,13 @@ interface CPU_IFC;
    // DMem to Fabric master interface
    interface AXI4_Master_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User)  dmem_master;
 
+`ifdef INCLUDE_GDB_CONTROL
 `ifdef Near_Mem_TCM
    // ----------------------------------------------------------------
    // AXI4 DMA target interface (for backdoor loading of TCMs)
-   interface AXI4_Slave_IFC #(Wd_Id_Dma, Wd_Addr_Dma, Wd_Data_Dma, Wd_User_Dma)  dma_server;
+   interface AXI4_Slave_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User)  imem_dma_server;
+   interface AXI4_Slave_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User)  dmem_dma_server;
+`endif
 `endif
 
 `ifdef INCLUDE_DMEM_SLAVE
@@ -122,13 +125,6 @@ interface CPU_IFC;
    method Action set_watch_tohost (Bool watch_tohost, Bit #(64) tohost_addr);
    method Bit #(64) mv_tohost_value;
 `endif
-
-   // Inform core that DDR4 has been initialized and is ready to accept requests
-   method Action ma_ddr4_ready;
-
-   // Misc. status; 0 = running, no error
-   (* always_ready *)
-   method Bit #(8) mv_status;
 
 endinterface
 
