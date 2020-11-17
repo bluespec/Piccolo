@@ -87,16 +87,30 @@ run_example:
 
 # ================================================================
 # Test: run the executable on the standard RISCV ISA test specified in TEST
+# tcm_test: creates two hex files, one for each TCM
+# test: creates a single hex file for main memory
 
-TESTS_DIR ?= $(REPO)/Tests
+TESTS_DIR ?= $(REPO)/riscv-tests
+TOOLS_DIR ?= $(REPO)/tools
 
 VERBOSITY ?= +v1
 
+.PHONY: tcm_test
+tcm_test:
+	make -C $(TOOLS_DIR)/Elf_to_Hex
+	$(TOOLS_DIR)/Elf_to_Hex/Elf_to_Hex32.exe $(TESTS_DIR)/isa/$(TEST)
+	$(TOOLS_DIR)/Elf_to_Hex/Elfhex_to_Memhex.py itcm.hex 64 0x80000000 0x00002000 .text.init.hex32 .text.hex32
+	$(TOOLS_DIR)/Elf_to_Hex/Elfhex_to_Memhex.py dtcm.hex 64 0x88000000 0x00002000 .data.hex32 .tohost.hex32
+	$(TOOLS_DIR)/Elf_to_Hex/Elfhex_to_Memhex.py Mem.hex 256 0x80000000 0x00800000 .*.hex32
+	./exe_HW_sim  $(VERBOSITY)  +tohost
+
 .PHONY: test
 test:
-	make -C  $(TESTS_DIR)/elf_to_hex
-	$(TESTS_DIR)/elf_to_hex/elf_to_hex  $(TESTS_DIR)/isa/$(TEST)  Mem.hex
+	make -C $(TOOLS_DIR)/Elf_to_Hex
+	$(TOOLS_DIR)/Elf_to_Hex/Elf_to_Hex32.exe $(TESTS_DIR)/isa/$(TEST)
+	$(TOOLS_DIR)/Elf_to_Hex/Elfhex_to_Memhex.py Mem.hex 256 0x80000000 0x00800000 .*.hex32
 	./exe_HW_sim  $(VERBOSITY)  +tohost
+
 
 # ================================================================
 # ISA Regression testing
@@ -104,7 +118,7 @@ test:
 .PHONY: isa_tests
 isa_tests:
 	@echo "Running regressions on ISA tests; saving logs in Logs/"
-	$(REPO)/Tests/Run_regression.py  ./exe_HW_sim  $(REPO)  ./Logs  $(ARCH)
+	$(TOOLS_DIR)/Run_regression.py  ./exe_HW_sim  $(REPO)  ./Logs  $(ARCH)
 	@echo "Finished running regressions; saved logs in Logs/"
 
 # ================================================================
