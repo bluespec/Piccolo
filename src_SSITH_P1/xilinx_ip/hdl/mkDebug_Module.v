@@ -29,7 +29,7 @@
 // RDY_ndm_reset_client_response_put  O     1 reg
 // master_awvalid                 O     1 reg
 // master_awid                    O     4 reg
-// master_awaddr                  O    64 reg
+// master_awaddr                  O    32 reg
 // master_awlen                   O     8 reg
 // master_awsize                  O     3 reg
 // master_awburst                 O     2 reg
@@ -39,13 +39,13 @@
 // master_awqos                   O     4 reg
 // master_awregion                O     4 reg
 // master_wvalid                  O     1 reg
-// master_wdata                   O    64 reg
-// master_wstrb                   O     8 reg
+// master_wdata                   O    32 reg
+// master_wstrb                   O     4 reg
 // master_wlast                   O     1 reg
 // master_bready                  O     1 reg
 // master_arvalid                 O     1 reg
 // master_arid                    O     4 reg
-// master_araddr                  O    64 reg
+// master_araddr                  O    32 reg
 // master_arlen                   O     8 reg
 // master_arsize                  O     3 reg
 // master_arburst                 O     2 reg
@@ -73,7 +73,7 @@
 // master_arready                 I     1
 // master_rvalid                  I     1
 // master_rid                     I     4 reg
-// master_rdata                   I    64 reg
+// master_rdata                   I    32 reg
 // master_rresp                   I     2 reg
 // master_rlast                   I     1 reg
 // EN_dmi_read_addr               I     1
@@ -322,7 +322,7 @@ module mkDebug_Module(CLK,
   output [3 : 0] master_awid;
 
   // value method master_m_awaddr
-  output [63 : 0] master_awaddr;
+  output [31 : 0] master_awaddr;
 
   // value method master_m_awlen
   output [7 : 0] master_awlen;
@@ -357,10 +357,10 @@ module mkDebug_Module(CLK,
   output master_wvalid;
 
   // value method master_m_wdata
-  output [63 : 0] master_wdata;
+  output [31 : 0] master_wdata;
 
   // value method master_m_wstrb
-  output [7 : 0] master_wstrb;
+  output [3 : 0] master_wstrb;
 
   // value method master_m_wlast
   output master_wlast;
@@ -385,7 +385,7 @@ module mkDebug_Module(CLK,
   output [3 : 0] master_arid;
 
   // value method master_m_araddr
-  output [63 : 0] master_araddr;
+  output [31 : 0] master_araddr;
 
   // value method master_m_arlen
   output [7 : 0] master_arlen;
@@ -419,7 +419,7 @@ module mkDebug_Module(CLK,
   // action method master_m_rvalid
   input  master_rvalid;
   input  [3 : 0] master_rid;
-  input  [63 : 0] master_rdata;
+  input  [31 : 0] master_rdata;
   input  [1 : 0] master_rresp;
   input  master_rlast;
 
@@ -428,10 +428,10 @@ module mkDebug_Module(CLK,
 
   // signals for module outputs
   reg [31 : 0] dmi_read_data;
-  wire [63 : 0] master_araddr, master_awaddr, master_wdata;
   wire [44 : 0] hart0_csr_mem_client_request_get;
   wire [37 : 0] hart0_gpr_mem_client_request_get;
-  wire [7 : 0] master_arlen, master_awlen, master_wstrb;
+  wire [31 : 0] master_araddr, master_awaddr, master_wdata;
+  wire [7 : 0] master_arlen, master_awlen;
   wire [3 : 0] hart0_get_other_req_get,
 	       master_arcache,
 	       master_arid,
@@ -440,7 +440,8 @@ module mkDebug_Module(CLK,
 	       master_awcache,
 	       master_awid,
 	       master_awqos,
-	       master_awregion;
+	       master_awregion,
+	       master_wstrb;
   wire [2 : 0] master_arprot, master_arsize, master_awprot, master_awsize;
   wire [1 : 0] master_arburst, master_awburst;
   wire RDY_dmi_read_addr,
@@ -531,14 +532,13 @@ module mkDebug_Module(CLK,
        dm_run_control$ndm_reset_client_response_put;
 
   // ports of submodule dm_system_bus
-  wire [63 : 0] dm_system_bus$master_araddr,
+  wire [31 : 0] dm_system_bus$av_read,
+		dm_system_bus$master_araddr,
 		dm_system_bus$master_awaddr,
 		dm_system_bus$master_rdata,
-		dm_system_bus$master_wdata;
-  wire [31 : 0] dm_system_bus$av_read, dm_system_bus$write_dm_word;
-  wire [7 : 0] dm_system_bus$master_arlen,
-	       dm_system_bus$master_awlen,
-	       dm_system_bus$master_wstrb;
+		dm_system_bus$master_wdata,
+		dm_system_bus$write_dm_word;
+  wire [7 : 0] dm_system_bus$master_arlen, dm_system_bus$master_awlen;
   wire [6 : 0] dm_system_bus$av_read_dm_addr, dm_system_bus$write_dm_addr;
   wire [3 : 0] dm_system_bus$master_arcache,
 	       dm_system_bus$master_arid,
@@ -549,7 +549,8 @@ module mkDebug_Module(CLK,
 	       dm_system_bus$master_awqos,
 	       dm_system_bus$master_awregion,
 	       dm_system_bus$master_bid,
-	       dm_system_bus$master_rid;
+	       dm_system_bus$master_rid,
+	       dm_system_bus$master_wstrb;
   wire [2 : 0] dm_system_bus$master_arprot,
 	       dm_system_bus$master_arsize,
 	       dm_system_bus$master_awprot,

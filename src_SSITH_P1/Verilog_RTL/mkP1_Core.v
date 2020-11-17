@@ -8,7 +8,7 @@
 // Name                         I/O  size props
 // master0_awvalid                O     1 reg
 // master0_awid                   O     4 reg
-// master0_awaddr                 O    64 reg
+// master0_awaddr                 O    32 reg
 // master0_awlen                  O     8 reg
 // master0_awsize                 O     3 reg
 // master0_awburst                O     2 reg
@@ -18,13 +18,13 @@
 // master0_awqos                  O     4 reg
 // master0_awregion               O     4 reg
 // master0_wvalid                 O     1 reg
-// master0_wdata                  O    64 reg
-// master0_wstrb                  O     8 reg
+// master0_wdata                  O    32 reg
+// master0_wstrb                  O     4 reg
 // master0_wlast                  O     1 reg
 // master0_bready                 O     1 reg
 // master0_arvalid                O     1 reg
 // master0_arid                   O     4 reg
-// master0_araddr                 O    64 reg
+// master0_araddr                 O    32 reg
 // master0_arlen                  O     8 reg
 // master0_arsize                 O     3 reg
 // master0_arburst                O     2 reg
@@ -36,7 +36,7 @@
 // master0_rready                 O     1 reg
 // master1_awvalid                O     1 reg
 // master1_awid                   O     4 reg
-// master1_awaddr                 O    64 reg
+// master1_awaddr                 O    32 reg
 // master1_awlen                  O     8 reg
 // master1_awsize                 O     3 reg
 // master1_awburst                O     2 reg
@@ -46,13 +46,13 @@
 // master1_awqos                  O     4 reg
 // master1_awregion               O     4 reg
 // master1_wvalid                 O     1 reg
-// master1_wdata                  O    64 reg
-// master1_wstrb                  O     8 reg
+// master1_wdata                  O    32 reg
+// master1_wstrb                  O     4 reg
 // master1_wlast                  O     1 reg
 // master1_bready                 O     1 reg
 // master1_arvalid                O     1 reg
 // master1_arid                   O     4 reg
-// master1_araddr                 O    64 reg
+// master1_araddr                 O    32 reg
 // master1_arlen                  O     8 reg
 // master1_arsize                 O     3 reg
 // master1_arburst                O     2 reg
@@ -77,7 +77,7 @@
 // master0_arready                I     1
 // master0_rvalid                 I     1
 // master0_rid                    I     4 reg
-// master0_rdata                  I    64 reg
+// master0_rdata                  I    32 reg
 // master0_rresp                  I     2 reg
 // master0_rlast                  I     1 reg
 // master1_awready                I     1
@@ -88,7 +88,7 @@
 // master1_arready                I     1
 // master1_rvalid                 I     1
 // master1_rid                    I     4 reg
-// master1_rdata                  I    64 reg
+// master1_rdata                  I    32 reg
 // master1_rresp                  I     2 reg
 // master1_rlast                  I     1 reg
 // cpu_external_interrupt_req     I    16
@@ -286,7 +286,7 @@ module mkP1_Core(RST_N_dmi_reset,
   output [3 : 0] master0_awid;
 
   // value method master0_m_awaddr
-  output [63 : 0] master0_awaddr;
+  output [31 : 0] master0_awaddr;
 
   // value method master0_m_awlen
   output [7 : 0] master0_awlen;
@@ -321,10 +321,10 @@ module mkP1_Core(RST_N_dmi_reset,
   output master0_wvalid;
 
   // value method master0_m_wdata
-  output [63 : 0] master0_wdata;
+  output [31 : 0] master0_wdata;
 
   // value method master0_m_wstrb
-  output [7 : 0] master0_wstrb;
+  output [3 : 0] master0_wstrb;
 
   // value method master0_m_wlast
   output master0_wlast;
@@ -349,7 +349,7 @@ module mkP1_Core(RST_N_dmi_reset,
   output [3 : 0] master0_arid;
 
   // value method master0_m_araddr
-  output [63 : 0] master0_araddr;
+  output [31 : 0] master0_araddr;
 
   // value method master0_m_arlen
   output [7 : 0] master0_arlen;
@@ -383,7 +383,7 @@ module mkP1_Core(RST_N_dmi_reset,
   // action method master0_m_rvalid
   input  master0_rvalid;
   input  [3 : 0] master0_rid;
-  input  [63 : 0] master0_rdata;
+  input  [31 : 0] master0_rdata;
   input  [1 : 0] master0_rresp;
   input  master0_rlast;
 
@@ -397,7 +397,7 @@ module mkP1_Core(RST_N_dmi_reset,
   output [3 : 0] master1_awid;
 
   // value method master1_m_awaddr
-  output [63 : 0] master1_awaddr;
+  output [31 : 0] master1_awaddr;
 
   // value method master1_m_awlen
   output [7 : 0] master1_awlen;
@@ -432,10 +432,10 @@ module mkP1_Core(RST_N_dmi_reset,
   output master1_wvalid;
 
   // value method master1_m_wdata
-  output [63 : 0] master1_wdata;
+  output [31 : 0] master1_wdata;
 
   // value method master1_m_wstrb
-  output [7 : 0] master1_wstrb;
+  output [3 : 0] master1_wstrb;
 
   // value method master1_m_wlast
   output master1_wlast;
@@ -460,7 +460,7 @@ module mkP1_Core(RST_N_dmi_reset,
   output [3 : 0] master1_arid;
 
   // value method master1_m_araddr
-  output [63 : 0] master1_araddr;
+  output [31 : 0] master1_araddr;
 
   // value method master1_m_arlen
   output [7 : 0] master1_arlen;
@@ -494,7 +494,7 @@ module mkP1_Core(RST_N_dmi_reset,
   // action method master1_m_rvalid
   input  master1_rvalid;
   input  [3 : 0] master1_rid;
-  input  [63 : 0] master1_rdata;
+  input  [31 : 0] master1_rdata;
   input  [1 : 0] master1_rresp;
   input  master1_rlast;
 
@@ -524,18 +524,13 @@ module mkP1_Core(RST_N_dmi_reset,
   output RST_N_ndm_reset;
 
   // signals for module outputs
-  wire [63 : 0] master0_araddr,
+  wire [31 : 0] master0_araddr,
 		master0_awaddr,
 		master0_wdata,
 		master1_araddr,
 		master1_awaddr,
 		master1_wdata;
-  wire [7 : 0] master0_arlen,
-	       master0_awlen,
-	       master0_wstrb,
-	       master1_arlen,
-	       master1_awlen,
-	       master1_wstrb;
+  wire [7 : 0] master0_arlen, master0_awlen, master1_arlen, master1_awlen;
   wire [3 : 0] master0_arcache,
 	       master0_arid,
 	       master0_arqos,
@@ -544,6 +539,7 @@ module mkP1_Core(RST_N_dmi_reset,
 	       master0_awid,
 	       master0_awqos,
 	       master0_awregion,
+	       master0_wstrb,
 	       master1_arcache,
 	       master1_arid,
 	       master1_arqos,
@@ -551,7 +547,8 @@ module mkP1_Core(RST_N_dmi_reset,
 	       master1_awcache,
 	       master1_awid,
 	       master1_awqos,
-	       master1_awregion;
+	       master1_awregion,
+	       master1_wstrb;
   wire [2 : 0] master0_arprot,
 	       master0_arsize,
 	       master0_awprot,
@@ -627,7 +624,8 @@ module mkP1_Core(RST_N_dmi_reset,
        bus_dmi_req_fifof$FULL_N;
 
   // ports of submodule core
-  wire [63 : 0] core$cpu_dmem_master_araddr,
+  wire [63 : 0] core$set_verbosity_logdelay;
+  wire [31 : 0] core$cpu_dmem_master_araddr,
 		core$cpu_dmem_master_awaddr,
 		core$cpu_dmem_master_rdata,
 		core$cpu_dmem_master_wdata,
@@ -635,14 +633,12 @@ module mkP1_Core(RST_N_dmi_reset,
 		core$cpu_imem_master_awaddr,
 		core$cpu_imem_master_rdata,
 		core$cpu_imem_master_wdata,
-		core$set_verbosity_logdelay;
-  wire [31 : 0] core$dm_dmi_read_data, core$dm_dmi_write_dm_word;
+		core$dm_dmi_read_data,
+		core$dm_dmi_write_dm_word;
   wire [7 : 0] core$cpu_dmem_master_arlen,
 	       core$cpu_dmem_master_awlen,
-	       core$cpu_dmem_master_wstrb,
 	       core$cpu_imem_master_arlen,
-	       core$cpu_imem_master_awlen,
-	       core$cpu_imem_master_wstrb;
+	       core$cpu_imem_master_awlen;
   wire [6 : 0] core$dm_dmi_read_addr_dm_addr, core$dm_dmi_write_dm_addr;
   wire [3 : 0] core$cpu_dmem_master_arcache,
 	       core$cpu_dmem_master_arid,
@@ -654,6 +650,7 @@ module mkP1_Core(RST_N_dmi_reset,
 	       core$cpu_dmem_master_awregion,
 	       core$cpu_dmem_master_bid,
 	       core$cpu_dmem_master_rid,
+	       core$cpu_dmem_master_wstrb,
 	       core$cpu_imem_master_arcache,
 	       core$cpu_imem_master_arid,
 	       core$cpu_imem_master_arqos,
@@ -664,6 +661,7 @@ module mkP1_Core(RST_N_dmi_reset,
 	       core$cpu_imem_master_awregion,
 	       core$cpu_imem_master_bid,
 	       core$cpu_imem_master_rid,
+	       core$cpu_imem_master_wstrb,
 	       core$set_verbosity_verbosity;
   wire [2 : 0] core$cpu_dmem_master_arprot,
 	       core$cpu_dmem_master_arsize,

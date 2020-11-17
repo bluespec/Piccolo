@@ -12,7 +12,7 @@
 // RDY_cpu_reset_server_response_get  O     1 reg
 // cpu_imem_master_awvalid        O     1 reg
 // cpu_imem_master_awid           O     4 reg
-// cpu_imem_master_awaddr         O    64 reg
+// cpu_imem_master_awaddr         O    32 reg
 // cpu_imem_master_awlen          O     8 reg
 // cpu_imem_master_awsize         O     3 reg
 // cpu_imem_master_awburst        O     2 reg
@@ -22,13 +22,13 @@
 // cpu_imem_master_awqos          O     4 reg
 // cpu_imem_master_awregion       O     4 reg
 // cpu_imem_master_wvalid         O     1 reg
-// cpu_imem_master_wdata          O    64 reg
-// cpu_imem_master_wstrb          O     8 reg
+// cpu_imem_master_wdata          O    32 reg
+// cpu_imem_master_wstrb          O     4 reg
 // cpu_imem_master_wlast          O     1 reg
 // cpu_imem_master_bready         O     1 reg
 // cpu_imem_master_arvalid        O     1 reg
 // cpu_imem_master_arid           O     4 reg
-// cpu_imem_master_araddr         O    64 reg
+// cpu_imem_master_araddr         O    32 reg
 // cpu_imem_master_arlen          O     8 reg
 // cpu_imem_master_arsize         O     3 reg
 // cpu_imem_master_arburst        O     2 reg
@@ -40,7 +40,7 @@
 // cpu_imem_master_rready         O     1 reg
 // cpu_dmem_master_awvalid        O     1 reg
 // cpu_dmem_master_awid           O     4 reg
-// cpu_dmem_master_awaddr         O    64 reg
+// cpu_dmem_master_awaddr         O    32 reg
 // cpu_dmem_master_awlen          O     8 reg
 // cpu_dmem_master_awsize         O     3 reg
 // cpu_dmem_master_awburst        O     2 reg
@@ -50,13 +50,13 @@
 // cpu_dmem_master_awqos          O     4 reg
 // cpu_dmem_master_awregion       O     4 reg
 // cpu_dmem_master_wvalid         O     1 reg
-// cpu_dmem_master_wdata          O    64 reg
-// cpu_dmem_master_wstrb          O     8 reg
+// cpu_dmem_master_wdata          O    32 reg
+// cpu_dmem_master_wstrb          O     4 reg
 // cpu_dmem_master_wlast          O     1 reg
 // cpu_dmem_master_bready         O     1 reg
 // cpu_dmem_master_arvalid        O     1 reg
 // cpu_dmem_master_arid           O     4 reg
-// cpu_dmem_master_araddr         O    64 reg
+// cpu_dmem_master_araddr         O    32 reg
 // cpu_dmem_master_arlen          O     8 reg
 // cpu_dmem_master_arsize         O     3 reg
 // cpu_dmem_master_arburst        O     2 reg
@@ -87,7 +87,7 @@
 // cpu_imem_master_arready        I     1
 // cpu_imem_master_rvalid         I     1
 // cpu_imem_master_rid            I     4 reg
-// cpu_imem_master_rdata          I    64 reg
+// cpu_imem_master_rdata          I    32 reg
 // cpu_imem_master_rresp          I     2 reg
 // cpu_imem_master_rlast          I     1 reg
 // cpu_dmem_master_awready        I     1
@@ -98,7 +98,7 @@
 // cpu_dmem_master_arready        I     1
 // cpu_dmem_master_rvalid         I     1
 // cpu_dmem_master_rid            I     4 reg
-// cpu_dmem_master_rdata          I    64 reg
+// cpu_dmem_master_rdata          I    32 reg
 // cpu_dmem_master_rresp          I     2 reg
 // cpu_dmem_master_rlast          I     1 reg
 // core_external_interrupt_sources_0_m_interrupt_req_set_not_clear  I     1
@@ -394,7 +394,7 @@ module mkCore(RST_N_por_reset,
   output [3 : 0] cpu_imem_master_awid;
 
   // value method cpu_imem_master_m_awaddr
-  output [63 : 0] cpu_imem_master_awaddr;
+  output [31 : 0] cpu_imem_master_awaddr;
 
   // value method cpu_imem_master_m_awlen
   output [7 : 0] cpu_imem_master_awlen;
@@ -429,10 +429,10 @@ module mkCore(RST_N_por_reset,
   output cpu_imem_master_wvalid;
 
   // value method cpu_imem_master_m_wdata
-  output [63 : 0] cpu_imem_master_wdata;
+  output [31 : 0] cpu_imem_master_wdata;
 
   // value method cpu_imem_master_m_wstrb
-  output [7 : 0] cpu_imem_master_wstrb;
+  output [3 : 0] cpu_imem_master_wstrb;
 
   // value method cpu_imem_master_m_wlast
   output cpu_imem_master_wlast;
@@ -457,7 +457,7 @@ module mkCore(RST_N_por_reset,
   output [3 : 0] cpu_imem_master_arid;
 
   // value method cpu_imem_master_m_araddr
-  output [63 : 0] cpu_imem_master_araddr;
+  output [31 : 0] cpu_imem_master_araddr;
 
   // value method cpu_imem_master_m_arlen
   output [7 : 0] cpu_imem_master_arlen;
@@ -491,7 +491,7 @@ module mkCore(RST_N_por_reset,
   // action method cpu_imem_master_m_rvalid
   input  cpu_imem_master_rvalid;
   input  [3 : 0] cpu_imem_master_rid;
-  input  [63 : 0] cpu_imem_master_rdata;
+  input  [31 : 0] cpu_imem_master_rdata;
   input  [1 : 0] cpu_imem_master_rresp;
   input  cpu_imem_master_rlast;
 
@@ -505,7 +505,7 @@ module mkCore(RST_N_por_reset,
   output [3 : 0] cpu_dmem_master_awid;
 
   // value method cpu_dmem_master_m_awaddr
-  output [63 : 0] cpu_dmem_master_awaddr;
+  output [31 : 0] cpu_dmem_master_awaddr;
 
   // value method cpu_dmem_master_m_awlen
   output [7 : 0] cpu_dmem_master_awlen;
@@ -540,10 +540,10 @@ module mkCore(RST_N_por_reset,
   output cpu_dmem_master_wvalid;
 
   // value method cpu_dmem_master_m_wdata
-  output [63 : 0] cpu_dmem_master_wdata;
+  output [31 : 0] cpu_dmem_master_wdata;
 
   // value method cpu_dmem_master_m_wstrb
-  output [7 : 0] cpu_dmem_master_wstrb;
+  output [3 : 0] cpu_dmem_master_wstrb;
 
   // value method cpu_dmem_master_m_wlast
   output cpu_dmem_master_wlast;
@@ -568,7 +568,7 @@ module mkCore(RST_N_por_reset,
   output [3 : 0] cpu_dmem_master_arid;
 
   // value method cpu_dmem_master_m_araddr
-  output [63 : 0] cpu_dmem_master_araddr;
+  output [31 : 0] cpu_dmem_master_araddr;
 
   // value method cpu_dmem_master_m_arlen
   output [7 : 0] cpu_dmem_master_arlen;
@@ -602,7 +602,7 @@ module mkCore(RST_N_por_reset,
   // action method cpu_dmem_master_m_rvalid
   input  cpu_dmem_master_rvalid;
   input  [3 : 0] cpu_dmem_master_rid;
-  input  [63 : 0] cpu_dmem_master_rdata;
+  input  [31 : 0] cpu_dmem_master_rdata;
   input  [1 : 0] cpu_dmem_master_rresp;
   input  cpu_dmem_master_rlast;
 
@@ -687,19 +687,17 @@ module mkCore(RST_N_por_reset,
   output RDY_ndm_reset_client_response_put;
 
   // signals for module outputs
-  wire [63 : 0] cpu_dmem_master_araddr,
+  wire [31 : 0] cpu_dmem_master_araddr,
 		cpu_dmem_master_awaddr,
 		cpu_dmem_master_wdata,
 		cpu_imem_master_araddr,
 		cpu_imem_master_awaddr,
-		cpu_imem_master_wdata;
-  wire [31 : 0] dm_dmi_read_data;
+		cpu_imem_master_wdata,
+		dm_dmi_read_data;
   wire [7 : 0] cpu_dmem_master_arlen,
 	       cpu_dmem_master_awlen,
-	       cpu_dmem_master_wstrb,
 	       cpu_imem_master_arlen,
-	       cpu_imem_master_awlen,
-	       cpu_imem_master_wstrb;
+	       cpu_imem_master_awlen;
   wire [3 : 0] cpu_dmem_master_arcache,
 	       cpu_dmem_master_arid,
 	       cpu_dmem_master_arqos,
@@ -708,6 +706,7 @@ module mkCore(RST_N_por_reset,
 	       cpu_dmem_master_awid,
 	       cpu_dmem_master_awqos,
 	       cpu_dmem_master_awregion,
+	       cpu_dmem_master_wstrb,
 	       cpu_imem_master_arcache,
 	       cpu_imem_master_arid,
 	       cpu_imem_master_arqos,
@@ -715,7 +714,8 @@ module mkCore(RST_N_por_reset,
 	       cpu_imem_master_awcache,
 	       cpu_imem_master_awid,
 	       cpu_imem_master_awqos,
-	       cpu_imem_master_awregion;
+	       cpu_imem_master_awregion,
+	       cpu_imem_master_wstrb;
   wire [2 : 0] cpu_dmem_master_arprot,
 	       cpu_dmem_master_arsize,
 	       cpu_dmem_master_awprot,
@@ -756,25 +756,23 @@ module mkCore(RST_N_por_reset,
        ndm_reset_client_request_get;
 
   // ports of submodule cpu
-  wire [63 : 0] cpu$dmem_master_araddr,
+  wire [63 : 0] cpu$set_verbosity_logdelay;
+  wire [44 : 0] cpu$hart0_csr_mem_server_request_put;
+  wire [37 : 0] cpu$hart0_gpr_mem_server_request_put;
+  wire [32 : 0] cpu$hart0_csr_mem_server_response_get,
+		cpu$hart0_gpr_mem_server_response_get;
+  wire [31 : 0] cpu$dmem_master_araddr,
 		cpu$dmem_master_awaddr,
 		cpu$dmem_master_rdata,
 		cpu$dmem_master_wdata,
 		cpu$imem_master_araddr,
 		cpu$imem_master_awaddr,
 		cpu$imem_master_rdata,
-		cpu$imem_master_wdata,
-		cpu$set_verbosity_logdelay;
-  wire [44 : 0] cpu$hart0_csr_mem_server_request_put;
-  wire [37 : 0] cpu$hart0_gpr_mem_server_request_put;
-  wire [32 : 0] cpu$hart0_csr_mem_server_response_get,
-		cpu$hart0_gpr_mem_server_response_get;
+		cpu$imem_master_wdata;
   wire [7 : 0] cpu$dmem_master_arlen,
 	       cpu$dmem_master_awlen,
-	       cpu$dmem_master_wstrb,
 	       cpu$imem_master_arlen,
-	       cpu$imem_master_awlen,
-	       cpu$imem_master_wstrb;
+	       cpu$imem_master_awlen;
   wire [3 : 0] cpu$dmem_master_arcache,
 	       cpu$dmem_master_arid,
 	       cpu$dmem_master_arqos,
@@ -785,6 +783,7 @@ module mkCore(RST_N_por_reset,
 	       cpu$dmem_master_awregion,
 	       cpu$dmem_master_bid,
 	       cpu$dmem_master_rid,
+	       cpu$dmem_master_wstrb,
 	       cpu$hart0_put_other_req_put,
 	       cpu$imem_master_arcache,
 	       cpu$imem_master_arid,
@@ -796,6 +795,7 @@ module mkCore(RST_N_por_reset,
 	       cpu$imem_master_awregion,
 	       cpu$imem_master_bid,
 	       cpu$imem_master_rid,
+	       cpu$imem_master_wstrb,
 	       cpu$set_verbosity_verbosity;
   wire [2 : 0] cpu$dmem_master_arprot,
 	       cpu$dmem_master_arsize,
@@ -870,18 +870,17 @@ module mkCore(RST_N_por_reset,
        cpu$timer_interrupt_req_set_not_clear;
 
   // ports of submodule debug_module
-  wire [63 : 0] debug_module$master_araddr,
-		debug_module$master_awaddr,
-		debug_module$master_rdata,
-		debug_module$master_wdata;
   wire [44 : 0] debug_module$hart0_csr_mem_client_request_get;
   wire [37 : 0] debug_module$hart0_gpr_mem_client_request_get;
   wire [32 : 0] debug_module$hart0_csr_mem_client_response_put,
 		debug_module$hart0_gpr_mem_client_response_put;
-  wire [31 : 0] debug_module$dmi_read_data, debug_module$dmi_write_dm_word;
-  wire [7 : 0] debug_module$master_arlen,
-	       debug_module$master_awlen,
-	       debug_module$master_wstrb;
+  wire [31 : 0] debug_module$dmi_read_data,
+		debug_module$dmi_write_dm_word,
+		debug_module$master_araddr,
+		debug_module$master_awaddr,
+		debug_module$master_rdata,
+		debug_module$master_wdata;
+  wire [7 : 0] debug_module$master_arlen, debug_module$master_awlen;
   wire [6 : 0] debug_module$dmi_read_addr_dm_addr,
 	       debug_module$dmi_write_dm_addr;
   wire [3 : 0] debug_module$hart0_get_other_req_get,
@@ -894,7 +893,8 @@ module mkCore(RST_N_por_reset,
 	       debug_module$master_awqos,
 	       debug_module$master_awregion,
 	       debug_module$master_bid,
-	       debug_module$master_rid;
+	       debug_module$master_rid,
+	       debug_module$master_wstrb;
   wire [2 : 0] debug_module$master_arprot,
 	       debug_module$master_arsize,
 	       debug_module$master_awprot,
@@ -980,7 +980,7 @@ module mkCore(RST_N_por_reset,
        f_reset_rsps$FULL_N;
 
   // ports of submodule fabric_2x3
-  wire [63 : 0] fabric_2x3$v_from_masters_0_araddr,
+  wire [31 : 0] fabric_2x3$v_from_masters_0_araddr,
 		fabric_2x3$v_from_masters_0_awaddr,
 		fabric_2x3$v_from_masters_0_rdata,
 		fabric_2x3$v_from_masters_0_wdata,
@@ -1002,19 +1002,14 @@ module mkCore(RST_N_por_reset,
 		fabric_2x3$v_to_slaves_2_wdata;
   wire [7 : 0] fabric_2x3$v_from_masters_0_arlen,
 	       fabric_2x3$v_from_masters_0_awlen,
-	       fabric_2x3$v_from_masters_0_wstrb,
 	       fabric_2x3$v_from_masters_1_arlen,
 	       fabric_2x3$v_from_masters_1_awlen,
-	       fabric_2x3$v_from_masters_1_wstrb,
 	       fabric_2x3$v_to_slaves_0_arlen,
 	       fabric_2x3$v_to_slaves_0_awlen,
-	       fabric_2x3$v_to_slaves_0_wstrb,
 	       fabric_2x3$v_to_slaves_1_arlen,
 	       fabric_2x3$v_to_slaves_1_awlen,
-	       fabric_2x3$v_to_slaves_1_wstrb,
 	       fabric_2x3$v_to_slaves_2_arlen,
-	       fabric_2x3$v_to_slaves_2_awlen,
-	       fabric_2x3$v_to_slaves_2_wstrb;
+	       fabric_2x3$v_to_slaves_2_awlen;
   wire [3 : 0] fabric_2x3$set_verbosity_verbosity,
 	       fabric_2x3$v_from_masters_0_arcache,
 	       fabric_2x3$v_from_masters_0_arid,
@@ -1026,6 +1021,7 @@ module mkCore(RST_N_por_reset,
 	       fabric_2x3$v_from_masters_0_awregion,
 	       fabric_2x3$v_from_masters_0_bid,
 	       fabric_2x3$v_from_masters_0_rid,
+	       fabric_2x3$v_from_masters_0_wstrb,
 	       fabric_2x3$v_from_masters_1_arcache,
 	       fabric_2x3$v_from_masters_1_arid,
 	       fabric_2x3$v_from_masters_1_arqos,
@@ -1036,6 +1032,7 @@ module mkCore(RST_N_por_reset,
 	       fabric_2x3$v_from_masters_1_awregion,
 	       fabric_2x3$v_from_masters_1_bid,
 	       fabric_2x3$v_from_masters_1_rid,
+	       fabric_2x3$v_from_masters_1_wstrb,
 	       fabric_2x3$v_to_slaves_0_arcache,
 	       fabric_2x3$v_to_slaves_0_arid,
 	       fabric_2x3$v_to_slaves_0_arqos,
@@ -1046,6 +1043,7 @@ module mkCore(RST_N_por_reset,
 	       fabric_2x3$v_to_slaves_0_awregion,
 	       fabric_2x3$v_to_slaves_0_bid,
 	       fabric_2x3$v_to_slaves_0_rid,
+	       fabric_2x3$v_to_slaves_0_wstrb,
 	       fabric_2x3$v_to_slaves_1_arcache,
 	       fabric_2x3$v_to_slaves_1_arid,
 	       fabric_2x3$v_to_slaves_1_arqos,
@@ -1056,6 +1054,7 @@ module mkCore(RST_N_por_reset,
 	       fabric_2x3$v_to_slaves_1_awregion,
 	       fabric_2x3$v_to_slaves_1_bid,
 	       fabric_2x3$v_to_slaves_1_rid,
+	       fabric_2x3$v_to_slaves_1_wstrb,
 	       fabric_2x3$v_to_slaves_2_arcache,
 	       fabric_2x3$v_to_slaves_2_arid,
 	       fabric_2x3$v_to_slaves_2_arqos,
@@ -1065,7 +1064,8 @@ module mkCore(RST_N_por_reset,
 	       fabric_2x3$v_to_slaves_2_awqos,
 	       fabric_2x3$v_to_slaves_2_awregion,
 	       fabric_2x3$v_to_slaves_2_bid,
-	       fabric_2x3$v_to_slaves_2_rid;
+	       fabric_2x3$v_to_slaves_2_rid,
+	       fabric_2x3$v_to_slaves_2_wstrb;
   wire [2 : 0] fabric_2x3$v_from_masters_0_arprot,
 	       fabric_2x3$v_from_masters_0_arsize,
 	       fabric_2x3$v_from_masters_0_awprot,
@@ -1181,15 +1181,13 @@ module mkCore(RST_N_por_reset,
        fabric_2x3$v_to_slaves_2_wvalid;
 
   // ports of submodule near_mem_io
-  wire [63 : 0] near_mem_io$axi4_slave_araddr,
+  wire [31 : 0] near_mem_io$axi4_slave_araddr,
 		near_mem_io$axi4_slave_awaddr,
 		near_mem_io$axi4_slave_rdata,
 		near_mem_io$axi4_slave_wdata,
 		near_mem_io$set_addr_map_addr_base,
 		near_mem_io$set_addr_map_addr_lim;
-  wire [7 : 0] near_mem_io$axi4_slave_arlen,
-	       near_mem_io$axi4_slave_awlen,
-	       near_mem_io$axi4_slave_wstrb;
+  wire [7 : 0] near_mem_io$axi4_slave_arlen, near_mem_io$axi4_slave_awlen;
   wire [3 : 0] near_mem_io$axi4_slave_arcache,
 	       near_mem_io$axi4_slave_arid,
 	       near_mem_io$axi4_slave_arqos,
@@ -1199,7 +1197,8 @@ module mkCore(RST_N_por_reset,
 	       near_mem_io$axi4_slave_awqos,
 	       near_mem_io$axi4_slave_awregion,
 	       near_mem_io$axi4_slave_bid,
-	       near_mem_io$axi4_slave_rid;
+	       near_mem_io$axi4_slave_rid,
+	       near_mem_io$axi4_slave_wstrb;
   wire [2 : 0] near_mem_io$axi4_slave_arprot,
 	       near_mem_io$axi4_slave_arsize,
 	       near_mem_io$axi4_slave_awprot,
@@ -1235,15 +1234,13 @@ module mkCore(RST_N_por_reset,
        near_mem_io$get_timer_interrupt_req_get;
 
   // ports of submodule plic
-  wire [63 : 0] plic$axi4_slave_araddr,
+  wire [31 : 0] plic$axi4_slave_araddr,
 		plic$axi4_slave_awaddr,
 		plic$axi4_slave_rdata,
 		plic$axi4_slave_wdata,
 		plic$set_addr_map_addr_base,
 		plic$set_addr_map_addr_lim;
-  wire [7 : 0] plic$axi4_slave_arlen,
-	       plic$axi4_slave_awlen,
-	       plic$axi4_slave_wstrb;
+  wire [7 : 0] plic$axi4_slave_arlen, plic$axi4_slave_awlen;
   wire [3 : 0] plic$axi4_slave_arcache,
 	       plic$axi4_slave_arid,
 	       plic$axi4_slave_arqos,
@@ -1254,6 +1251,7 @@ module mkCore(RST_N_por_reset,
 	       plic$axi4_slave_awregion,
 	       plic$axi4_slave_bid,
 	       plic$axi4_slave_rid,
+	       plic$axi4_slave_wstrb,
 	       plic$set_verbosity_verbosity;
   wire [2 : 0] plic$axi4_slave_arprot,
 	       plic$axi4_slave_arsize,
@@ -1304,7 +1302,7 @@ module mkCore(RST_N_por_reset,
        plic$v_targets_1_m_eip;
 
   // ports of submodule soc_map
-  wire [63 : 0] soc_map$m_is_IO_addr_addr,
+  wire [31 : 0] soc_map$m_is_IO_addr_addr,
 		soc_map$m_is_mem_addr_addr,
 		soc_map$m_is_near_mem_IO_addr_addr,
 		soc_map$m_near_mem_io_addr_base,
@@ -2943,9 +2941,9 @@ module mkCore(RST_N_por_reset,
   assign plic$EN_set_addr_map = CAN_FIRE_RL_rl_cpu_hart0_reset_complete ;
 
   // submodule soc_map
-  assign soc_map$m_is_IO_addr_addr = 64'h0 ;
-  assign soc_map$m_is_mem_addr_addr = 64'h0 ;
-  assign soc_map$m_is_near_mem_IO_addr_addr = 64'h0 ;
+  assign soc_map$m_is_IO_addr_addr = 32'h0 ;
+  assign soc_map$m_is_mem_addr_addr = 32'h0 ;
+  assign soc_map$m_is_near_mem_IO_addr_addr = 32'h0 ;
 
   // remaining internal signals
   assign plic_RDY_server_reset_request_put_AND_cpu_RDY__ETC___d9 =
