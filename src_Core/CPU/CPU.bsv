@@ -1642,7 +1642,7 @@ module mkCPU (CPU_IFC);
    interface  imem_master = near_mem.imem_master;
 
    // DMem to fabric master interface
-   interface  dmem_master = near_mem.mem_master;
+   interface  dmem_master = near_mem.dmem_master;
 
    // ----------------------------------------------------------------
    // Optional AXI4-Lite D-cache slave interface
@@ -1651,11 +1651,14 @@ module mkCPU (CPU_IFC);
    interface  dmem_slave = near_mem.dmem_slave;
 `endif
 
+`ifdef INCLUDE_GDB_CONTROL
 `ifdef Near_Mem_TCM
    // ----------------
    // Interface to 'coherent DMA' port of optional L2 cache
-   // (non-coherent DMA backdoor for TCMs)
-   interface AXI4_Slave_IFC dma_server = near_mem.dma_server;
+   // (non-coherent DMA backdoor for ITCMs)
+   interface AXI4_Slave_IFC imem_dma_server = near_mem.imem_dma_server;
+   interface AXI4_Slave_IFC dmem_dma_server = near_mem.dmem_dma_server;
+`endif
 `endif
 
    // ----------------
@@ -1730,16 +1733,6 @@ module mkCPU (CPU_IFC);
 
    method Bit #(64) mv_tohost_value = near_mem.mv_tohost_value;
 `endif
-
-   // Inform core that DDR4 has been initialized and is ready to accept requests
-   method Action ma_ddr4_ready;
-      near_mem.ma_ddr4_ready;
-   endmethod
-
-   // Misc. status; 0 = running, no error
-   method Bit #(8) mv_status;
-      return near_mem.mv_status;
-   endmethod
 
 endmodule: mkCPU
 
