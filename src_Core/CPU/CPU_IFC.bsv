@@ -48,13 +48,13 @@ interface CPU_IFC;
    // DMem to Fabric master interface
    interface AXI4_Master_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User)  dmem_master;
 
-`ifdef INCLUDE_GDB_CONTROL
 `ifdef Near_Mem_TCM
+`ifdef INCLUDE_GDB_CONTROL
    // ----------------------------------------------------------------
    // AXI4 DMA target interface (for backdoor loading of TCMs)
    interface AXI4_Slave_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User)  imem_dma_server;
-   interface AXI4_Slave_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User)  dmem_dma_server;
 `endif
+   interface AXI4_Slave_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User)  dmem_dma_server;
 `endif
 
 `ifdef INCLUDE_DMEM_SLAVE
