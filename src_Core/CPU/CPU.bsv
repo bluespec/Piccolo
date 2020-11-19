@@ -1651,14 +1651,14 @@ module mkCPU (CPU_IFC);
    interface  dmem_slave = near_mem.dmem_slave;
 `endif
 
-`ifdef INCLUDE_GDB_CONTROL
 `ifdef Near_Mem_TCM
+`ifdef INCLUDE_GDB_CONTROL
    // ----------------
-   // Interface to 'coherent DMA' port of optional L2 cache
-   // (non-coherent DMA backdoor for ITCMs)
+   // Debug access to ITCM
    interface AXI4_Slave_IFC imem_dma_server = near_mem.imem_dma_server;
-   interface AXI4_Slave_IFC dmem_dma_server = near_mem.dmem_dma_server;
 `endif
+   // DMA/Debug access to ITCM
+   interface AXI4_Slave_IFC dmem_dma_server = near_mem.dmem_dma_server;
 `endif
 
    // ----------------
