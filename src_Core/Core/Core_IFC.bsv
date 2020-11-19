@@ -69,13 +69,11 @@ interface Core_IFC #(numeric type t_n_interrupt_sources);
    interface AXI4_Lite_Slave_IFC #(Wd_Addr, Wd_Data, Wd_User) cpu_dmem_slave;
 `endif
 
-`ifdef INCLUDE_GDB_CONTROL
 `ifdef Near_Mem_TCM
    // ----------------------------------------------------------------
-   // Interface to 'coherent DMA' port of optional L2 cache
-   interface AXI4_Slave_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User)  imem_dma_server;
+   // Back-door interface to DTCM which is exposed to the Core's interface.
+   // If GDB is enabled, this interface is connected via the internal fabric.
    interface AXI4_Slave_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User)  dmem_dma_server;
-`endif
 `endif
 
    // ----------------------------------------------------------------
@@ -129,13 +127,6 @@ interface Core_IFC #(numeric type t_n_interrupt_sources);
    method Action set_watch_tohost (Bool watch_tohost, Bit #(64) tohost_addr);
    method Bit #(64) mv_tohost_value;
 `endif
-
-   // Inform core that DDR4 has been initialized and is ready to accept requests
-   method Action ma_ddr4_ready;
-
-   // Misc. status; 0 = running, no error
-   (* always_ready *)
-   method Bit #(8) mv_status;
 endinterface
 
 // ================================================================
