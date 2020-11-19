@@ -52,7 +52,7 @@ import Core_IFC          :: *;
 import CPU_IFC           :: *;
 import CPU               :: *;
 
-import Fabric_2x3        :: *;
+import Local_Fabric      :: *;
 
 import Near_Mem_IFC      :: *;    // For Wd_{Id,Addr,Data,User}_Dma
 import Near_Mem_IO_AXI4  :: *;
@@ -86,8 +86,18 @@ module mkCore (Core_IFC #(N_External_Interrupt_Sources));
    // The CPU
    CPU_IFC  cpu <- mkCPU;
 
+`ifdef Near_Mem_TCM
+`ifdef INCLUDE_GDB_CONTROL
+   // A 3x5 fabric for connecting {CPU, Debug_Module, (ext) DMA} to {Fabric, Near_Mem_IO, PLIC, ITCM backdoor, DTCM backdoor}
+   Fabric_3x5_IFC  local_fabric <- mkFabric_3x5;
+`else
+   // A 1x3 fabric for connecting {CPU} to {Fabric, Near_Mem_IO, PLIC}
+   Fabric_1x3_IFC  local_fabric <- mkFabric_1x3;
+`endif
+`else
    // A 2x3 fabric for connecting {CPU, Debug_Module} to {Fabric, Near_Mem_IO, PLIC}
-   Fabric_2x3_IFC  fabric_2x3 <- mkFabric_2x3;
+   Fabric_2x3_IFC  local_fabric <- mkFabric_2x3;
+`endif
 
    // Near_Mem_IO
    Near_Mem_IO_AXI4_IFC  near_mem_io <- mkNear_Mem_IO_AXI4;
@@ -132,7 +142,7 @@ module mkCore (Core_IFC #(N_External_Interrupt_Sources));
       cpu.hart0_server_reset.request.put (running);    // CPU
       near_mem_io.server_reset.request.put (?);        // Near_Mem_IO
       plic.server_reset.request.put (?);               // PLIC
-      fabric_2x3.reset;                                // Local 2x3 Fabric
+      local_fabric.reset;                              // Local 2x3 Fabric
 
 `ifdef INCLUDE_GDB_CONTROL
       // Remember the requestor, so we can respond to it
@@ -149,7 +159,7 @@ module mkCore (Core_IFC #(N_External_Interrupt_Sources));
       cpu.hart0_server_reset.request.put (running);    // CPU
       near_mem_io.server_reset.request.put (?);        // Near_Mem_IO
       plic.server_reset.request.put (?);               // PLIC
-      fabric_2x3.reset;                                // Local 2x3 fabric
+      local_fabric.reset;                                // Local 2x3 fabric
 
       // Remember the requestor, so we can respond to it
       f_reset_requestor.enq (reset_requestor_dm);
@@ -308,16 +318,31 @@ module mkCore (Core_IFC #(N_External_Interrupt_Sources));
    // for ifdef INCLUDE_GDB_CONTROL
 
    // ================================================================
-   // Connect the local 2x3 fabric
+   // Local fabric connections
+   // Connect the local fabric. Masters on the local fabric
+   mkConnection (cpu.dmem_master,  local_fabric.v_from_masters [cpu_dmem_master_num]);
 
-   // Masters on the local 2x3 fabric
-   mkConnection (cpu.dmem_master,  fabric_2x3.v_from_masters [cpu_dmem_master_num]);
-   mkConnection (dm_master_local, fabric_2x3.v_from_masters [debug_module_sba_master_num]);
+`ifdef Near_Mem_TCM
+`ifdef INCLUDE_GDB_CONTROL
+   // for ifdef INCLUDE_GDB_CONTROL (TCM, with GDB)
+   mkConnection (dm_master_local, local_fabric.v_from_masters [debug_module_sba_master_num]);
+`endif
+`else
+   // Cache based near-mem -- always connect debug model, even if it is a stub
+   mkConnection (dm_master_local, local_fabric.v_from_masters [debug_module_sba_master_num]);
+`endif
 
-   // Slaves on the local 2x3 fabric
+   // Slaves on the local fabric (common to caches and TCM)
    // default slave is taken out directly to the Core interface
-   mkConnection (fabric_2x3.v_to_slaves [near_mem_io_slave_num], near_mem_io.axi4_slave);
-   mkConnection (fabric_2x3.v_to_slaves [plic_slave_num],        plic.axi4_slave);
+   mkConnection (local_fabric.v_to_slaves [near_mem_io_slave_num], near_mem_io.axi4_slave);
+   mkConnection (local_fabric.v_to_slaves [plic_slave_num],        plic.axi4_slave);
+
+`ifdef Near_Mem_TCM
+`ifdef INCLUDE_GDB_CONTROL
+   mkConnection (local_fabric.v_to_slaves [imem_dma_slave_num], cpu.imem_dma_server);
+   mkConnection (local_fabric.v_to_slaves [dmem_dma_slave_num], cpu.dmem_dma_server);
+`endif
+`endif
 
    // ================================================================
    // Connect interrupt lines from near_mem_io and PLIC to CPU
@@ -360,7 +385,7 @@ module mkCore (Core_IFC #(N_External_Interrupt_Sources));
    interface AXI4_Master_IFC  cpu_imem_master = cpu.imem_master;
 
    // DMem to Fabric master interface
-   interface AXI4_Master_IFC  cpu_dmem_master = fabric_2x3.v_to_slaves [default_slave_num];
+   interface AXI4_Master_IFC  cpu_dmem_master = local_fabric.v_to_slaves [default_slave_num];
 
    // ----------------------------------------------------------------
    // Optional AXI4-Lite D-cache slave interface
@@ -369,12 +394,13 @@ module mkCore (Core_IFC #(N_External_Interrupt_Sources));
    interface AXI4_Lite_Slave_IFC  cpu_dmem_slave = cpu.dmem_slave;
 `endif
 
-`ifdef INCLUDE_GDB_CONTROL
 `ifdef Near_Mem_TCM
+`ifdef INCLUDE_GDB_CONTROL
+   // External DMA connection via the 3x5 fabric
+   interface AXI4_Slave_IFC  dmem_dma_server = local_fabric.v_from_masters [ext_dma_master_num];
+`else
    // ----------------------------------------------------------------
-   // Interface to 'coherent DMA' port of optional L2 cache or as
-   // back-door to ITCM
-   interface AXI4_Slave_IFC  imem_dma_server = cpu.imem_dma_server;
+   // External DMA connection directly to the CPU and DTCM
    interface AXI4_Slave_IFC  dmem_dma_server = cpu.dmem_dma_server;
 `endif
 `endif
