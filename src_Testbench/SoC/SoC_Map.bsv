@@ -100,8 +100,7 @@ interface SoC_Map_IFC;
    // on the DMA server to the ITCM. If we were to constrain that the DMA
    // initiator either writes or reads the ITCM, then we can do with a single
    // port
-   (* always_ready *)   method  Bool         m_is_itcm_addr_1 (Fabric_Addr addr);
-   (* always_ready *)   method  Bool         m_is_itcm_addr_2 (Fabric_Addr addr);
+   (* always_ready *)   method  Bool         m_is_itcm_addr (Fabric_Addr addr);
 
    (* always_ready *)   method  Fabric_Addr  m_dtcm_addr_base;
    (* always_ready *)   method  Fabric_Addr  m_dtcm_addr_size;
@@ -318,8 +317,7 @@ module mkSoC_Map (SoC_Map_IFC);
    method  Fabric_Addr  m_dtcm_addr_lim  = dtcm_addr_lim;
 
    method  Bool  m_is_tcm_addr (Fabric_Addr addr) = fn_is_tcm_addr (addr);
-   method  Bool  m_is_itcm_addr_1 (Fabric_Addr addr) = fn_is_itcm_addr (addr);
-   method  Bool  m_is_itcm_addr_2 (Fabric_Addr addr) = fn_is_itcm_addr (addr);
+   method  Bool  m_is_itcm_addr (Fabric_Addr addr) = fn_is_itcm_addr (addr);
    method  Bool  m_is_dtcm_addr (Fabric_Addr addr) = fn_is_dtcm_addr (addr);
 `endif
 
