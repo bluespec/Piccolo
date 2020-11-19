@@ -272,7 +272,11 @@ module mkSoC_Map (SoC_Map_IFC);
    // ----------------------------------------------------------------
    // PC, MTVEC and NMIVEC reset values
 
-   Bit #(64) pc_reset_value     = boot_rom_addr_base;
+`ifdef Near_Mem_TCM
+   Bit #(64) pc_reset_value     = extend (itcm_addr_base);
+`else
+   Bit #(64) pc_reset_value     = extend (boot_rom_addr_base);
+`endif
    Bit #(64) mtvec_reset_value  = 'h1000;    // TODO
 
    // Non-maskable interrupt vector
