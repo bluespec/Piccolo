@@ -65,9 +65,9 @@ import TCM_Decls     :: *;
 // Interface and module for the address map
 
 interface SoC_Map_IFC;
-   (* always_ready *)   method  Fabric_Addr  m_near_mem_io_addr_base;
-   (* always_ready *)   method  Fabric_Addr  m_near_mem_io_addr_size;
-   (* always_ready *)   method  Fabric_Addr  m_near_mem_io_addr_lim;
+   (* always_ready *)   method  Fabric_Addr  m_clint_addr_base;
+   (* always_ready *)   method  Fabric_Addr  m_clint_addr_size;
+   (* always_ready *)   method  Fabric_Addr  m_clint_addr_lim;
 
    (* always_ready *)   method  Fabric_Addr  m_plic_addr_base;
    (* always_ready *)   method  Fabric_Addr  m_plic_addr_size;
@@ -117,7 +117,10 @@ interface SoC_Map_IFC;
    method  Bool  m_is_IO_addr (Fabric_Addr addr);
 
    (* always_ready *)
-   method  Bool  m_is_near_mem_IO_addr (Fabric_Addr addr);
+   method  Bool  m_is_nmio_addr (Fabric_Addr addr);
+
+   (* always_ready *)
+   method  Bool  m_is_clint_addr (Fabric_Addr addr);
 
    (* always_ready *)   method  Bit #(64)  m_pc_reset_value;
    (* always_ready *)   method  Bit #(64)  m_mtvec_reset_value;
@@ -134,12 +137,12 @@ module mkSoC_Map (SoC_Map_IFC);
    // ----------------------------------------------------------------
    // Near_Mem_IO (including CLINT, the core-local interruptor)
 
-   Fabric_Addr near_mem_io_addr_base = 'h_0200_0000;
-   Fabric_Addr near_mem_io_addr_size = 'h_0000_C000;    // 48K
-   Fabric_Addr near_mem_io_addr_lim  = near_mem_io_addr_base + near_mem_io_addr_size;
+   Fabric_Addr clint_addr_base = 'h_0200_0000;
+   Fabric_Addr clint_addr_size = 'h_0000_C000;    // 48K
+   Fabric_Addr clint_addr_lim  = clint_addr_base + clint_addr_size;
 
-   function Bool fn_is_near_mem_io_addr (Fabric_Addr addr);
-      return ((near_mem_io_addr_base <= addr) && (addr < near_mem_io_addr_lim));
+   function Bool fn_is_clint_addr (Fabric_Addr addr);
+      return ((clint_addr_base <= addr) && (addr < clint_addr_lim));
    endfunction
 
    // ----------------------------------------------------------------
@@ -255,12 +258,22 @@ module mkSoC_Map (SoC_Map_IFC);
    endfunction
 
    // ----------------------------------------------------------------
+   // NMIO address predicate
+   // Identifies I/O addresses "near" the core
+
+   function Bool fn_is_nmio_addr (Fabric_Addr addr);
+      return (   fn_is_clint_addr (addr)
+	      || fn_is_plic_addr (addr)
+	      );
+   endfunction
+
+   // ----------------------------------------------------------------
    // I/O address predicate
    // Identifies I/O addresses in the Fabric.
    // (Caches need this information to avoid cacheing these addresses.)
 
    function Bool fn_is_IO_addr (Fabric_Addr addr);
-      return (   fn_is_near_mem_io_addr (addr)
+      return (   fn_is_clint_addr (addr)
 	      || fn_is_plic_addr (addr)
 	      || fn_is_uart0_addr  (addr)
 `ifdef INCLUDE_ACCEL0
@@ -285,9 +298,9 @@ module mkSoC_Map (SoC_Map_IFC);
    // ================================================================
    // INTERFACE
 
-   method  Fabric_Addr  m_near_mem_io_addr_base = near_mem_io_addr_base;
-   method  Fabric_Addr  m_near_mem_io_addr_size = near_mem_io_addr_size;
-   method  Fabric_Addr  m_near_mem_io_addr_lim  = near_mem_io_addr_lim;
+   method  Fabric_Addr  m_clint_addr_base = clint_addr_base;
+   method  Fabric_Addr  m_clint_addr_size = clint_addr_size;
+   method  Fabric_Addr  m_clint_addr_lim  = clint_addr_lim;
 
    method  Fabric_Addr  m_plic_addr_base = plic_addr_base;
    method  Fabric_Addr  m_plic_addr_size = plic_addr_size;
@@ -327,9 +340,11 @@ module mkSoC_Map (SoC_Map_IFC);
 
    method  Bool  m_is_mem_addr (Fabric_Addr addr) = fn_is_mem_addr (addr);
 
+   method  Bool  m_is_nmio_addr (Fabric_Addr addr) = fn_is_nmio_addr (addr);
+
    method  Bool  m_is_IO_addr (Fabric_Addr addr) = fn_is_IO_addr (addr);
 
-   method  Bool  m_is_near_mem_IO_addr (Fabric_Addr addr) = fn_is_near_mem_io_addr (addr);
+   method  Bool  m_is_clint_addr (Fabric_Addr addr) = fn_is_clint_addr (addr);
 
    method  Bit #(64)  m_pc_reset_value     = pc_reset_value;
    method  Bit #(64)  m_mtvec_reset_value  = mtvec_reset_value;

@@ -22,6 +22,7 @@ package Fabric_Defs;
 // ================================================================
 // Project imports
 
+import ISA_Decls  :: *;
 import AXI4_Types :: *;
 
 // ================================================================
@@ -88,5 +89,54 @@ AXI4_Region  fabric_default_region   = 0;
 Fabric_User  fabric_default_user     = ?;
 
 // ================================================================
+
+// Address converters
+
+`ifdef ISA_PRIV_S
+// Convert a 64-bit PA to an AXI4 Fabric Address
+// For FABRIC64 this does nothing.
+// For FABRIC32 it discards the upper 32 bits.
+
+function Fabric_Addr fv_Addr_to_Fabric_Addr (Bit #(64) addr);
+   return truncate (addr);
+endfunction
+
+`else
+
+// Convert a XLEN Address to an AXI4 Fabric Address 
+function Fabric_Addr fv_Addr_to_Fabric_Addr (Addr addr);
+`ifdef RV32
+`ifdef FABRIC32
+   return (addr);
+`elsif FABRIC64
+   return zeroExtend (addr);
+`endif
+`elsif RV64
+`ifdef FABRIC32
+   return truncate (addr);
+`elsif FABRIC64
+   return (addr);
+`endif
+`endif
+endfunction
+
+`endif
+
+// Convert a AXI4 Fabric Address to an XLen Address
+function Addr fv_Fabric_Addr_to_Addr (Fabric_Addr a);
+`ifdef RV32
+`ifdef FABRIC32
+   return (a);
+`elsif FABRIC64
+   return truncate (a);
+`endif
+`elsif RV64
+`ifdef FABRIC32
+   return extend (a);
+`elsif FABRIC64
+   return (a);
+`endif
+`endif
+endfunction
 
 endpackage

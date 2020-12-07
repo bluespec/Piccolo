@@ -23,9 +23,15 @@ import ClientServer  :: *;
 // Project imports
 
 import Near_Mem_IFC :: *;    // For Wd_{Id,Addr,Data,User}_Dma
+
 // Main fabric
 import AXI4_Types   :: *;
 import Fabric_Defs  :: *;
+
+`ifdef FABRIC_AHBL
+import AHBL_Types   :: *;
+import AHBL_Defs    :: *;
+`endif
 
 `ifdef INCLUDE_DMEM_SLAVE
 import AXI4_Lite_Types :: *;
@@ -59,8 +65,20 @@ interface Core_IFC #(numeric type t_n_interrupt_sources);
    // CPU IMem to Fabric master interface
    interface AXI4_Master_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User) cpu_imem_master;
 
-   // CPU DMem to Fabric master interface
+   // The dmem system interface is either AHBL or AXI4 (via the local fabric). Although AHBL is
+   // only being used by the TCM-based near-mem, the following interface declarations would hold
+   // for cache-based near-mems as well.
+`ifdef FABRIC_AHBL
+
+   // System interface
+   interface AHBL_Master_IFC #(AHB_Wd_Data) cpu_dmem_master;
+
+`else
+
+   // System interface
    interface AXI4_Master_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User) cpu_dmem_master;
+
+`endif
 
    // ----------------------------------------------------------------
    // Optional AXI4-Lite D-cache slave interface
@@ -69,12 +87,6 @@ interface Core_IFC #(numeric type t_n_interrupt_sources);
    interface AXI4_Lite_Slave_IFC #(Wd_Addr, Wd_Data, Wd_User) cpu_dmem_slave;
 `endif
 
-`ifdef Near_Mem_TCM
-   // ----------------------------------------------------------------
-   // Back-door interface to DTCM which is exposed to the Core's interface.
-   // If GDB is enabled, this interface is connected via the internal fabric.
-   interface AXI4_Slave_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User)  dmem_dma_server;
-`endif
 
    // ----------------------------------------------------------------
    // External interrupt sources
@@ -121,11 +133,14 @@ interface Core_IFC #(numeric type t_n_interrupt_sources);
    method Action  set_verbosity (Bit #(4)  verbosity, Bit #(64)  logdelay);
 
    // ----------------
-   // For ISA tests: watch memory writes to <tohost> addr
+   // For ISA tests: watch memory writes to <tohost> addr. This scheme is not supported by the
+   // WT caches at the moment.
 
+`ifdef Near_Mem_TCM
 `ifdef WATCH_TOHOST
    method Action set_watch_tohost (Bool watch_tohost, Bit #(64) tohost_addr);
    method Bit #(64) mv_tohost_value;
+`endif
 `endif
 endinterface
 

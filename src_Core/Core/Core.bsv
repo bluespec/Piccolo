@@ -86,21 +86,22 @@ module mkCore #(Reset por_reset) (Core_IFC #(N_External_Interrupt_Sources));
    // The CPU
    CPU_IFC  cpu <- mkCPU;
 
-`ifdef Near_Mem_TCM
-`ifdef INCLUDE_GDB_CONTROL
-   // A 3x5 fabric for connecting {CPU, Debug_Module, (ext) DMA} to {Fabric, Near_Mem_IO, PLIC, ITCM backdoor, DTCM backdoor}
-   Fabric_3x5_IFC  local_fabric <- mkFabric_3x5;
+   // A fabric for connecting local components {CPU, Debug_Module} to {memory, Near_Mem_IO,
+   // PLIC, ITCM backdoor, DTCM backdoor}. The configuration depends on an array of compile macros.
+   // The only case we do not have a local fabric is if FABRIC_AHBL && !DUAL_FABRIC. Currently,
+   // both these macros are only used by TCM based near-mems but may be included in cache based
+   // implementations as well in the future.
+
+`ifdef DUAL_FABRIC
+   Local_Fabric_IFC  local_fabric <- mkLocal_Fabric;
 `else
-   // A 1x3 fabric for connecting {CPU} to {Fabric, Near_Mem_IO, PLIC}
-   Fabric_1x3_IFC  local_fabric <- mkFabric_1x3;
+`ifndef FABRIC_AHBL
+   Local_Fabric_IFC  local_fabric <- mkLocal_Fabric;
 `endif
-`else
-   // A 2x3 fabric for connecting {CPU, Debug_Module} to {Fabric, Near_Mem_IO, PLIC}
-   Fabric_2x3_IFC  local_fabric <- mkFabric_2x3;
 `endif
 
    // Near_Mem_IO
-   Near_Mem_IO_AXI4_IFC  near_mem_io <- mkNear_Mem_IO_AXI4;
+   Near_Mem_IO_AXI4_IFC  clint <- mkNear_Mem_IO_AXI4;
 
    // PLIC (Platform-Level Interrupt Controller)
    PLIC_IFC_16_2_7  plic <- mkPLIC_16_2_7;
@@ -140,9 +141,9 @@ module mkCore #(Reset por_reset) (Core_IFC #(N_External_Interrupt_Sources));
       let running <- pop (f_reset_reqs);
 
       cpu.hart0_server_reset.request.put (running);    // CPU
-      near_mem_io.server_reset.request.put (?);        // Near_Mem_IO
+      clint.server_reset.request.put (?);        // Near_Mem_IO
       plic.server_reset.request.put (?);               // PLIC
-      local_fabric.reset;                              // Local 2x3 Fabric
+      local_fabric.reset;                              // Local Fabric
 
 `ifdef INCLUDE_GDB_CONTROL
       // Remember the requestor, so we can respond to it
@@ -157,7 +158,7 @@ module mkCore #(Reset por_reset) (Core_IFC #(N_External_Interrupt_Sources));
       let running <- debug_module.hart0_reset_client.request.get;
 
       cpu.hart0_server_reset.request.put (running);    // CPU
-      near_mem_io.server_reset.request.put (?);        // Near_Mem_IO
+      clint.server_reset.request.put (?);        // Near_Mem_IO
       plic.server_reset.request.put (?);               // PLIC
       local_fabric.reset;                                // Local 2x3 fabric
 
@@ -169,14 +170,11 @@ module mkCore #(Reset por_reset) (Core_IFC #(N_External_Interrupt_Sources));
 
    rule rl_cpu_hart0_reset_complete;
       let running <- cpu.hart0_server_reset.response.get;      // CPU
-      let rsp2    <- near_mem_io.server_reset.response.get;    // Near_Mem_IO
+      let rsp2    <- clint.server_reset.response.get;    // Near_Mem_IO
       let rsp3    <- plic.server_reset.response.get;           // PLIC
 
-      near_mem_io.set_addr_map (zeroExtend (soc_map.m_near_mem_io_addr_base),
-				zeroExtend (soc_map.m_near_mem_io_addr_lim));
-
-      plic.set_addr_map (zeroExtend (soc_map.m_plic_addr_base),
-			 zeroExtend (soc_map.m_plic_addr_lim));
+      clint.set_addr_map (zeroExtend (soc_map.m_clint_addr_base), zeroExtend (soc_map.m_clint_addr_lim));
+      plic.set_addr_map (zeroExtend (soc_map.m_plic_addr_base), zeroExtend (soc_map.m_plic_addr_lim));
 
       Bit #(1) requestor = reset_requestor_soc;
 `ifdef INCLUDE_GDB_CONTROL
@@ -319,12 +317,15 @@ module mkCore #(Reset por_reset) (Core_IFC #(N_External_Interrupt_Sources));
 
    // ================================================================
    // Local fabric connections
-   // Connect the local fabric. Masters on the local fabric
-   mkConnection (cpu.dmem_master,  local_fabric.v_from_masters [cpu_dmem_master_num]);
+   // Connect the local fabric
+
+`ifdef DUAL_FABRIC
+   // Connect the CPU master
+   mkConnection (cpu.nmio_master,  local_fabric.v_from_masters [cpu_dmem_master_num]);
 
 `ifdef Near_Mem_TCM
 `ifdef INCLUDE_GDB_CONTROL
-   // for ifdef INCLUDE_GDB_CONTROL (TCM, with GDB)
+   // Connect the Debug Module
    mkConnection (dm_master_local, local_fabric.v_from_masters [debug_module_sba_master_num]);
 `endif
 `else
@@ -332,10 +333,28 @@ module mkCore #(Reset por_reset) (Core_IFC #(N_External_Interrupt_Sources));
    mkConnection (dm_master_local, local_fabric.v_from_masters [debug_module_sba_master_num]);
 `endif
 
-   // Slaves on the local fabric (common to caches and TCM)
-   // default slave is taken out directly to the Core interface
-   mkConnection (local_fabric.v_to_slaves [near_mem_io_slave_num], near_mem_io.axi4_slave);
-   mkConnection (local_fabric.v_to_slaves [plic_slave_num],        plic.axi4_slave);
+`else
+`ifndef FABRIC_AHBL
+   // Connect the CPU master
+   mkConnection (cpu.dmem_master,  local_fabric.v_from_masters [cpu_dmem_master_num]);
+
+`ifdef Near_Mem_TCM
+`ifdef INCLUDE_GDB_CONTROL
+   // Connect the Debug Module
+   mkConnection (dm_master_local, local_fabric.v_from_masters [debug_module_sba_master_num]);
+`endif
+`else
+   // Cache based near-mem -- always connect debug model, even if it is a stub
+   mkConnection (dm_master_local, local_fabric.v_from_masters [debug_module_sba_master_num]);
+`endif
+`endif
+`endif
+
+   // --------
+   // Slave connections
+`ifdef DUAL_FABRIC
+   mkConnection (local_fabric.v_to_slaves [clint_slave_num], clint.axi4_slave);
+   mkConnection (local_fabric.v_to_slaves [plic_slave_num],  plic.axi4_slave);
 
 `ifdef Near_Mem_TCM
 `ifdef INCLUDE_GDB_CONTROL
@@ -344,17 +363,32 @@ module mkCore #(Reset por_reset) (Core_IFC #(N_External_Interrupt_Sources));
 `endif
 `endif
 
+`else
+`ifndef FABRIC_AHBL
+   mkConnection (local_fabric.v_to_slaves [clint_slave_num], clint.axi4_slave);
+   mkConnection (local_fabric.v_to_slaves [plic_slave_num],  plic.axi4_slave);
+
+`ifdef Near_Mem_TCM
+`ifdef INCLUDE_GDB_CONTROL
+   mkConnection (local_fabric.v_to_slaves [imem_dma_slave_num], cpu.imem_dma_server);
+   mkConnection (local_fabric.v_to_slaves [dmem_dma_slave_num], cpu.dmem_dma_server);
+`endif
+`endif
+
+`endif
+`endif
+
    // ================================================================
-   // Connect interrupt lines from near_mem_io and PLIC to CPU
+   // Connect interrupt lines from clint and PLIC to CPU
 
    rule rl_relay_sw_interrupts;    // from Near_Mem_IO (CLINT)
-      Bool x <- near_mem_io.get_sw_interrupt_req.get;
+      Bool x <- clint.get_sw_interrupt_req.get;
       cpu.software_interrupt_req (x);
       // $display ("%0d: Core.rl_relay_sw_interrupts: relaying: %d", cur_cycle, pack (x));
    endrule
 
    rule rl_relay_timer_interrupts;    // from Near_Mem_IO (CLINT)
-      Bool x <- near_mem_io.get_timer_interrupt_req.get;
+      Bool x <- clint.get_timer_interrupt_req.get;
       cpu.timer_interrupt_req (x);
 
       // $display ("%0d: Core.rl_relay_timer_interrupts: relaying: %d", cur_cycle, pack (x));
@@ -384,25 +418,18 @@ module mkCore #(Reset por_reset) (Core_IFC #(N_External_Interrupt_Sources));
    // IMem to Fabric master interface
    interface AXI4_Master_IFC  cpu_imem_master = cpu.imem_master;
 
+`ifdef FABRIC_AHBL
+   interface AHBL_Master_IFC  cpu_dmem_master = cpu.dmem_master;
+`else
    // DMem to Fabric master interface
    interface AXI4_Master_IFC  cpu_dmem_master = local_fabric.v_to_slaves [default_slave_num];
+`endif
 
    // ----------------------------------------------------------------
    // Optional AXI4-Lite D-cache slave interface
 
 `ifdef INCLUDE_DMEM_SLAVE
    interface AXI4_Lite_Slave_IFC  cpu_dmem_slave = cpu.dmem_slave;
-`endif
-
-`ifdef Near_Mem_TCM
-`ifdef INCLUDE_GDB_CONTROL
-   // External DMA connection via the 3x5 fabric
-   interface AXI4_Slave_IFC  dmem_dma_server = local_fabric.v_from_masters [ext_dma_master_num];
-`else
-   // ----------------------------------------------------------------
-   // External DMA connection directly to the CPU and DTCM
-   interface AXI4_Slave_IFC  dmem_dma_server = cpu.dmem_dma_server;
-`endif
 `endif
 
    // ----------------------------------------------------------------
@@ -458,12 +485,14 @@ module mkCore #(Reset por_reset) (Core_IFC #(N_External_Interrupt_Sources));
    // ----------------
    // For ISA tests: watch memory writes to <tohost> addr
 
+`ifdef Near_Mem_TCM
 `ifdef WATCH_TOHOST
    method Action set_watch_tohost (Bool watch_tohost, Bit #(64) tohost_addr);
       cpu.set_watch_tohost (watch_tohost, tohost_addr);
    endmethod
 
    method Bit #(64) mv_tohost_value = cpu.mv_tohost_value;
+`endif
 `endif
 
 endmodule: mkCore

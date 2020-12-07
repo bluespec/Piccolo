@@ -11,10 +11,15 @@ import ClientServer :: *;
 // ================================================================
 // Project imports
 
-import ISA_Decls       :: *;
+import ISA_Decls   :: *;
 
 import AXI4_Types  :: *;
 import Fabric_Defs :: *;
+
+`ifdef FABRIC_AHBL
+import AHBL_Types  :: *;
+import AHBL_Defs   :: *;
+`endif
 
 `ifdef INCLUDE_DMEM_SLAVE
 import AXI4_Lite_Types :: *;
@@ -28,9 +33,7 @@ import DM_CPU_Req_Rsp :: *;
 import TV_Info         :: *;
 `endif
 
-`ifdef Near_Mem_TCM
 import Near_Mem_IFC    :: *;
-`endif
 
 // ================================================================
 // CPU interface
@@ -41,21 +44,43 @@ interface CPU_IFC;
 
    // ----------------
    // SoC fabric connections
-
    // IMem to Fabric master interface
-   interface AXI4_Master_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User)  imem_master;
+   interface AXI4_Master_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User) imem_master;
+
+`ifdef Near_Mem_TCM
+`ifdef FABRIC_AXI4
+`ifdef DUAL_FABRIC
+
+   // Fabric side (MMIO initiator interface)
+   interface AXI4_Master_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User) nmio_master;
+
+`else    // (!DUAL_FABRIC && FABRIC_AXI4)
+
+   // Fabric side (MMIO initiator interface)
+   interface AXI4_Master_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User) dmem_master;
+
+`endif
+`endif
+
+`ifdef FABRIC_AHBL
+   // Fabric side (MMIO initiator interface)
+   interface AHBL_Master_IFC #(AHB_Wd_Data) dmem_master;
+`endif
+
+   // ----------------------------------------------------------------
+   // AXI4 DMA target interface (for backdoor loading of TCMs in debug mode)
+`ifdef INCLUDE_GDB_CONTROL
+   interface AXI4_Slave_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User)  imem_dma_server;
+   interface AXI4_Slave_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User)  dmem_dma_server;
+`endif
+
+`else    // (!Near_Mem_TCM)
 
    // DMem to Fabric master interface
    interface AXI4_Master_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User)  dmem_master;
 
-`ifdef Near_Mem_TCM
-`ifdef INCLUDE_GDB_CONTROL
-   // ----------------------------------------------------------------
-   // AXI4 DMA target interface (for backdoor loading of TCMs)
-   interface AXI4_Slave_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User)  imem_dma_server;
 `endif
-   interface AXI4_Slave_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User)  dmem_dma_server;
-`endif
+
 
 `ifdef INCLUDE_DMEM_SLAVE
    // ----------------------------------------------------------------
@@ -121,9 +146,11 @@ interface CPU_IFC;
    // Set core's verbosity
    method Action  set_verbosity (Bit #(4)  verbosity, Bit #(64)  logdelay);
 
+`ifdef Near_Mem_TCM
 `ifdef WATCH_TOHOST
    method Action set_watch_tohost (Bool watch_tohost, Bit #(64) tohost_addr);
    method Bit #(64) mv_tohost_value;
+`endif
 `endif
 
 endinterface

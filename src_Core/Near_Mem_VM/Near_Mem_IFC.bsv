@@ -80,8 +80,10 @@ interface Near_Mem_IFC;
 
    interface Server #(Fence_Ordering, Token) server_fence;
 
+`ifdef ISA_PRIV_S
    // SFENCE_VMA
    method Action sfence_vma;
+`endif
 endinterface
    
 // ================================================================

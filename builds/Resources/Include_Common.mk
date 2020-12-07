@@ -40,19 +40,19 @@ all: compile  simulator
 CACHES ?= WT_L1
 
 ifeq ($(CACHES),WB_L1)
-  NEAR_MEM_VM_DIR=Near_Mem_VM_WB_L1
+  NEAR_MEM_VM_DIR=$(REPO)/src_Core/Near_Mem_VM_WB_L1
 else ifeq ($(CACHES),WB_L1_L2)
-  NEAR_MEM_VM_DIR=Near_Mem_VM_WB_L1_L2
+  NEAR_MEM_VM_DIR=$(REPO)/src_Core/Near_Mem_VM_WB_L1_L2
 else ifeq ($(CACHES),TCM)
-  NEAR_MEM_VM_DIR=Near_Mem/Near_Mem_TCM
+   NEAR_MEM_VM_DIR=$(REPO)/src_Core/Near_Mem/Near_Mem_TCM/src:$(REPO)/src_Core/Near_Mem/Near_Mem_TCM/fabrics/AHB_Lite/src
 else
-  NEAR_MEM_VM_DIR=Near_Mem_VM
+  NEAR_MEM_VM_DIR=$(REPO)/src_Core/Near_Mem_VM
 endif
 
 # ================================================================
 # Search path for bsc for .bsv files
 
-CORE_DIRS = $(REPO)/src_Core/CPU:$(REPO)/src_Core/ISA:$(REPO)/src_Core/RegFiles:$(REPO)/src_Core/Core:$(REPO)/src_Core/$(NEAR_MEM_VM_DIR):$(REPO)/src_Core/PLIC:$(REPO)/src_Core/Near_Mem_IO:$(REPO)/src_Core/Debug_Module:$(REPO)/src_Core/BSV_Additional_Libs
+CORE_DIRS = $(REPO)/src_Core/CPU:$(REPO)/src_Core/ISA:$(REPO)/src_Core/RegFiles:$(REPO)/src_Core/Core:$(NEAR_MEM_VM_DIR):$(REPO)/src_Core/PLIC:$(REPO)/src_Core/Near_Mem_IO:$(REPO)/src_Core/Debug_Module:$(REPO)/src_Core/BSV_Additional_Libs
 
 TESTBENCH_DIRS  = $(REPO)/src_Testbench/Top:$(REPO)/src_Testbench/SoC:$(REPO)/src_Testbench/Fabrics/AXI4
 
@@ -61,10 +61,10 @@ BSC_PATH = $(CUSTOM_DIRS):$(CORE_DIRS):$(TESTBENCH_DIRS):+
 # ----------------
 # Top-level file and module
 
-TOPFILE   ?= $(REPO)/src_Testbench/Top/Top_HW_Side.bsv
-TOPMODULE ?= mkTop_HW_Side
-#TOPFILE   ?= $(REPO)/src_Core/CPU/CPU.bsv
-#TOPMODULE ?= mkCPU
+#TOPFILE   ?= $(REPO)/src_Testbench/Top/Top_HW_Side.bsv
+#TOPMODULE ?= mkTop_HW_Side
+TOPFILE   ?= $(REPO)/src_Core/Core/Core.bsv
+TOPMODULE ?= mkCore
 
 # ================================================================
 # bsc compilation flags

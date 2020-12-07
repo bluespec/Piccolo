@@ -38,6 +38,11 @@ import Semi_FIFOF :: *;
 
 import AXI4_Types :: *;
 
+`ifdef FABRIC_AHBL
+import AHBL_Types  :: *;
+import AHBL_Defs   :: *;
+`endif
+
 `ifdef INCLUDE_DMEM_SLAVE
 import AXI4_Lite_Types :: *;
 `endif
@@ -63,7 +68,7 @@ import CPU_Stage1 :: *;    // Fetch and Execute
 import CPU_Stage2 :: *;    // Memory and long-latency ops
 import CPU_Stage3 :: *;    // Writeback
 
-import Near_Mem_IFC :: *;    // Caches or TCM
+import Near_Mem_IFC :: *;  // Caches or TCM
 
 `ifdef Near_Mem_Caches
 import Near_Mem_Caches :: *;
@@ -1644,6 +1649,10 @@ module mkCPU (CPU_IFC);
    // DMem to fabric master interface
    interface  dmem_master = near_mem.dmem_master;
 
+`ifdef DUAL_FABRIC
+   interface  nmio_master = near_mem.nmio_master;
+`endif
+
    // ----------------------------------------------------------------
    // Optional AXI4-Lite D-cache slave interface
 
@@ -1656,9 +1665,10 @@ module mkCPU (CPU_IFC);
    // ----------------
    // Debug access to ITCM
    interface AXI4_Slave_IFC imem_dma_server = near_mem.imem_dma_server;
-`endif
-   // DMA/Debug access to ITCM
+
+   // DMA/Debug access to DTCM
    interface AXI4_Slave_IFC dmem_dma_server = near_mem.dmem_dma_server;
+`endif
 `endif
 
    // ----------------
@@ -1724,14 +1734,17 @@ module mkCPU (CPU_IFC);
    endmethod
 
    // ----------------
-   // For ISA tests: watch memory writes to <tohost> addr
+   // For ISA tests: watch memory writes to <tohost> addr (at the moment does not work for WT
+   // caches)
 
+`ifdef Near_Mem_TCM
 `ifdef WATCH_TOHOST
    method Action set_watch_tohost (Bool watch_tohost, Bit #(64) tohost_addr);
       near_mem.set_watch_tohost (watch_tohost, tohost_addr);
    endmethod
 
    method Bit #(64) mv_tohost_value = near_mem.mv_tohost_value;
+`endif
 `endif
 
 endmodule: mkCPU
