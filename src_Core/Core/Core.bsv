@@ -11,7 +11,7 @@ package Core;
 //     - mkCPU (the RISC-V CPU)
 //     - mkFabric_2x3
 //     - mkNear_Mem_IO_AXI4
-//     - mkPLIC_16_2_7
+//     - mkPLIC_32_2_7
 //     - mkTV_Encode          (Tandem-Verification logic, optional: INCLUDE_TANDEM_VERIF)
 //     - mkDebug_Module       (RISC-V Debug Module, optional: INCLUDE_GDB_CONTROL)
 // and connects them all up.
@@ -57,7 +57,7 @@ import Local_Fabric      :: *;
 import Near_Mem_IFC      :: *;    // For Wd_{Id,Addr,Data,User}_Dma
 import Near_Mem_IO_AXI4  :: *;
 import PLIC              :: *;
-import PLIC_16_2_7       :: *;
+import PLIC_32_1_7       :: *;
 
 `ifdef INCLUDE_TANDEM_VERIF
 import TV_Info   :: *;
@@ -104,7 +104,7 @@ module mkCore #(Reset por_reset) (Core_IFC #(N_External_Interrupt_Sources));
    Near_Mem_IO_AXI4_IFC  clint <- mkNear_Mem_IO_AXI4;
 
    // PLIC (Platform-Level Interrupt Controller)
-   PLIC_IFC_16_2_7  plic <- mkPLIC_16_2_7;
+   PLIC_IFC_32_1_7  plic <- mkPLIC_32_1_7;
 
    // Reset requests from SoC and responses to SoC
    // 'Bool' is 'running' state
@@ -397,8 +397,8 @@ module mkCore #(Reset por_reset) (Core_IFC #(N_External_Interrupt_Sources));
       Bool meip = plic.v_targets [0].m_eip;
       cpu.m_external_interrupt_req (meip);
 
-      Bool seip = plic.v_targets [1].m_eip;
-      cpu.s_external_interrupt_req (seip);
+      //Bool seip = plic.v_targets [1].m_eip;  -- no supervisor mode in this version
+      cpu.s_external_interrupt_req (False);
 
       // $display ("%0d: Core.rl_relay_external_interrupts: relaying: %d", cur_cycle, pack (x));
    endrule

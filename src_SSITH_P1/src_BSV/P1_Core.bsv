@@ -50,6 +50,11 @@ import AXI4_Types   :: *;
 import AXI4_Fabric  :: *;
 import Fabric_Defs  :: *;
 
+`ifdef FABRIC_AHBL
+import AHBL_Types   :: *;
+import AHBL_Defs    :: *;
+`endif
+
 `ifdef INCLUDE_DMEM_SLAVE
 import AXI4_Lite_Types :: *;
 `endif
@@ -61,6 +66,7 @@ import AXI4_Stream ::*;
 
 `ifdef INCLUDE_GDB_CONTROL
 import Debug_Module :: *;
+import Jtag         :: *;
 import JtagTap      :: *;
 import Giraffe_IFC  :: *;
 `endif
@@ -68,7 +74,7 @@ import Giraffe_IFC  :: *;
 // ================================================================
 // Constant: cycles to hold SoC in reset for ndm reset:
 
-UInt#(6) ndm_interval = 10;
+UInt#(6) ndm_interval = 20;
 UInt#(6) por_interval = 20;
 
 // ================================================================
@@ -78,12 +84,16 @@ interface P1_Core_IFC;
 
    // ----------------------------------------------------------------
    // Core CPU interfaces
-
+`ifdef FABRIC_AHBL
+   // CPU DMem (incl. I/O) to Fabric master interface
+   interface AHBL_Master_IFC#(AHBL_Defs::AHB_Wd_Data) master1;
+`else
    // CPU IMem to Fabric master interface
    interface AXI4_Master_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User) master0;
 
    // CPU DMem (incl. I/O) to Fabric master interface
    interface AXI4_Master_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User) master1;
+`endif
 
    // External interrupt sources
    (* always_ready, always_enabled, prefix="" *)
@@ -130,13 +140,17 @@ module mkP1_Core #(Reset dmi_reset) (P1_Core_IFC);
       rstIfc.assertReset();
    endrule
    let por_reset = rstIfc.new_rst;
-   // -----------------
-   let dmi_reset1 <- mkResetInverter(dmi_reset);
 
    // -----------------
+   let dmi_reset1 <- mkResetInverter(dmi_reset); // dmi_reset is active-high
+
+   // -----------------
+
+   // Reset this by default reset, so core is reset by both default and ndm
+   let ndmIfc <- mkReset(2, True, clk); //, reset_by por_reset); -- JES 12/9
 
    // Core: CPU + Near_Mem_IO (CLINT) + PLIC + Debug module (optional) + TV (optional)
-   Core_IFC::Core_IFC #(N_External_Interrupt_Sources)  core <- mkCore(por_reset);
+   Core_IFC::Core_IFC #(N_External_Interrupt_Sources)  core <- mkCore(por_reset, reset_by ndmIfc.new_rst);
 
    // ================================================================
    // Tie-offs (not used in SSITH GFE)
@@ -160,9 +174,6 @@ module mkP1_Core #(Reset dmi_reset) (P1_Core_IFC);
    Reg #(Maybe #(Bool)) rg_ndm_reset <- mkReg (tagged Invalid, reset_by por_reset);
 `ifdef INCLUDE_GDB_CONTROL
    Reg #(UInt #(6))     rg_ndm_count <- mkReg (0, reset_by por_reset);
-
-   // Reset this by por_reset to avoid circularity:
-   let ndmIfc <- mkReset(2, True, clk, reset_by por_reset);
 
    rule decNdmCountRl (rg_ndm_count != 0);
       rg_ndm_count <= rg_ndm_count -1;
@@ -274,9 +285,10 @@ module mkP1_Core #(Reset dmi_reset) (P1_Core_IFC);
 
    // ================================================================
    // INTERFACE
-
+`ifndef FABRIC_AHBL
    // CPU IMem to Fabric master interface
    interface AXI4_Master_IFC master0 = core.cpu_imem_master;
+`endif
 
    // CPU DMem to Fabric master interface
    interface AXI4_Master_IFC master1 = core.cpu_dmem_master;
@@ -316,51 +328,6 @@ module mkP1_Core #(Reset dmi_reset) (P1_Core_IFC);
    interface ndm_reset = ndmIfc.new_rst;
 `endif
 endmodule
-
-// ================================================================
-// The TV to AXI4 Stream transactor
-
-`ifdef INCLUDE_TANDEM_VERIF
-
-// ================================================================
-// TV AXI4 Stream Parameters
-
-typedef SizeOf #(Info_CPU_to_Verifier)Wd_SData;
-typedef 0 Wd_SDest;
-typedef 0 Wd_SUser;
-typedef 0 Wd_SId;
-
-// ================================================================
-
-interface TV_Xactor;
-   interface Put #(Info_CPU_to_Verifier) tv_in;
-   interface AXI4_Stream_Master_IFC #(Wd_SId, Wd_SDest, Wd_SData, Wd_SUser)  axi_out;
-endinterface
-
-function AXI4_Stream #(Wd_SId, Wd_SDest, Wd_SData, Wd_SUser) fn_TVToAxiS (Info_CPU_to_Verifier x);
-   return AXI4_Stream {tid: ?,
-		       tdata: pack(x),
-		       tstrb: '1,
-		       tkeep: '1,
-		       tlast: True,
-		       tdest: ?,
-		       tuser: ? };
-endfunction
-
-(*synthesize*)
-module mkTV_Xactor (TV_Xactor);
-   AXI4_Stream_Master_Xactor_IFC #(Wd_SId, Wd_SDest, Wd_SData, Wd_SUser)
-                               tv_xactor <- mkAXI4_Stream_Master_Xactor;
-
-   interface Put tv_in;
-      method Action put(x);
-	 toPut(tv_xactor.i_stream).put(fn_TVToAxiS(x));
-      endmethod
-   endinterface
-
-   interface axi_out = tv_xactor.axi_side;
-endmodule
-`endif
 
 // ================================================================
 

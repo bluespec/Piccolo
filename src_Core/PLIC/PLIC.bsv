@@ -96,7 +96,12 @@ endinterface
 // ================================================================
 // PLIC module implementation
 
-module mkPLIC (PLIC_IFC #(t_n_external_sources, t_n_targets, t_max_priority))
+module mkPLIC #(function Tuple2 #(Bit #(t_wd_priority), Bit #(TLog #(t_n_sources)))
+		   fn_target_max_prio_and_max_id0 (Vector #(t_n_sources, Bool)                        vrg_source_ip,
+						   Vector #(t_n_targets, Vector #(t_n_sources, Bool)) vvrg_ie,
+						   Vector #(t_n_sources, Bit #(t_wd_priority))        vrg_source_prio,
+		      				   Bit #(T_wd_target_id)  target_id))
+	      (PLIC_IFC #(t_n_external_sources, t_n_targets, t_max_priority))
    provisos (Add #(1, t_n_external_sources, t_n_sources),           // source 0 is reserved for 'no source'
 	     Add #(_any_0, TLog #(t_n_sources), T_wd_source_id),
 	     Add #(_any_1, TLog #(t_n_targets), T_wd_target_id),
@@ -156,23 +161,9 @@ module mkPLIC (PLIC_IFC #(t_n_external_sources, t_n_targets, t_max_priority))
    // ================================================================
    // Compute outputs for each target (combinational)
 
-   function Tuple2 #(Bit #(t_wd_priority), Bit #(TLog #(t_n_sources)))
-            fn_target_max_prio_and_max_id (Bit #(T_wd_target_id)  target_id);
-
-      Bit #(t_wd_priority)       max_prio = 0;
-      Bit #(TLog #(t_n_sources)) max_id   = 0;
-
-      // Note: source_ids begin at 1, not 0.
-      for (Integer source_id = 1; source_id < n_sources; source_id = source_id + 1)
-	 if (   vrg_source_ip [source_id]
-	     && (vrg_source_prio [source_id] > max_prio)
-	     && (vvrg_ie [target_id][source_id])) begin
-	    max_id   = fromInteger (source_id);
-	    max_prio = vrg_source_prio [source_id];
-	 end
-      // Assert: if any interrupt is pending (max_id > 0), then prio > 0
-      return tuple2 (max_prio, max_id);
-   endfunction
+   let fn_target_max_prio_and_max_id = fn_target_max_prio_and_max_id0(readVReg(vrg_source_ip),
+								      map(readVReg, vvrg_ie),
+								      readVReg(vrg_source_prio));
 
    function Action fa_show_PLIC_state;
       action

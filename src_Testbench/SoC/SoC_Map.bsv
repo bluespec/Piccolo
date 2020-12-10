@@ -35,6 +35,7 @@ export  Num_Slaves;
 export  boot_rom_slave_num;
 export  mem0_controller_slave_num;
 export  uart0_slave_num;
+export  gpio0_slave_num;
 `ifdef INCLUDE_ACCEL0
 export  accel0_slave_num;
 `endif
@@ -45,7 +46,10 @@ export  dma_server_num;
 export  N_External_Interrupt_Sources;
 export  n_external_interrupt_sources;
 export  irq_num_uart0;
+export  irq_num_gpio0;
+`ifdef INCLUDE_ACCEL0
 export  irq_num_accel0;
+`endif
 
 // ================================================================
 // Bluespec library imports
@@ -77,6 +81,10 @@ interface SoC_Map_IFC;
    (* always_ready *)   method  Fabric_Addr  m_uart0_addr_size;
    (* always_ready *)   method  Fabric_Addr  m_uart0_addr_lim;
 
+   (* always_ready *)   method  Fabric_Addr  m_gpio0_addr_base;
+   (* always_ready *)   method  Fabric_Addr  m_gpio0_addr_size;
+   (* always_ready *)   method  Fabric_Addr  m_gpio0_addr_lim;
+
 `ifdef INCLUDE_ACCEL0
    (* always_ready *)   method  Fabric_Addr  m_accel0_addr_base;
    (* always_ready *)   method  Fabric_Addr  m_accel0_addr_size;
@@ -95,7 +103,7 @@ interface SoC_Map_IFC;
    (* always_ready *)   method  Fabric_Addr  m_itcm_addr_base;
    (* always_ready *)   method  Fabric_Addr  m_itcm_addr_size;
    (* always_ready *)   method  Fabric_Addr  m_itcm_addr_lim;
-   
+
    // These two ports are needed for supporting simultaneous R and W accesses
    // on the DMA server to the ITCM. If we were to constrain that the DMA
    // initiator either writes or reads the ITCM, then we can do with a single
@@ -159,12 +167,23 @@ module mkSoC_Map (SoC_Map_IFC);
    // ----------------------------------------------------------------
    // UART 0
 
-   Fabric_Addr uart0_addr_base = 'hC000_0000;
+   Fabric_Addr uart0_addr_base = 'h6230_0000;
    Fabric_Addr uart0_addr_size = 'h0000_0080;    // 128
    Fabric_Addr uart0_addr_lim  = uart0_addr_base + uart0_addr_size;
 
    function Bool fn_is_uart0_addr (Fabric_Addr addr);
       return ((uart0_addr_base <= addr) && (addr < uart0_addr_lim));
+   endfunction
+
+   // ----------------------------------------------------------------
+   // GPIO 0
+
+   Fabric_Addr gpio0_addr_base = 'h6FFF_0000;
+   Fabric_Addr gpio0_addr_size = 'h0000_0080;    // 128
+   Fabric_Addr gpio0_addr_lim  = gpio0_addr_base + gpio0_addr_size;
+
+   function Bool fn_is_gpio0_addr (Fabric_Addr addr);
+      return ((gpio0_addr_base <= addr) && (addr < gpio0_addr_lim));
    endfunction
 
    // ----------------------------------------------------------------
@@ -183,7 +202,7 @@ module mkSoC_Map (SoC_Map_IFC);
    // ----------------------------------------------------------------
    // Boot ROM
 
-   Fabric_Addr boot_rom_addr_base = 'h_0000_1000;
+   Fabric_Addr boot_rom_addr_base = 'h_7000_0000;
    Fabric_Addr boot_rom_addr_size = 'h_0000_1000;    // 4K
    Fabric_Addr boot_rom_addr_lim  = boot_rom_addr_base + boot_rom_addr_size;
 
@@ -200,15 +219,15 @@ module mkSoC_Map (SoC_Map_IFC);
    //
    // The "main" memory now starts from 0x9000_0000, effectively
    // leaving 256 MB for the two TCMs
-   // 
+   //
    // Currently the TCMs are of the same size, controlled by a
    // single tcm_addr_size value.
-   Fabric_Addr itcm_addr_base = 'h_8000_0000;
+   Fabric_Addr itcm_addr_base = 'h_C000_0000;
    Fabric_Addr itcm_addr_size = fromInteger (bytes_per_TCM);
    Fabric_Addr itcm_addr_lim  = itcm_addr_base + itcm_addr_size;
 
    // Tightly-coupled memory ('TCM'; optional)
-   Fabric_Addr dtcm_addr_base = 'h_8800_0000;
+   Fabric_Addr dtcm_addr_base = 'h_C800_0000;
    Fabric_Addr dtcm_addr_size = fromInteger (bytes_per_TCM);
    Fabric_Addr dtcm_addr_lim  = dtcm_addr_base + dtcm_addr_size;
 
@@ -384,20 +403,22 @@ typedef 4 Num_Slaves;
 Integer boot_rom_slave_num        = 0;
 Integer mem0_controller_slave_num = 1;
 Integer uart0_slave_num           = 2;
-Integer dma_server_num            = 3;
+Integer gpio0_slave_num           = 3;
+Integer dma_server_num            = 4;
 `ifdef INCLUDE_ACCEL0
-Integer accel0_slave_num          = 4;
+Integer accel0_slave_num          = 5;
 `endif
 
 // ================================================================
 // Interrupt request numbers (== index in to vector of
 // interrupt-request lines in Core)
 
-typedef  16  N_External_Interrupt_Sources;
+typedef  32  N_External_Interrupt_Sources;
 Integer  n_external_interrupt_sources = valueOf (N_External_Interrupt_Sources);
 
 Integer irq_num_uart0  = 0;
-Integer irq_num_accel0 = 1;
+Integer irq_num_gpio0  = 1;
+Integer irq_num_accel0 = 2;
 
 // ================================================================
 
