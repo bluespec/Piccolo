@@ -356,25 +356,24 @@ module mkCore #(Reset por_reset) (Core_IFC #(N_External_Interrupt_Sources));
    mkConnection (local_fabric.v_to_slaves [clint_slave_num], clint.axi4_slave);
    mkConnection (local_fabric.v_to_slaves [plic_slave_num],  plic.axi4_slave);
 
-`ifdef Near_Mem_TCM
-`ifdef INCLUDE_GDB_CONTROL
-   mkConnection (local_fabric.v_to_slaves [imem_dma_slave_num], cpu.imem_dma_server);
-   mkConnection (local_fabric.v_to_slaves [dmem_dma_slave_num], cpu.dmem_dma_server);
-`endif
-`endif
-
 `else
 `ifndef FABRIC_AHBL
    mkConnection (local_fabric.v_to_slaves [clint_slave_num], clint.axi4_slave);
    mkConnection (local_fabric.v_to_slaves [plic_slave_num],  plic.axi4_slave);
 
+`endif
+`endif
+
+   // TCM DMA server connections
 `ifdef Near_Mem_TCM
 `ifdef INCLUDE_GDB_CONTROL
    mkConnection (local_fabric.v_to_slaves [imem_dma_slave_num], cpu.imem_dma_server);
    mkConnection (local_fabric.v_to_slaves [dmem_dma_slave_num], cpu.dmem_dma_server);
-`endif
-`endif
-
+`else
+   AXI4_Master_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User) idma_dummy_master = dummy_AXI4_Master_ifc;
+   AXI4_Master_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User) ddma_dummy_master = dummy_AXI4_Master_ifc;
+   mkConnection (idma_dummy_master, cpu.imem_dma_server);
+   mkConnection (ddma_dummy_master, cpu.dmem_dma_server);
 `endif
 `endif
 
@@ -415,8 +414,10 @@ module mkCore #(Reset por_reset) (Core_IFC #(N_External_Interrupt_Sources));
    // ----------------------------------------------------------------
    // AXI4 Fabric interfaces
 
+`ifndef Near_Mem_TCM
    // IMem to Fabric master interface
    interface AXI4_Master_IFC  cpu_imem_master = cpu.imem_master;
+`endif
 
 `ifdef FABRIC_AHBL
    interface AHBL_Master_IFC  cpu_dmem_master = cpu.dmem_master;

@@ -44,8 +44,10 @@ interface CPU_IFC;
 
    // ----------------
    // SoC fabric connections
-   // IMem to Fabric master interface
+`ifndef Near_Mem_TCM
+   // IMem to Fabric master interface is present in all cases except when a ITCM is present
    interface AXI4_Master_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User) imem_master;
+`endif
 
 `ifdef Near_Mem_TCM
 `ifdef FABRIC_AXI4
@@ -69,10 +71,8 @@ interface CPU_IFC;
 
    // ----------------------------------------------------------------
    // AXI4 DMA target interface (for backdoor loading of TCMs in debug mode)
-`ifdef INCLUDE_GDB_CONTROL
    interface AXI4_Slave_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User)  imem_dma_server;
    interface AXI4_Slave_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User)  dmem_dma_server;
-`endif
 
 `else    // (!Near_Mem_TCM)
 

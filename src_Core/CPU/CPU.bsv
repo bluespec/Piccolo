@@ -1643,8 +1643,10 @@ module mkCPU (CPU_IFC);
    // ----------------
    // SoC fabric connections
 
+`ifndef Near_Mem_TCM
    // IMem to fabric master interface
    interface  imem_master = near_mem.imem_master;
+`endif
 
    // DMem to fabric master interface
    interface  dmem_master = near_mem.dmem_master;
@@ -1661,14 +1663,12 @@ module mkCPU (CPU_IFC);
 `endif
 
 `ifdef Near_Mem_TCM
-`ifdef INCLUDE_GDB_CONTROL
    // ----------------
    // Debug access to ITCM
    interface AXI4_Slave_IFC imem_dma_server = near_mem.imem_dma_server;
 
    // DMA/Debug access to DTCM
    interface AXI4_Slave_IFC dmem_dma_server = near_mem.dmem_dma_server;
-`endif
 `endif
 
    // ----------------

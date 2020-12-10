@@ -62,8 +62,10 @@ interface Core_IFC #(numeric type t_n_interrupt_sources);
    // ----------------------------------------------------------------
    // AXI4 Fabric interfaces
 
+`ifndef Near_Mem_TCM
    // CPU IMem to Fabric master interface
    interface AXI4_Master_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User) cpu_imem_master;
+`endif
 
    // The dmem system interface is either AHBL or AXI4 (via the local fabric). Although AHBL is
    // only being used by the TCM-based near-mem, the following interface declarations would hold
