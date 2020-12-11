@@ -26,7 +26,7 @@ import GetPut       :: *;
 import ClientServer :: *;
 import Connectable  :: *;
 import ConfigReg    :: *;
-
+import Clocks       :: *;
 // ----------------
 // BSV additional libs
 
@@ -411,7 +411,9 @@ module mkCPU (CPU_IFC);
 
    Reg #(Bool) rg_run_on_reset <- mkReg (False);
 
-   rule rl_reset_start (rg_state == CPU_RESET1);
+   let isInReset <- isResetAsserted;
+
+   rule rl_reset_start (rg_state == CPU_RESET1 && !isInReset);
       let run_on_reset <- pop (f_reset_reqs);
       rg_run_on_reset <= run_on_reset;
 

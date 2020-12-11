@@ -72,6 +72,55 @@ import TV_Taps :: *;
 `endif
 
 // ================================================================
+
+// This function is needed for the debug module's initiator port,
+// which sometimes requests  of partial words.  The
+
+function AXI4_Master_IFC#(i,a,d,u) fn_8byte_align(AXI4_Master_IFC#(i,a,d,u) ifc);
+   let nbytes = valueof(d)/8;
+   let isize  = valueof(TSub#(TLog#(d),3));
+   Bit#(a) mask = ~(fromInteger(nbytes - 1));
+   return ( interface AXI4_Master_IFC;
+	       method m_awvalid = ifc.m_awvalid;
+	       method m_awid = ifc.m_awid;
+	       method m_awaddr = (ifc.m_awaddr & mask);
+	       method m_awlen = ifc.m_awlen;
+	       method m_awsize = fromInteger(isize); //ifc.m_awsize;
+	       method m_awburst = ifc.m_awburst;
+	       method m_awlock = ifc.m_awlock;
+	       method m_awcache = ifc.m_awcache;
+	       method m_awprot = ifc.m_awprot;
+	       method m_awqos = ifc.m_awqos;
+	       method m_awregion = ifc.m_awregion;
+	       method m_awuser = ifc.m_awuser;
+	       method m_awready = ifc.m_awready;
+	       method m_wvalid = ifc.m_wvalid;
+	       method m_wdata = ifc.m_wdata;
+	       method m_wstrb = ifc.m_wstrb;
+	       method m_wlast = ifc.m_wlast;
+	       method m_wuser = ifc.m_wuser;
+	       method m_wready = ifc.m_wready;
+	       method m_bvalid = ifc.m_bvalid;
+	       method m_bready = ifc.m_bready;
+	       method m_arvalid = ifc.m_arvalid;
+	       method m_arid = ifc.m_arid;
+	       method m_araddr = (ifc.m_araddr & mask);
+	       method m_arlen = ifc.m_arlen;
+	       method m_arsize = fromInteger(isize); //ifc.m_arsize;
+	       method m_arburst = ifc.m_arburst;
+	       method m_arlock = ifc.m_arlock;
+	       method m_arcache = ifc.m_arcache;
+	       method m_arprot = ifc.m_arprot;
+	       method m_arqos = ifc.m_arqos;
+	       method m_arregion = ifc.m_arregion;
+	       method m_aruser = ifc.m_aruser;
+	       method m_arready = ifc.m_arready;
+	       method m_rvalid = ifc.m_rvalid;
+	       method m_rready = ifc.m_rready;
+	   endinterface );
+endfunction
+
+// ================================================================
 // The Core module
 
 (* synthesize *)
@@ -84,7 +133,8 @@ module mkCore #(Reset por_reset) (Core_IFC #(N_External_Interrupt_Sources));
    SoC_Map_IFC  soc_map  <- mkSoC_Map;
 
    // The CPU
-   CPU_IFC  cpu <- mkCPU;
+   // CPU resets after por are controlled by the reset server.
+   CPU_IFC  cpu <- mkCPU(reset_by por_reset);
 
    // A fabric for connecting local components {CPU, Debug_Module} to {memory, Near_Mem_IO,
    // PLIC, ITCM backdoor, DTCM backdoor}. The configuration depends on an array of compile macros.
@@ -120,6 +170,7 @@ module mkCore #(Reset por_reset) (Core_IFC #(N_External_Interrupt_Sources));
 `ifdef INCLUDE_GDB_CONTROL
    // Debug Module
    Debug_Module_IFC  debug_module <- mkDebug_Module (reset_by por_reset);
+   let debug_module_master = fn_8byte_align(debug_module.master);
 `endif
 
    // ================================================================
@@ -226,7 +277,7 @@ module mkCore #(Reset por_reset) (Core_IFC #(N_External_Interrupt_Sources));
 
    // Create a tap for DM's memory-writes to the bus, and merge-in the trace data.
    DM_Mem_Tap_IFC dm_mem_tap <- mkDM_Mem_Tap;
-   mkConnection (debug_module.master, dm_mem_tap.slave);
+   mkConnection (debug_module_master, dm_mem_tap.slave);
    let dm_master_local = dm_mem_tap.master;
 
    rule merge_dm_mem_trace_data;
@@ -290,7 +341,7 @@ module mkCore #(Reset por_reset) (Core_IFC #(N_External_Interrupt_Sources));
    mkConnection (debug_module.hart0_csr_mem_client, cpu.hart0_csr_mem_server);
 
    // DM's bus master is directly the bus master
-   let dm_master_local = debug_module.master;
+   let dm_master_local = debug_module_master;
 
    // END SECTION: GDB and no TV
 `endif
