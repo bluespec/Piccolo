@@ -84,13 +84,15 @@ interface P1_Core_IFC;
 
    // ----------------------------------------------------------------
    // Core CPU interfaces
+`ifndef Near_Mem_TCM
+   // CPU IMem to Fabric master interface
+   interface AXI4_Master_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User) master0;
+`endif
+
 `ifdef FABRIC_AHBL
    // CPU DMem (incl. I/O) to Fabric master interface
    interface AHBL_Master_IFC#(AHBL_Defs::AHB_Wd_Data) master1;
 `else
-   // CPU IMem to Fabric master interface
-   interface AXI4_Master_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User) master0;
-
    // CPU DMem (incl. I/O) to Fabric master interface
    interface AXI4_Master_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User) master1;
 `endif
@@ -285,13 +287,18 @@ module mkP1_Core #(Reset dmi_reset) (P1_Core_IFC);
 
    // ================================================================
    // INTERFACE
-`ifndef FABRIC_AHBL
+`ifndef Near_Mem_TCM
    // CPU IMem to Fabric master interface
    interface AXI4_Master_IFC master0 = core.cpu_imem_master;
 `endif
 
+`ifdef FABRIC_AHBL
+   // CPU DMem to Fabric master interface
+   interface AHBL_Master_IFC master1 = core.cpu_dmem_master;
+`else
    // CPU DMem to Fabric master interface
    interface AXI4_Master_IFC master1 = core.cpu_dmem_master;
+`endif
 
    // External interrupts
    method  Action interrupt_reqs (Bit #(N_External_Interrupt_Sources) reqs);
