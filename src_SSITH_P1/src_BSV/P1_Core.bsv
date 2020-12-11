@@ -150,9 +150,10 @@ module mkP1_Core #(Reset dmi_reset) (P1_Core_IFC);
 
    // Reset this by default reset, so core is reset by both default and ndm
    let ndmIfc <- mkReset(2, True, clk); //, reset_by por_reset); -- JES 12/9
+   let coreRSTN = ndmIfc.new_rst;
 
    // Core: CPU + Near_Mem_IO (CLINT) + PLIC + Debug module (optional) + TV (optional)
-   Core_IFC::Core_IFC #(N_External_Interrupt_Sources)  core <- mkCore(por_reset, reset_by ndmIfc.new_rst);
+   Core_IFC::Core_IFC #(N_External_Interrupt_Sources)  core <- mkCore(por_reset, reset_by coreRSTN);
 
    // ================================================================
    // Tie-offs (not used in SSITH GFE)
@@ -183,7 +184,10 @@ module mkP1_Core #(Reset dmi_reset) (P1_Core_IFC);
    endrule
 `endif
 
-   rule rl_once (! rg_once);
+   let inReset <- isResetAssertedDirect(reset_by coreRSTN);
+
+   rule rl_once (!rg_once && !inReset);
+      when (rg_ndm_count == 0, noAction);
       Bool running = True;
       if (rg_ndm_reset matches tagged Valid False)
 	 running = False;
