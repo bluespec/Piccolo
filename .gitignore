@@ -17,3 +17,5 @@ AA_*
 symbol_table.txt
 vpi_wrapper_*
 Verilog_RTL
+src_SSITH_P1/Verilog_RTL
+src_SSITH_P1/xilinx_ip/hdl
