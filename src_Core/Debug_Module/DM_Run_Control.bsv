@@ -105,8 +105,8 @@ module mkDM_Run_Control (DM_Run_Control_IFC);
    Bool dmstatus_anynonexistent = dmstatus_allnonexistent;
 
    Reg #(Bool) rg_dmstatus_allunavail <- mkReg (False);
-   Bool dmstatus_allunavail     = rg_dmstatus_allunavail;
-   Bool dmstatus_anyunavail     = rg_dmstatus_allunavail;
+   Bool dmstatus_allunavail     = False; // this hart always available //rg_dmstatus_allunavail;
+   Bool dmstatus_anyunavail     = False; // //rg_dmstatus_allunavail;
 
    Bool dmstatus_allrunning     = rg_hart0_running;
    Bool dmstatus_anyrunning     = dmstatus_allrunning;
@@ -189,13 +189,13 @@ module mkDM_Run_Control (DM_Run_Control_IFC);
 	    // No action here; other rules will fire (see method dmactive, Debug_Module.rl_reset)
 	    noAction;
 	 end
-
+/*
 	 // Ignore if NDM reset is in progress
 	 else if (rg_dmstatus_allunavail) begin
 	    $display ("%0d: %m.dmcontrol_write 0x%0h: ndm reset in progress; ignoring this write",
 		      cur_cycle, dm_word);
 	 end
-
+*/
 	 // Non-Debug-Module reset (platform reset) posedge: ignore
 	 else if ((! rg_dmcontrol_ndmreset) && ndmreset) begin
 	    if (verbosity != 0)
@@ -394,7 +394,15 @@ module mkDM_Run_Control (DM_Run_Control_IFC);
    // ----------------
    // Facing Hart: Reset, Run-control, etc.
    interface Client hart0_reset_client    = toGPClient (f_hart0_reset_reqs, f_hart0_reset_rsps);
-   interface Client hart0_client_run_halt = toGPClient (f_hart0_run_halt_reqs, f_hart0_run_halt_rsps);
+   interface Client hart0_client_run_halt;
+      interface Get request;
+	 method ActionValue#(Bool) get () if (!rg_dmstatus_allunavail);
+	    let x <- toGet(f_hart0_run_halt_reqs).get();
+	    return x;
+	 endmethod
+      endinterface
+      interface Put response = toPut(f_hart0_run_halt_rsps);
+   endinterface
    interface Get    hart0_get_other_req   = toGet (f_hart0_other_reqs);
 
    // ----------------

@@ -173,7 +173,7 @@ module mkP1_Core #(Reset dmi_reset) (P1_Core_IFC);
    // Reset on startup, and also on NDM reset from Debug Module
    // (NDM reset from Debug Module = "non-debug-module-reset" = reset all except Debug Module)
 
-   Reg #(Bool)          rg_once      <- mkReg (False);
+   Reg #(Bool)          rg_once      <- mkReg (False, reset_by por_reset);
    Reg #(Maybe #(Bool)) rg_ndm_reset <- mkReg (tagged Invalid, reset_by por_reset);
 `ifdef INCLUDE_GDB_CONTROL
    Reg #(UInt #(6))     rg_ndm_count <- mkReg (0, reset_by por_reset);
@@ -184,10 +184,9 @@ module mkP1_Core #(Reset dmi_reset) (P1_Core_IFC);
    endrule
 `endif
 
-   let inReset <- isResetAssertedDirect(reset_by coreRSTN);
+   let coreInReset <- isResetAsserted(reset_by coreRSTN);
 
-   rule rl_once (!rg_once && !inReset);
-      when (rg_ndm_count == 0, noAction);
+   rule rl_once (! rg_once && ! coreInReset);
       Bool running = True;
       if (rg_ndm_reset matches tagged Valid False)
 	 running = False;
@@ -336,7 +335,7 @@ module mkP1_Core #(Reset dmi_reset) (P1_Core_IFC);
    interface JTAG_IFC jtag = jtagtap.jtag;
 `endif
 
-   interface ndm_reset = ndmIfc.new_rst;
+   interface ndm_reset = coreRSTN;
 `endif
 endmodule
 

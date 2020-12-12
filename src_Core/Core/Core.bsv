@@ -151,15 +151,15 @@ module mkCore #(Reset por_reset) (Core_IFC #(N_External_Interrupt_Sources));
 `endif
 
    // Near_Mem_IO
-   Near_Mem_IO_AXI4_IFC  clint <- mkNear_Mem_IO_AXI4;
+   Near_Mem_IO_AXI4_IFC  clint <- mkNear_Mem_IO_AXI4(reset_by por_reset);
 
    // PLIC (Platform-Level Interrupt Controller)
-   PLIC_IFC_32_1_7  plic <- mkPLIC_32_1_7;
+   PLIC_IFC_32_1_7  plic <- mkPLIC_32_1_7(reset_by por_reset);
 
    // Reset requests from SoC and responses to SoC
    // 'Bool' is 'running' state
-   FIFOF #(Bool) f_reset_reqs <- mkFIFOF;
-   FIFOF #(Bool) f_reset_rsps <- mkFIFOF;
+   FIFOF #(Bool) f_reset_reqs <- mkFIFOF(reset_by por_reset);
+   FIFOF #(Bool) f_reset_rsps <- mkFIFOF(reset_by por_reset);
 
 `ifdef INCLUDE_TANDEM_VERIF
    // The TV encoder transforms Trace_Data structures produced by the CPU and DM
@@ -184,7 +184,7 @@ module mkCore #(Reset por_reset) (Core_IFC #(N_External_Interrupt_Sources));
    Bit #(1) reset_requestor_dm  = 0;
    Bit #(1) reset_requestor_soc = 1;
 `ifdef INCLUDE_GDB_CONTROL
-   FIFOF #(Bit #(1)) f_reset_requestor <- mkFIFOF;
+   FIFOF #(Bit #(1)) f_reset_requestor <- mkFIFOF(reset_by por_reset);
 `endif
 
    // Reset-hart0 request from SoC
