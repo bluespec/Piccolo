@@ -127,6 +127,16 @@ interface P1_Core_IFC;
    // This reset output only if there's a debug module:
    interface Reset ndm_reset;
 `endif
+
+   // ----------------
+   // For ISA tests: watch memory writes to <tohost> addr
+`ifdef Near_Mem_TCM
+`ifdef WATCH_TOHOST
+   method Action set_watch_tohost (Bool  watch_tohost, Bit #(64)  tohost_addr);
+   method Bit #(64) mv_tohost_value;
+`endif
+`endif
+
 endinterface
 
 // ================================================================
@@ -337,6 +347,18 @@ module mkP1_Core #(Reset dmi_reset) (P1_Core_IFC);
 
    interface ndm_reset = coreRSTN;
 `endif
+
+`ifdef Near_Mem_TCM
+`ifdef WATCH_TOHOST
+   // For ISA tests: watch memory writes to <tohost> addr
+   method Action set_watch_tohost (Bool  watch_tohost, Bit #(64)  tohost_addr);
+      core.set_watch_tohost (watch_tohost, tohost_addr);
+   endmethod
+
+   method Bit #(64) mv_tohost_value = core.mv_tohost_value;
+`endif
+`endif
+
 endmodule
 
 // ================================================================
