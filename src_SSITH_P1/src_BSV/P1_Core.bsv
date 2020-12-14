@@ -142,7 +142,7 @@ endinterface
 // ================================================================
 
 (* synthesize *)
-module mkP1_Core #(Reset dmi_reset) (P1_Core_IFC);
+module mkP1_Core ((*reset="dmi_reset"*)Reset dmi_reset,P1_Core_IFC _ifc);
    // A "power-on reset" generator:
    Reg #(UInt #(6)) initCnt <- mkRegUInit(por_interval);
    let clk <- exposeCurrentClock;
