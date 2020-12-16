@@ -329,6 +329,10 @@ module mkSoC_Map (SoC_Map_IFC);
    method  Fabric_Addr  m_uart0_addr_size = uart0_addr_size;
    method  Fabric_Addr  m_uart0_addr_lim  = uart0_addr_lim;
 
+   method  Fabric_Addr  m_gpio0_addr_base = gpio0_addr_base;
+   method  Fabric_Addr  m_gpio0_addr_size = gpio0_addr_size;
+   method  Fabric_Addr  m_gpio0_addr_lim  = gpio0_addr_lim;
+
 `ifdef INCLUDE_ACCEL0
    method  Fabric_Addr  m_accel0_addr_base = accel0_addr_base;
    method  Fabric_Addr  m_accel0_addr_size = accel0_addr_size;
