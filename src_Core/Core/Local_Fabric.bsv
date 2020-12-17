@@ -98,7 +98,7 @@ Slave_Num  clint_slave_num       = 0;
 Slave_Num  plic_slave_num        = 1;
 
 `ifdef DUAL_FABRIC
-// external memory not a slave
+// external memory not a target
 `ifdef INCLUDE_GDB_CONTROL
 
 Slave_Num  imem_dma_slave_num    = 2;
@@ -106,7 +106,7 @@ Slave_Num  dmem_dma_slave_num    = 3;
 
 `endif
 `else
-
+// external memory is a target
 `ifdef Near_Mem_TCM
 `ifdef INCLUDE_GDB_CONTROL
 
@@ -163,10 +163,13 @@ module mkLocal_Fabric (Local_Fabric_IFC);
 
 `ifdef DUAL_FABRIC
 `ifdef INCLUDE_GDB_CONTROL
-
+      // DUAL_FABRIC with GDB_CONTROL
+      // All addresses must be captured in these two else cases. There is no bound checking in
+      // TCMs so, behaviour is undefined if a wrong address makes it to the TCM. It is the
+      // responsibility of the SoC Map to place all code and data regions within the TCM bounds
       else if (   (soc_map.m_itcm_addr_base <= addr)
 	       && (addr < soc_map.m_itcm_addr_lim))
-	 selected_target =    imem_dma_slave_num;
+	 selected_target = imem_dma_slave_num;
 
       else if (   (soc_map.m_dtcm_addr_base <= addr)
 	       && (addr < soc_map.m_dtcm_addr_lim))
@@ -174,10 +177,10 @@ module mkLocal_Fabric (Local_Fabric_IFC);
 
 `endif
 `else
-
+      // !DUAL_FABRIC (a single AXI4 fabric for all targets)
 `ifdef Near_Mem_TCM
 `ifdef INCLUDE_GDB_CONTROL
-
+      // TCM with GDB_CONTROL (three targets)
       else if (   (soc_map.m_itcm_addr_base <= addr)
 	       && (addr < soc_map.m_itcm_addr_lim))
 	 selected_target = imem_dma_slave_num;
@@ -190,13 +193,13 @@ module mkLocal_Fabric (Local_Fabric_IFC);
 	 selected_target = default_slave_num;
 
 `else
-
+      // TCM with no GDB_CONTROL (one - default target)
       else
 	 selected_target = default_slave_num;
 
 `endif
 `else
-
+      // !TCM (one - default target)
       else
 	 selected_target = default_slave_num;
 
