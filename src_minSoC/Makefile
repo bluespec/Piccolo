@@ -49,8 +49,8 @@ BSC_PATH = -p $(CORE_DIRS):src_BSV:$(TESTBENCH_DIRS):+:%/Libraries/TLM3:%/Librar
 # ----------------
 # Top-level file and module
 
-TOPFILE   = src_BSV/P1_Core.bsv
-TOPMODULE = mkP1_Core
+TOPFILE   = src_BSV/BSCore.bsv
+TOPMODULE = mkBSCore
 
 # ================================================================
 # bsc compilation flags

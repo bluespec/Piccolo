@@ -1,6 +1,6 @@
 // Copyright (c) 2018-2019 Bluespec, Inc. All Rights Reserved.
 
-package P1_Core;
+package BSCore;
 
 // ================================================================
 // This package defines the interface and implementation of the 'P1 Core'
@@ -78,9 +78,9 @@ UInt#(6) ndm_interval = 20;
 UInt#(6) por_interval = 20;
 
 // ================================================================
-// The P1_Core interface
+// The BSCore interface
 
-interface P1_Core_IFC;
+interface BSCore_IFC;
 
    // ----------------------------------------------------------------
    // Core CPU interfaces
@@ -142,7 +142,7 @@ endinterface
 // ================================================================
 
 (* synthesize *)
-module mkP1_Core ((*reset="dmi_reset"*)Reset dmi_reset,P1_Core_IFC _ifc);
+module mkBSCore ((*reset="dmi_reset"*)Reset dmi_reset,BSCore_IFC _ifc);
    // A "power-on reset" generator:
    Reg #(UInt #(6)) initCnt <- mkRegUInit(por_interval);
    let clk <- exposeCurrentClock;

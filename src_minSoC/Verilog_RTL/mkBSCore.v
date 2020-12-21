@@ -52,54 +52,54 @@
   `define BSV_RESET_EDGE negedge
 `endif
 
-module mkP1_Core(dmi_reset,
-		 CLK,
-		 RST_N,
+module mkBSCore(dmi_reset,
+		CLK,
+		RST_N,
 
-		 master1_HADDR,
+		master1_HADDR,
 
-		 master1_HBURST,
+		master1_HBURST,
 
-		 master1_HMASTLOCK,
+		master1_HMASTLOCK,
 
-		 master1_HPROT,
+		master1_HPROT,
 
-		 master1_HSIZE,
+		master1_HSIZE,
 
-		 master1_HTRANS,
+		master1_HTRANS,
 
-		 master1_HWDATA,
+		master1_HWDATA,
 
-		 master1_HWRITE,
+		master1_HWRITE,
 
-		 master1_HRDATA,
+		master1_HRDATA,
 
-		 master1_HREADY,
+		master1_HREADY,
 
-		 master1_HRESP,
+		master1_HRESP,
 
-		 cpu_external_interrupt_req,
+		cpu_external_interrupt_req,
 
-		 jtag_tdi,
+		jtag_tdi,
 
-		 jtag_tms,
+		jtag_tms,
 
-		 jtag_tclk,
+		jtag_tclk,
 
-		 jtag_tdo,
+		jtag_tdo,
 
-		 set_watch_tohost_watch_tohost,
-		 set_watch_tohost_tohost_addr,
-		 EN_set_watch_tohost,
-		 RDY_set_watch_tohost,
+		set_watch_tohost_watch_tohost,
+		set_watch_tohost_tohost_addr,
+		EN_set_watch_tohost,
+		RDY_set_watch_tohost,
 
-		 mv_tohost_value,
-		 RDY_mv_tohost_value,
+		mv_tohost_value,
+		RDY_mv_tohost_value,
 
-		 CLK_jtag_tclk_out,
-		 CLK_GATE_jtag_tclk_out,
+		CLK_jtag_tclk_out,
+		CLK_GATE_jtag_tclk_out,
 
-		 RST_N_ndm_reset);
+		RST_N_ndm_reset);
   input  dmi_reset;
   input  CLK;
   input  RST_N;
@@ -1104,5 +1104,5 @@ module mkP1_Core(dmi_reset,
   end
   `endif // BSV_NO_INITIAL_BLOCKS
   // synopsys translate_on
-endmodule  // mkP1_Core
+endmodule  // mkBSCore
 
