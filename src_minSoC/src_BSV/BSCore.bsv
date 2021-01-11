@@ -142,7 +142,7 @@ endinterface
 // ================================================================
 
 (* synthesize *)
-module mkBSCore ((*reset="dmi_reset"*)Reset dmi_reset,BSCore_IFC _ifc);
+module mkBSCore ((*reset="dmi_reset"*)Reset dmi_reset, BSCore_IFC _ifc);
    // A "power-on reset" generator:
    Reg #(UInt #(6)) initCnt <- mkRegUInit(por_interval);
    let clk <- exposeCurrentClock;
@@ -154,7 +154,7 @@ module mkBSCore ((*reset="dmi_reset"*)Reset dmi_reset,BSCore_IFC _ifc);
    let por_reset = rstIfc.new_rst;
 
    // -----------------
-   let dmi_reset1 <- mkResetInverter(dmi_reset); // dmi_reset is active-high
+   let dmi_resetN <- mkResetInverter(dmi_reset); // dmi_reset is active-high
 
    // -----------------
 
@@ -183,7 +183,7 @@ module mkBSCore ((*reset="dmi_reset"*)Reset dmi_reset,BSCore_IFC _ifc);
    // Reset on startup, and also on NDM reset from Debug Module
    // (NDM reset from Debug Module = "non-debug-module-reset" = reset all except Debug Module)
 
-   Reg #(Bool)          rg_once      <- mkReg (False, reset_by por_reset);
+   Reg #(Bool)          rg_once      <- mkReg (False, reset_by por_reset); // also set False by ndmreset
    Reg #(Maybe #(Bool)) rg_ndm_reset <- mkReg (tagged Invalid, reset_by por_reset);
 `ifdef INCLUDE_GDB_CONTROL
    Reg #(UInt #(6))     rg_ndm_count <- mkReg (0, reset_by por_reset);
@@ -207,7 +207,6 @@ module mkBSCore ((*reset="dmi_reset"*)Reset dmi_reset,BSCore_IFC _ifc);
 
    rule rl_reset_response;
       let running <- core.cpu_reset_server.response.get;
-
 `ifdef INCLUDE_GDB_CONTROL
       // wait for end of ndm_interval:
       when (rg_ndm_count == 0, noAction);
@@ -221,13 +220,12 @@ module mkBSCore ((*reset="dmi_reset"*)Reset dmi_reset,BSCore_IFC _ifc);
    // ----------------
    // Also do a reset if requested from Debug Module (NDM = Non-Debug-Module reset)
 
-   rule rl_ndmreset (rg_once);
+   rule rl_ndmreset (rg_once); // inhibited until after initialization
 `ifdef INCLUDE_GDB_CONTROL
       let running <- core.ndm_reset_client.request.get;
       rg_ndm_reset <= tagged Valid running;
       rg_ndm_count <= ndm_interval;
 `endif
-
       rg_once <= False;
    endrule
 
@@ -245,21 +243,21 @@ module mkBSCore ((*reset="dmi_reset"*)Reset dmi_reset,BSCore_IFC _ifc);
    Wire#(Bit#(32)) w_dmi_rsp_data <- mkDWire(0);
    Wire#(Bit#(2)) w_dmi_rsp_response <- mkDWire(0);
 
-   BusReceiver#(Tuple3#(Bit#(7),Bit#(32),Bit#(2))) bus_dmi_req <- mkBusReceiver(reset_by dmi_reset1);
-   BusSender#(Tuple2#(Bit#(32),Bit#(2))) bus_dmi_rsp <- mkBusSender(unpack(0), reset_by dmi_reset1);
+   BusReceiver#(Tuple3#(Bit#(7),Bit#(32),Bit#(2))) bus_dmi_req <- mkBusReceiver(reset_by dmi_resetN);
+   BusSender#(Tuple2#(Bit#(32),Bit#(2))) bus_dmi_rsp <- mkBusSender(unpack(0), reset_by dmi_resetN);
 
 `ifdef JTAG_TAP
-   let jtagtap <- mkJtagTap(reset_by dmi_reset1);
+   let jtagtap <- mkJtagTap(reset_by dmi_resetN);
 
-   mkConnection(jtagtap.dmi.req_ready, pack(bus_dmi_req.in.ready), reset_by dmi_reset1);
-   mkConnection(jtagtap.dmi.req_valid, compose(bus_dmi_req.in.valid, unpack), reset_by dmi_reset1);
-   mkConnection(jtagtap.dmi.req_addr, w_dmi_req_addr._write, reset_by dmi_reset1);
-   mkConnection(jtagtap.dmi.req_data, w_dmi_req_data._write, reset_by dmi_reset1);
-   mkConnection(jtagtap.dmi.req_op, w_dmi_req_op._write, reset_by dmi_reset1);
-   mkConnection(jtagtap.dmi.rsp_valid, pack(bus_dmi_rsp.out.valid), reset_by dmi_reset1);
-   mkConnection(jtagtap.dmi.rsp_ready, compose(bus_dmi_rsp.out.ready, unpack), reset_by dmi_reset1);
-   mkConnection(jtagtap.dmi.rsp_data, w_dmi_rsp_data, reset_by dmi_reset1);
-   mkConnection(jtagtap.dmi.rsp_response, w_dmi_rsp_response, reset_by dmi_reset1);
+   mkConnection(jtagtap.dmi.req_ready, pack(bus_dmi_req.in.ready), reset_by dmi_resetN);
+   mkConnection(jtagtap.dmi.req_valid, compose(bus_dmi_req.in.valid, unpack), reset_by dmi_resetN);
+   mkConnection(jtagtap.dmi.req_addr, w_dmi_req_addr._write, reset_by dmi_resetN);
+   mkConnection(jtagtap.dmi.req_data, w_dmi_req_data._write, reset_by dmi_resetN);
+   mkConnection(jtagtap.dmi.req_op, w_dmi_req_op._write, reset_by dmi_resetN);
+   mkConnection(jtagtap.dmi.rsp_valid, pack(bus_dmi_rsp.out.valid), reset_by dmi_resetN);
+   mkConnection(jtagtap.dmi.rsp_ready, compose(bus_dmi_rsp.out.ready, unpack), reset_by dmi_resetN);
+   mkConnection(jtagtap.dmi.rsp_data, w_dmi_rsp_data, reset_by dmi_resetN);
+   mkConnection(jtagtap.dmi.rsp_response, w_dmi_rsp_response, reset_by dmi_resetN);
 `endif
 
    rule rl_dmi_req;
