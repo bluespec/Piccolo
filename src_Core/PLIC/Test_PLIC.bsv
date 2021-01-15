@@ -32,7 +32,9 @@ import AXI4_Fabric  :: *;
 import Fabric_Defs  :: *;    // for Wd_Id, Wd_Addr, Wd_Data, Wd_User
 import SoC_Map      :: *;
 import PLIC         :: *;
+
 import PLIC_16_2_7  :: *;
+typedef 16 N_External_Interrupt_Sources;
 
 // ================================================================
 

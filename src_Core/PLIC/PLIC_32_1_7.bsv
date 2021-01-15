@@ -1,6 +1,6 @@
 // Copyright (c) 2019 Bluespec, Inc.  All Rights Reserved
 
-package PLIC_16_2_7;
+package PLIC_32_1_7;
 
 // ================================================================
 // Instantiation of parameterized PLIC to specific parameter values.
@@ -25,8 +25,8 @@ import Vector  :: *;
 // ================================================================
 // PLIC for this core
 
-typedef 16  N_External_Interrupt_Sources;
-typedef  2  PLIC_N_Targets;
+typedef 32  N_External_Interrupt_Sources;
+typedef  1  PLIC_N_Targets;
 typedef  7  PLIC_Max_Priority;
 
 typedef TAdd #(N_External_Interrupt_Sources, 1) T_n_sources;
@@ -35,7 +35,7 @@ typedef TLog #(TAdd #(PLIC_Max_Priority, 1))    T_wd_priority;
 
 typedef  PLIC_IFC #(N_External_Interrupt_Sources,
 		    PLIC_N_Targets,
-		    PLIC_Max_Priority)             PLIC_IFC_16_2_7;
+		    PLIC_Max_Priority)             PLIC_IFC_32_1_7;
 
 (* noinline *)
 function Tuple2 #(Bit #(T_wd_priority), Bit #(TLog #(T_n_sources)))
@@ -62,7 +62,7 @@ endfunction
 
 
 (* synthesize *)
-module mkPLIC_16_2_7 (PLIC_IFC_16_2_7);
+module mkPLIC_32_1_7 (PLIC_IFC_32_1_7);
    let m <- mkPLIC(fn_target_max_prio_and_max_id0);
    return m;
 endmodule

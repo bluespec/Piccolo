@@ -81,7 +81,7 @@ interface PLIC_IFC #(numeric type  t_n_external_sources,
    interface Server #(Bit #(0), Bit #(0))  server_reset;
 
    // set_addr_map should be called after this module's reset
-   method Action set_addr_map (Bit #(64)  addr_base, Bit #(64)  addr_lim);
+   method Action set_addr_map (Fabric_Addr  addr_base, Fabric_Addr  addr_lim);
 
    // Memory-mapped access
    interface AXI4_Slave_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User) axi4_slave;
@@ -96,7 +96,12 @@ endinterface
 // ================================================================
 // PLIC module implementation
 
-module mkPLIC (PLIC_IFC #(t_n_external_sources, t_n_targets, t_max_priority))
+module mkPLIC #(function Tuple2 #(Bit #(t_wd_priority), Bit #(TLog #(t_n_sources)))
+		   fn_target_max_prio_and_max_id0 (Vector #(t_n_sources, Bool)                        vrg_source_ip,
+						   Vector #(t_n_targets, Vector #(t_n_sources, Bool)) vvrg_ie,
+						   Vector #(t_n_sources, Bit #(t_wd_priority))        vrg_source_prio,
+		      				   Bit #(T_wd_target_id)  target_id))
+	      (PLIC_IFC #(t_n_external_sources, t_n_targets, t_max_priority))
    provisos (Add #(1, t_n_external_sources, t_n_sources),           // source 0 is reserved for 'no source'
 	     Add #(_any_0, TLog #(t_n_sources), T_wd_source_id),
 	     Add #(_any_1, TLog #(t_n_targets), T_wd_target_id),
@@ -122,8 +127,8 @@ module mkPLIC (PLIC_IFC #(t_n_external_sources, t_n_targets, t_max_priority))
    // Memory-mapped access
 
    // Base and limit addrs for this memory-mapped block.
-   Reg #(Bit #(64))  rg_addr_base <- mkRegU;
-   Reg #(Bit #(64))  rg_addr_lim  <- mkRegU;
+   Reg #(Fabric_Addr)  rg_addr_base <- mkRegU;
+   Reg #(Fabric_Addr)  rg_addr_lim  <- mkRegU;
 
    // Connector to AXI4 fabric
    AXI4_Slave_Xactor_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User) slave_xactor <- mkAXI4_Slave_Xactor;
@@ -156,23 +161,9 @@ module mkPLIC (PLIC_IFC #(t_n_external_sources, t_n_targets, t_max_priority))
    // ================================================================
    // Compute outputs for each target (combinational)
 
-   function Tuple2 #(Bit #(t_wd_priority), Bit #(TLog #(t_n_sources)))
-            fn_target_max_prio_and_max_id (Bit #(T_wd_target_id)  target_id);
-
-      Bit #(t_wd_priority)       max_prio = 0;
-      Bit #(TLog #(t_n_sources)) max_id   = 0;
-
-      // Note: source_ids begin at 1, not 0.
-      for (Integer source_id = 1; source_id < n_sources; source_id = source_id + 1)
-	 if (   vrg_source_ip [source_id]
-	     && (vrg_source_prio [source_id] > max_prio)
-	     && (vvrg_ie [target_id][source_id])) begin
-	    max_id   = fromInteger (source_id);
-	    max_prio = vrg_source_prio [source_id];
-	 end
-      // Assert: if any interrupt is pending (max_id > 0), then prio > 0
-      return tuple2 (max_prio, max_id);
-   endfunction
+   let fn_target_max_prio_and_max_id = fn_target_max_prio_and_max_id0(readVReg(vrg_source_ip),
+								      map(readVReg, vvrg_ie),
+								      readVReg(vrg_source_prio));
 
    function Action fa_show_PLIC_state;
       action
@@ -249,9 +240,9 @@ module mkPLIC (PLIC_IFC #(t_n_external_sources, t_n_targets, t_max_priority))
 	 $display ("    ", fshow (rda));
       end
 
-      let        addr_offset = rda.araddr - rg_addr_base;
-      Bit #(64)  rdata       = 0;
-      AXI4_Resp  rresp       = axi4_resp_okay;
+      let          addr_offset = rda.araddr - rg_addr_base;
+      Fabric_Data  rdata       = 0;
+      AXI4_Resp    rresp       = axi4_resp_okay;
 
       if (rda.araddr < rg_addr_base) begin
 	 // Technically this should not happen: the fabric should
@@ -261,7 +252,7 @@ module mkPLIC (PLIC_IFC #(t_n_external_sources, t_n_targets, t_max_priority))
 	 rresp = axi4_resp_decerr;
       end
 
-      // Source Priority 
+      // Source Priority
       else if (addr_offset < 'h1000) begin
 	 Bit #(T_wd_source_id)  source_id = truncate (addr_offset [11:2]);
 	 if ((0 < source_id) && (source_id <= fromInteger (n_sources - 1))) begin
@@ -381,7 +372,7 @@ module mkPLIC (PLIC_IFC #(t_n_external_sources, t_n_targets, t_max_priority))
       end
 
       if ((valueOf (Wd_Data) == 64) && ((addr_offset & 'h7) == 'h4))
-	 rdata = { rdata [31:0], 32'h0 };
+	 rdata = { rdata [31:0], 0 };
 
       // Send read-response to bus
       Fabric_Data x = truncate (rdata);
@@ -429,7 +420,7 @@ module mkPLIC (PLIC_IFC #(t_n_external_sources, t_n_targets, t_max_priority))
 	 bresp = axi4_resp_decerr;
       end
 
-      // Source priority 
+      // Source priority
       else if (addr_offset < 'h1000) begin
 	 Bit #(T_wd_source_id)  source_id = truncate (addr_offset [11:2]);
 	 if ((0 < source_id) && (source_id <= fromInteger (n_sources - 1))) begin
@@ -593,7 +584,7 @@ module mkPLIC (PLIC_IFC #(t_n_external_sources, t_n_targets, t_max_priority))
    interface server_reset   = toGPServer (f_reset_reqs, f_reset_rsps);
 
    // set_addr_map should be called after this module's reset
-   method Action set_addr_map (Bit #(64)  addr_base, Bit #(64)  addr_lim);
+   method Action set_addr_map (Fabric_Addr  addr_base, Fabric_Addr  addr_lim);
       if (addr_base [1:0] != 0)
 	 $display ("%0d: WARNING: PLIC.set_addr_map: addr_base 0x%0h is not 4-Byte-aligned",
 		   cur_cycle, addr_base);

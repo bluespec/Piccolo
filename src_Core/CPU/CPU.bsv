@@ -26,7 +26,7 @@ import GetPut       :: *;
 import ClientServer :: *;
 import Connectable  :: *;
 import ConfigReg    :: *;
-
+import Clocks       :: *;
 // ----------------
 // BSV additional libs
 
@@ -37,6 +37,11 @@ import Semi_FIFOF :: *;
 // Project imports
 
 import AXI4_Types :: *;
+
+`ifdef FABRIC_AHBL
+import AHBL_Types  :: *;
+import AHBL_Defs   :: *;
+`endif
 
 `ifdef INCLUDE_DMEM_SLAVE
 import AXI4_Lite_Types :: *;
@@ -63,7 +68,7 @@ import CPU_Stage1 :: *;    // Fetch and Execute
 import CPU_Stage2 :: *;    // Memory and long-latency ops
 import CPU_Stage3 :: *;    // Writeback
 
-import Near_Mem_IFC :: *;    // Caches or TCM
+import Near_Mem_IFC :: *;  // Caches or TCM
 
 `ifdef Near_Mem_Caches
 import Near_Mem_Caches :: *;
@@ -164,7 +169,7 @@ module mkCPU (CPU_IFC);
    // For debugging
 
    // Verbosity: 0=quiet; 1=instruction trace; 2=more detail
-   Reg #(Bit #(4))  cfg_verbosity <- mkConfigReg (0);
+   Reg #(Bit #(4))  cfg_verbosity <- mkConfigReg (2);
 
    // Verbosity is 0 as long as # of instrs retired is <= cfg_logdelay
    Reg #(Bit #(64))  cfg_logdelay <- mkConfigReg (0);
@@ -406,18 +411,22 @@ module mkCPU (CPU_IFC);
 
    Reg #(Bool) rg_run_on_reset <- mkReg (False);
 
-   rule rl_reset_start (rg_state == CPU_RESET1);
+   let isInReset <- isResetAsserted;
+
+   rule rl_reset_start (rg_state == CPU_RESET1 && !isInReset);
       let run_on_reset <- pop (f_reset_reqs);
       rg_run_on_reset <= run_on_reset;
 
-      $display ("================================================================");
-      $write   ("CPU: Bluespec  RISC-V  Piccolo  v3.0");
-      if (rv_version == RV32)
-	 $display (" (RV32)");
-      else
-	 $display (" (RV64)");
-      $display ("Copyright (c) 2016-2020 Bluespec, Inc. All Rights Reserved.");
-      $display ("================================================================");
+      if (cfg_verbosity != 0) begin
+         $display ("================================================================");
+         $write   ("CPU: Bluespec  RISC-V  Piccolo  v3.0");
+         if (rv_version == RV32)
+            $display (" (RV32)");
+         else
+            $display (" (RV64)");
+         $display ("Copyright (c) 2016-2020 Bluespec, Inc. All Rights Reserved.");
+         $display ("================================================================");
+      end
 
       gpr_regfile.server_reset.request.put (?);
 `ifdef ISA_F
@@ -479,7 +488,8 @@ module mkCPU (CPU_IFC);
       f_reset_rsps.enq (rg_run_on_reset);
 
       if (rg_run_on_reset) begin
-	 $display ("%0d: %m.rl_reset_complete: restart at PC = 0x%0h", mcycle, dpc);
+         if (cfg_verbosity != 0)
+            $display ("%0d: %m.rl_reset_complete: restart at PC = 0x%0h", mcycle, dpc);
 	 fa_restart (dpc);
       end
       else begin
@@ -488,7 +498,8 @@ module mkCPU (CPU_IFC);
 	 csr_regfile.write_dcsr_cause_priv (DCSR_CAUSE_HALTREQ, m_Priv_Mode);
 	 csr_regfile.write_dpc (dpc);
 `endif
-	 $display ("%0d: %m.rl_reset_complete: entering DEBUG_MODE", mcycle);
+         if (cfg_verbosity != 0)
+            $display ("%0d: %m.rl_reset_complete: entering DEBUG_MODE", mcycle);
       end
    endrule: rl_reset_complete
 
@@ -1193,9 +1204,12 @@ module mkCPU (CPU_IFC);
    // imem_c_rl_fetch_next_32b is in CPU_Fetch_C.bsv, and calls imem32.req (near_mem.imem_req).
    // fa_restart calls stageF.enq which also calls imem.req which calls imem32.req.
    // But cond_i32_odd_fetch_next should make these rules mutually exclusive; why doesn't bsc realize this?
+`ifdef ISA_PRIV_S
    (* descending_urgency = "imem_c_rl_fetch_next_32b, rl_stage1_SFENCE_VMA" *)
 `endif
+`endif
 
+`ifdef ISA_PRIV_S
    rule rl_stage1_SFENCE_VMA (   (rg_state== CPU_RUNNING)
 			      && (! halting)
 			      && (stage3.out.ostatus == OSTATUS_EMPTY)
@@ -1206,7 +1220,7 @@ module mkCPU (CPU_IFC);
 
       rg_next_pc <= stage1.out.next_pc;
       // Tell Near_Mem to do its SFENCE_VMA
-      near_mem.sfence_vma;
+      near_mem.sfence_vma_server.request.put(?);
       rg_state <= CPU_SFENCE_VMA;
 
       // Accounting
@@ -1231,6 +1245,7 @@ module mkCPU (CPU_IFC);
       if (cur_verbosity > 1) $display ("%0d: %m.rl_finish_SFENCE_VMA", mcycle);
 
       // Note: Await mem system SFENCE.VMA completion, if SFENCE.VMA becomes split-phase
+      let sf_rsp <- near_mem.sfence_vma_server.response.get();
 
       // Resume pipe
       rg_state <= CPU_RUNNING;
@@ -1244,6 +1259,7 @@ module mkCPU (CPU_IFC);
       if (cur_verbosity > 1)
 	 $display ("    CPU.rl_finish_SFENCE_VMA");
    endrule: rl_finish_SFENCE_VMA
+`endif
 
    // ================================================================
    // Stage1: nonpipe special: WFI
@@ -1634,17 +1650,32 @@ module mkCPU (CPU_IFC);
    // ----------------
    // SoC fabric connections
 
+`ifndef Near_Mem_TCM
    // IMem to fabric master interface
    interface  imem_master = near_mem.imem_master;
+`endif
 
    // DMem to fabric master interface
-   interface  dmem_master = near_mem.dmem_master;
+   interface  dmem_master = near_mem.mem_master;
+
+`ifdef DUAL_FABRIC
+   interface  nmio_master = near_mem.nmio_master;
+`endif
 
    // ----------------------------------------------------------------
    // Optional AXI4-Lite D-cache slave interface
 
 `ifdef INCLUDE_DMEM_SLAVE
    interface  dmem_slave = near_mem.dmem_slave;
+`endif
+
+`ifdef Near_Mem_TCM
+   // ----------------
+   // Debug access to ITCM
+   interface AXI4_Slave_IFC imem_dma_server = near_mem.imem_dma_server;
+
+   // DMA/Debug access to DTCM
+   interface AXI4_Slave_IFC dmem_dma_server = near_mem.dmem_dma_server;
 `endif
 
    // ----------------
@@ -1664,14 +1695,6 @@ module mkCPU (CPU_IFC);
 
    method Action  nmi_req (x);
       csr_regfile.nmi_req (x);
-   endmethod
-
-   // ----------------
-   // For tracing
-
-   method Action  set_verbosity (Bit #(4)  verbosity, Bit #(64)  logdelay);
-      cfg_verbosity <= verbosity;
-      cfg_logdelay  <= logdelay;
    endmethod
 
    // ----------------
@@ -1704,6 +1727,31 @@ module mkCPU (CPU_IFC);
 
    // CSR access
    interface Server  hart0_csr_mem_server = toGPServer (f_csr_reqs, f_csr_rsps);
+`endif
+
+   // ----------------------------------------------------------------
+   // Misc. control and status
+
+   // ----------------
+   // For tracing
+
+   method Action  set_verbosity (Bit #(4)  verbosity, Bit #(64)  logdelay);
+      cfg_verbosity <= verbosity;
+      cfg_logdelay  <= logdelay;
+   endmethod
+
+   // ----------------
+   // For ISA tests: watch memory writes to <tohost> addr (at the moment does not work for WT
+   // caches)
+
+`ifdef Near_Mem_TCM
+`ifdef WATCH_TOHOST
+   method Action set_watch_tohost (Bool watch_tohost, Bit #(64) tohost_addr);
+      near_mem.set_watch_tohost (watch_tohost, tohost_addr);
+   endmethod
+
+   method Bit #(64) mv_tohost_value = near_mem.mv_tohost_value;
+`endif
 `endif
 
 endmodule: mkCPU

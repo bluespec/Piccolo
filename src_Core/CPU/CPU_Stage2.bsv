@@ -48,6 +48,7 @@ import ISA_Decls     :: *;
 import TV_Info       :: *;
 
 import CPU_Globals   :: *;
+import MMU_Cache_Common :: *;
 import Near_Mem_IFC  :: *;
 import CSR_RegFile   :: *;    // For SATP, SSTATUS, MSTATUS
 
