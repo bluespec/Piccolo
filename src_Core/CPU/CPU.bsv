@@ -487,6 +487,10 @@ module mkCPU (CPU_IFC);
 
       f_reset_rsps.enq (rg_run_on_reset);
 
+      // This signal should actually originate from the SoC to indicate that the SoC's
+      // memory controller is ready to receive requests.
+      near_mem.ma_ddr4_ready;
+
       if (rg_run_on_reset) begin
          if (cfg_verbosity != 0)
             $display ("%0d: %m.rl_reset_complete: restart at PC = 0x%0h", mcycle, dpc);
