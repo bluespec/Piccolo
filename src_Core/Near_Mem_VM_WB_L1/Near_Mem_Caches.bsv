@@ -99,12 +99,17 @@ module mkNear_Mem (Near_Mem_IFC);
 
    rule rl_reset (rg_state == STATE_RESET);
       rg_state <= STATE_RESETTING;
+      i_mmu_cache.server_reset.request.put (?);
+      d_mmu_cache.server_reset.request.put (?);
 
       if (cfg_verbosity > 1)
 	 $display ("%0d: Near_Mem.rl_reset", cur_cycle);
    endrule
 
    rule rl_reset_complete (rg_state == STATE_RESETTING);
+      let irsp <- i_mmu_cache.server_reset.response.get ();
+      let drsp <- d_mmu_cache.server_reset.response.get ();
+
       f_reset_rsps.enq (?);
       rg_state <= STATE_READY;
 

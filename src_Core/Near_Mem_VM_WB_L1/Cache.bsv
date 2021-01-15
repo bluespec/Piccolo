@@ -70,6 +70,9 @@ endfunction
 // ----------------
 
 interface Cache_IFC;
+   // Reset server
+   interface Server #(Token, Token) server_reset;
+
    // This starts a new request (with virt addr)
    // while the virt addr is being translated to a phys addr
    (* always_ready *)
@@ -275,7 +278,7 @@ module mkCache #(parameter Bit #(3) verbosity)
    // 0: quiet; 1: rules; 2: loop iterations
    // Integer verbosity = 2;
 
-   Reg #(FSM_State) rg_fsm_state <- mkReg (FSM_INITIALIZE);
+   Reg #(FSM_State) rg_fsm_state <- mkReg (FSM_IDLE);
 
    // After a writeback, we may refill (for mem ops) or leave cache empty (flushes)
    // FSM_REFILL_START or FSM_IDLE
@@ -330,6 +333,9 @@ module mkCache #(parameter Bit #(3) verbosity)
    FIFOF #(Line_Req)   f_line_reqs  <- mkFIFOF;
    FIFOF #(Bit #(64))  f_write_data <- mkFIFOF;
    FIFOF #(Read_Data)  f_read_data  <- mkFIFOF;
+
+   // Reset response token fifo
+   FIFOF #(Token)      f_reset_rsps <- mkFIFOF1;
 
    // ****************************************************************
    // ****************************************************************
@@ -810,7 +816,7 @@ module mkCache #(parameter Bit #(3) verbosity)
    // ****************************************************************
    // ****************************************************************
    // This rule loops over csets, setting state of each cline in the set to INVALID
-   // Assumes rg_cset_in_cache resets to 0
+   // Assumes rg_cset_in_cache resets to 0. This is part of the cache's reset initialization
 
    rule rl_initialize (rg_fsm_state == FSM_INITIALIZE);
       let meta = Meta { state: META_INVALID, ctag: ? };
@@ -818,6 +824,7 @@ module mkCache #(parameter Bit #(3) verbosity)
 
       if (rg_cset_in_cache == fromInteger (csets_per_cache - 1)) begin
 	 rg_fsm_state <= FSM_IDLE;
+         f_reset_rsps.enq (?);
 
 	 $display ("%0d: INFO: %m.rl_initialize", cur_cycle);
 	 $display ("    Size %0d KB, Associativity %0d, Line size %0d bytes (= %0d XLEN words)",
@@ -838,6 +845,23 @@ module mkCache #(parameter Bit #(3) verbosity)
    // ****************************************************************
    // ****************************************************************
    // INTERFACE
+   // Reset
+   interface Server server_reset;
+      interface Put request;
+	 method Action put (Token t) if (rg_fsm_state == FSM_IDLE);
+	    rg_fsm_state <= FSM_INITIALIZE;
+            rg_cset_in_cache <= 0;
+	 endmethod
+      endinterface
+
+      interface Get response;
+	 method ActionValue #(Token) get ();
+	    let rsp <- pop (f_reset_rsps);
+	    return rsp;
+	 endmethod
+      endinterface
+   endinterface
+
 
    // This starts a new request (with virt addr)
    // while the virt addr is being translated to a phys addr

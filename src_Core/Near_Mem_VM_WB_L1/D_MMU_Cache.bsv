@@ -103,6 +103,9 @@ export  D_MMU_Cache_IFC (..),  mkD_MMU_Cache;
 // MODULE INTERFACE
 
 interface D_MMU_Cache_IFC;
+   // Reset sever
+   interface Server #(Token, Token) server_reset;
+
    // CPU interface: request
    (* always_ready *)
    method Action  req (CacheOp    op,
@@ -175,7 +178,8 @@ endinterface
 // ----------------
 // CPU requests
 
-typedef enum {FSM_MAIN_IDLE,          // No active request
+typedef enum {FSM_MAIN_RESET,
+              FSM_MAIN_IDLE,          // No active request
               FSM_MAIN_PA,            // If TLB hit, probe cache with PA
 	      FSM_MAIN_CACHE_WAIT,    // On cache miss wait for cache to refill
 	      FSM_MAIN_MMIO_WAIT      // Wait for MMIO response
@@ -253,8 +257,8 @@ module mkD_MMU_Cache (D_MMU_Cache_IFC);
    //            2: rule firings
    //            3: + detail
    Reg #(Bit #(3)) verbosity <- mkReg (0);
-   Integer verbosity_cache        = 0;
-   Integer verbosity_axi4_adapter = 0;
+   Integer verbosity_cache        = 2;
+   Integer verbosity_axi4_adapter = 2;
 
    // Major sub-modules
 `ifdef ISA_PRIV_S
@@ -823,11 +827,45 @@ module mkD_MMU_Cache (D_MMU_Cache_IFC);
    endrule
 `endif
 
+   // ----------------
+   // Reset
+   // This reset state machine operates on external soft-reset request.
+
+   FIFOF# (Token) f_reset_rsps <- mkFIFOF1;
+   rule rl_reset_complete (rg_fsm_main_state == FSM_MAIN_RESET);
+      let crsp <- cache.server_reset.response.get ();
+      f_reset_rsps.enq (?);
+      rg_fsm_main_state <= FSM_MAIN_IDLE;
+
+      if (verbosity > 1)
+	 $display ("%0d: %m.rl_reset_complete", cur_cycle);
+   endrule
+
+
    // ****************************************************************
    // ****************************************************************
    // INTERFACE
    // ****************************************************************
    // ****************************************************************
+   // Reset
+   interface Server server_reset;
+      interface Put request;
+	 method Action put (Token t) if (rg_fsm_main_state == FSM_MAIN_IDLE);
+	    rg_fsm_main_state <= FSM_MAIN_RESET;
+            cache.server_reset.request.put (?);
+`ifdef ISA_PRIV_S
+            tlb.ma_flush;
+`endif
+	 endmethod
+      endinterface
+
+      interface Get response;
+	 method ActionValue #(Token) get ();
+	    let rsp <- pop (f_reset_rsps);
+	    return rsp;
+	 endmethod
+      endinterface
+   endinterface
 
    // CPU interface: request
    // NOTE: this has no flow control: CPU should only invoke it when consuming prev output.
