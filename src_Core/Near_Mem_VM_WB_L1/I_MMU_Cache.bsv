@@ -186,9 +186,9 @@ module mkI_MMU_Cache (I_MMU_Cache_IFC);
    //            1: Requests and responses
    //            2: rule firings
    //            3: + detail
-   Reg #(Bit #(3)) verbosity <- mkReg (3);
-   Integer verbosity_cache        = 3;
-   Integer verbosity_axi4_adapter = 3;
+   Reg #(Bit #(3)) verbosity <- mkReg (0);
+   Integer verbosity_cache        = 0;
+   Integer verbosity_axi4_adapter = 0;
 
    // Major sub-modules
 `ifdef ISA_PRIV_S
@@ -552,6 +552,10 @@ module mkI_MMU_Cache (I_MMU_Cache_IFC);
    // This reset state machine operates on external soft-reset request.
 
    FIFOF# (Token) f_reset_rsps <- mkFIFOF1;
+   let cache_is_idle = (
+         (rg_fsm_main_state == FSM_MAIN_IDLE)
+      && (rg_fsm_flush_state == FSM_FLUSH_IDLE)
+   );
    rule rl_reset_complete (rg_fsm_main_state == FSM_MAIN_RESET);
       let crsp <- cache.server_reset.response.get ();
       f_reset_rsps.enq (?);
@@ -570,7 +574,7 @@ module mkI_MMU_Cache (I_MMU_Cache_IFC);
    // Reset
    interface Server server_reset;
       interface Put request;
-	 method Action put (Token t) if (rg_fsm_main_state == FSM_MAIN_IDLE);
+	 method Action put (Token t) if (cache_is_idle);
 	    rg_fsm_main_state <= FSM_MAIN_RESET;
             cache.server_reset.request.put (?);
 `ifdef ISA_PRIV_S
