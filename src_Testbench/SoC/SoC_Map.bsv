@@ -217,18 +217,18 @@ module mkSoC_Map (SoC_Map_IFC);
    // used for the mem0_controller. This avoids changing the start location
    // of bare-metal programs.
    //
-   // The "main" memory now starts from 0x9000_0000, effectively
+   // The "main" memory now starts 0x1000_0000 later, effectively
    // leaving 256 MB for the two TCMs
    //
    // Currently the TCMs are of the same size, controlled by a
    // single tcm_addr_size value.
    Fabric_Addr itcm_addr_base = 'h_C000_0000;
-   Fabric_Addr itcm_addr_size = fromInteger (bytes_per_TCM);
+   Fabric_Addr itcm_addr_size = fromInteger (bytes_per_ITCM);
    Fabric_Addr itcm_addr_lim  = itcm_addr_base + itcm_addr_size;
 
    // Tightly-coupled memory ('TCM'; optional)
    Fabric_Addr dtcm_addr_base = 'h_C800_0000;
-   Fabric_Addr dtcm_addr_size = fromInteger (bytes_per_TCM);
+   Fabric_Addr dtcm_addr_size = fromInteger (bytes_per_DTCM);
    Fabric_Addr dtcm_addr_lim  = dtcm_addr_base + dtcm_addr_size;
 
    function Bool fn_is_dtcm_addr (Fabric_Addr addr);
