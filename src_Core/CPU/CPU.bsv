@@ -80,6 +80,7 @@ import Near_Mem_TCM :: *;
 
 `ifdef INCLUDE_GDB_CONTROL
 import Debug_Module   :: *;
+import DM_CPU_Ifc     :: *;
 import DM_CPU_Req_Rsp :: *;
 `endif
 
@@ -1638,10 +1639,6 @@ module mkCPU (CPU_IFC);
    // ================================================================
    // ================================================================
    // INTERFACE
-
-   // Reset
-   interface Server  hart0_server_reset = toGPServer (f_reset_reqs, f_reset_rsps);
-
    // ----------------
    // SoC fabric connections
 
@@ -1703,25 +1700,32 @@ module mkCPU (CPU_IFC);
    // Optional interface to Debug Module
 
 `ifdef INCLUDE_GDB_CONTROL
-   // run-control, other
-   interface Server  hart0_server_run_halt = toGPServer (f_run_halt_reqs, f_run_halt_rsps);
+   interface CPU_DM_Ifc debug;
+      // Reset
+      interface Server  hart_reset_server = toGPServer (f_reset_reqs, f_reset_rsps);
+      // run-control, other
+      interface Server  hart_server_run_halt = toGPServer (f_run_halt_reqs, f_run_halt_rsps);
 
-   interface Put  hart0_put_other_req;
-      method Action  put (Bit #(4) req);
-	 cfg_verbosity <= req;
-      endmethod
-   endinterface
+      interface Put  hart_put_other_req;
+	 method Action  put (Bit #(4) req);
+	    cfg_verbosity <= req;
+	 endmethod
+      endinterface
 
-   // GPR access
-   interface Server  hart0_gpr_mem_server = toGPServer (f_gpr_reqs, f_gpr_rsps);
+      // GPR access
+      interface Server  hart_gpr_mem_server = toGPServer (f_gpr_reqs, f_gpr_rsps);
 
 `ifdef ISA_F
-   // FPR access
-   interface Server  hart0_fpr_mem_server = toGPServer (f_fpr_reqs, f_fpr_rsps);
+      // FPR access
+      interface Server  hart_fpr_mem_server = toGPServer (f_fpr_reqs, f_fpr_rsps);
 `endif
 
    // CSR access
-   interface Server  hart0_csr_mem_server = toGPServer (f_csr_reqs, f_csr_rsps);
+      interface Server  hart_csr_mem_server = toGPServer (f_csr_reqs, f_csr_rsps);
+   endinterface
+`else
+   // Reset
+   interface Server  hart_reset_server = toGPServer (f_reset_reqs, f_reset_rsps);
 `endif
 
    // ----------------------------------------------------------------

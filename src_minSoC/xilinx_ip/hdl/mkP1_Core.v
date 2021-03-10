@@ -93,113 +93,113 @@
   `define BSV_RESET_EDGE negedge
 `endif
 
-module mkBSCore(dmi_reset,
-		CLK,
-		RST_N,
+module mkP1_Core(dmi_reset,
+		 CLK,
+		 RST_N,
 
-		master1_HADDR,
+		 master1_HADDR,
 
-		master1_HBURST,
+		 master1_HBURST,
 
-		master1_HMASTLOCK,
+		 master1_HMASTLOCK,
 
-		master1_HPROT,
+		 master1_HPROT,
 
-		master1_HSIZE,
+		 master1_HSIZE,
 
-		master1_HTRANS,
+		 master1_HTRANS,
 
-		master1_HWDATA,
+		 master1_HWDATA,
 
-		master1_HWRITE,
+		 master1_HWRITE,
 
-		master1_HRDATA,
+		 master1_HRDATA,
 
-		master1_HREADY,
+		 master1_HREADY,
 
-		master1_HRESP,
+		 master1_HRESP,
 
-		cpu_external_interrupt_req,
+		 cpu_external_interrupt_req,
 
-		jtag_tdi,
+		 jtag_tdi,
 
-		jtag_tms,
+		 jtag_tms,
 
-		jtag_tclk,
+		 jtag_tclk,
 
-		jtag_tdo,
+		 jtag_tdo,
 
-		set_watch_tohost_watch_tohost,
-		set_watch_tohost_tohost_addr,
-		EN_set_watch_tohost,
-		RDY_set_watch_tohost,
+		 set_watch_tohost_watch_tohost,
+		 set_watch_tohost_tohost_addr,
+		 EN_set_watch_tohost,
+		 RDY_set_watch_tohost,
 
-		mv_tohost_value,
-		RDY_mv_tohost_value,
+		 mv_tohost_value,
+		 RDY_mv_tohost_value,
 
-		loader_slave_awvalid,
-		loader_slave_awid,
-		loader_slave_awaddr,
-		loader_slave_awlen,
-		loader_slave_awsize,
-		loader_slave_awburst,
-		loader_slave_awlock,
-		loader_slave_awcache,
-		loader_slave_awprot,
-		loader_slave_awqos,
-		loader_slave_awregion,
+		 loader_slave_awvalid,
+		 loader_slave_awid,
+		 loader_slave_awaddr,
+		 loader_slave_awlen,
+		 loader_slave_awsize,
+		 loader_slave_awburst,
+		 loader_slave_awlock,
+		 loader_slave_awcache,
+		 loader_slave_awprot,
+		 loader_slave_awqos,
+		 loader_slave_awregion,
 
-		loader_slave_awready,
+		 loader_slave_awready,
 
-		loader_slave_wvalid,
-		loader_slave_wdata,
-		loader_slave_wstrb,
-		loader_slave_wlast,
+		 loader_slave_wvalid,
+		 loader_slave_wdata,
+		 loader_slave_wstrb,
+		 loader_slave_wlast,
 
-		loader_slave_wready,
+		 loader_slave_wready,
 
-		loader_slave_bvalid,
+		 loader_slave_bvalid,
 
-		loader_slave_bid,
+		 loader_slave_bid,
 
-		loader_slave_bresp,
+		 loader_slave_bresp,
 
-		loader_slave_bready,
+		 loader_slave_bready,
 
-		loader_slave_arvalid,
-		loader_slave_arid,
-		loader_slave_araddr,
-		loader_slave_arlen,
-		loader_slave_arsize,
-		loader_slave_arburst,
-		loader_slave_arlock,
-		loader_slave_arcache,
-		loader_slave_arprot,
-		loader_slave_arqos,
-		loader_slave_arregion,
+		 loader_slave_arvalid,
+		 loader_slave_arid,
+		 loader_slave_araddr,
+		 loader_slave_arlen,
+		 loader_slave_arsize,
+		 loader_slave_arburst,
+		 loader_slave_arlock,
+		 loader_slave_arcache,
+		 loader_slave_arprot,
+		 loader_slave_arqos,
+		 loader_slave_arregion,
 
-		loader_slave_arready,
+		 loader_slave_arready,
 
-		loader_slave_rvalid,
+		 loader_slave_rvalid,
 
-		loader_slave_rid,
+		 loader_slave_rid,
 
-		loader_slave_rdata,
+		 loader_slave_rdata,
 
-		loader_slave_rresp,
+		 loader_slave_rresp,
 
-		loader_slave_rlast,
+		 loader_slave_rlast,
 
-		loader_slave_rready,
+		 loader_slave_rready,
 
-		reset_done,
+		 reset_done,
 
-		cpu_halt_x,
+		 cpu_halt_x,
 
-		CLK_jtag_tclk_out,
-		CLK_GATE_jtag_tclk_out,
+		 CLK_jtag_tclk_out,
+		 CLK_GATE_jtag_tclk_out,
 
-		RST_N_ndm_reset);
+		 RST_N_ndm_reset);
   input  dmi_reset;
   input  CLK;
   input  RST_N;
@@ -542,8 +542,8 @@ module mkBSCore(dmi_reset,
        core$nmi_req_set_not_clear,
        core$set_watch_tohost_watch_tohost;
 
-  // ports of submodule dmi_resetN
-  wire dmi_resetN$RESET_OUT;
+  // ports of submodule dmi_reset1
+  wire dmi_reset1$RESET_OUT;
 
   // ports of submodule initCnt
   wire [5 : 0] initCnt$D_IN, initCnt$Q_OUT;
@@ -805,7 +805,7 @@ module mkBSCore(dmi_reset,
 
   // submodule bus_dmi_req_fifof
   FIFO2 #(.width(32'd41),
-	  .guarded(32'd1)) bus_dmi_req_fifof(.RST(dmi_resetN$RESET_OUT),
+	  .guarded(32'd1)) bus_dmi_req_fifof(.RST(dmi_reset1$RESET_OUT),
 					     .CLK(CLK),
 					     .D_IN(bus_dmi_req_fifof$D_IN),
 					     .ENQ(bus_dmi_req_fifof$ENQ),
@@ -919,10 +919,6 @@ module mkBSCore(dmi_reset,
 	      .ndm_reset_client_request_get(core$ndm_reset_client_request_get),
 	      .RDY_ndm_reset_client_request_get(core$RDY_ndm_reset_client_request_get),
 	      .RDY_ndm_reset_client_response_put(core$RDY_ndm_reset_client_response_put),
-	      .RDY_set_verbosity(),
-	      .RDY_set_watch_tohost(),
-	      .mv_tohost_value(core$mv_tohost_value),
-	      .RDY_mv_tohost_value(),
 	      .loader_slave_awready(core$loader_slave_awready),
 	      .loader_slave_wready(core$loader_slave_wready),
 	      .loader_slave_bvalid(core$loader_slave_bvalid),
@@ -933,11 +929,15 @@ module mkBSCore(dmi_reset,
 	      .loader_slave_rid(core$loader_slave_rid),
 	      .loader_slave_rdata(core$loader_slave_rdata),
 	      .loader_slave_rresp(core$loader_slave_rresp),
-	      .loader_slave_rlast(core$loader_slave_rlast));
+	      .loader_slave_rlast(core$loader_slave_rlast),
+	      .RDY_set_verbosity(),
+	      .RDY_set_watch_tohost(),
+	      .mv_tohost_value(core$mv_tohost_value),
+	      .RDY_mv_tohost_value());
 
-  // submodule dmi_resetN
-  ResetInverter dmi_resetN(.RESET_IN(dmi_reset),
-			   .RESET_OUT(dmi_resetN$RESET_OUT));
+  // submodule dmi_reset1
+  ResetInverter dmi_reset1(.RESET_IN(dmi_reset),
+			   .RESET_OUT(dmi_reset1$RESET_OUT));
 
   // submodule initCnt
   RegUNInit #(.width(32'd6), .init(6'd20)) initCnt(.CLK(CLK),
@@ -948,7 +948,7 @@ module mkBSCore(dmi_reset,
 
   // submodule jtagtap
   mkJtagTap jtagtap(.CLK(CLK),
-		    .RST_N(dmi_resetN$RESET_OUT),
+		    .RST_N(dmi_reset1$RESET_OUT),
 		    .dmi_req_ready(jtagtap$dmi_req_ready),
 		    .dmi_rsp_data(jtagtap$dmi_rsp_data),
 		    .dmi_rsp_response(jtagtap$dmi_rsp_response),
@@ -1457,13 +1457,15 @@ module mkBSCore(dmi_reset,
     if (RST_N == `BSV_RESET_VALUE)
       begin
         rg_last_cpuh <= `BSV_ASSIGNMENT_DELAY 1'd0;
+	rg_once <= `BSV_ASSIGNMENT_DELAY 1'd0;
       end
     else
       begin
         if (rg_last_cpuh$EN)
 	  rg_last_cpuh <= `BSV_ASSIGNMENT_DELAY rg_last_cpuh$D_IN;
+	if (rg_once$EN) rg_once <= `BSV_ASSIGNMENT_DELAY rg_once$D_IN;
       end
-    if (dmi_resetN$RESET_OUT == `BSV_RESET_VALUE)
+    if (dmi_reset1$RESET_OUT == `BSV_RESET_VALUE)
       begin
         bus_dmi_rsp_fifof_cntr_r <= `BSV_ASSIGNMENT_DELAY 2'd0;
 	bus_dmi_rsp_fifof_q_0 <= `BSV_ASSIGNMENT_DELAY 34'd0;
@@ -1486,7 +1488,6 @@ module mkBSCore(dmi_reset,
         rg_ldr_reset <= `BSV_ASSIGNMENT_DELAY 2'd0;
 	rg_ndm_count <= `BSV_ASSIGNMENT_DELAY 6'd0;
 	rg_ndm_reset <= `BSV_ASSIGNMENT_DELAY 2'd0;
-	rg_once <= `BSV_ASSIGNMENT_DELAY 1'd0;
 	rg_reset_done <= `BSV_ASSIGNMENT_DELAY 1'd0;
       end
     else
@@ -1497,7 +1498,6 @@ module mkBSCore(dmi_reset,
 	  rg_ndm_count <= `BSV_ASSIGNMENT_DELAY rg_ndm_count$D_IN;
 	if (rg_ndm_reset$EN)
 	  rg_ndm_reset <= `BSV_ASSIGNMENT_DELAY rg_ndm_reset$D_IN;
-	if (rg_once$EN) rg_once <= `BSV_ASSIGNMENT_DELAY rg_once$D_IN;
 	if (rg_reset_done$EN)
 	  rg_reset_done <= `BSV_ASSIGNMENT_DELAY rg_reset_done$D_IN;
       end
@@ -1533,5 +1533,5 @@ module mkBSCore(dmi_reset,
   end
   `endif // BSV_NO_INITIAL_BLOCKS
   // synopsys translate_on
-endmodule  // mkBSCore
+endmodule  // mkP1_Core
 

@@ -26,18 +26,18 @@ import SoC_Map      :: *;
 `ifdef INCLUDE_GDB_CONTROL
 
 // 2x4 Fabric for the Core
-// Masters: CPU DMem, Debug Module System Bus Access
+// Masters: CPU DMem, Debug Module System Bus Access, TCM Loader
 // Slaves: PLIC, Near_Mem_IO, IMem, DMem
-typedef 2  Num_Masters;
+typedef 3  Num_Masters;
 typedef 4  Num_Slaves;
 
 `else
 
-// 1x2 Fabric for the Core
-// Masters: CPU DMem
-// Slaves: PLIC, Near_Mem_IO
-typedef 1  Num_Masters;
-typedef 2  Num_Slaves;
+// 1x4 Fabric for the Core
+// Masters: CPU DMem, TCM Loader
+// Slaves: PLIC, Near_Mem_IO, IMem, DMem
+typedef 2  Num_Masters;
+typedef 4  Num_Slaves;
 
 `endif
 `else
@@ -45,25 +45,25 @@ typedef 2  Num_Slaves;
 `ifdef Near_Mem_TCM
 `ifdef INCLUDE_GDB_CONTROL
 
-// 2x5 Fabric for the Core
-// Masters: CPU DMem, Debug Module System Bus Access
+// 3x5 Fabric for the Core
+// Masters: CPU DMem, Debug Module System Bus Access, TCM Loader
 // Slaves: PLIC, Near_Mem_IO, IMem, DMem, System Interconnect
-typedef 2  Num_Masters;
+typedef 3  Num_Masters;
 typedef 5  Num_Slaves;
 
 `else
 
-// 1x3 Fabric for the Core
-// Masters: CPU DMem
-// Slaves: PLIC, Near_Mem_IO, System Interconnect
-typedef 1  Num_Masters;
-typedef 3  Num_Slaves;
+// 2x5 Fabric for the Core
+// Masters: CPU DMem, TCM Loader
+// Slaves: PLIC, Near_Mem_IO, IMem, DMem, System Interconnect
+typedef 2  Num_Masters;
+typedef 5  Num_Slaves;
 
 `endif
 `else
 
 // 2x3 Fabric for the Core
-// Masters: CPU DMem, Debug Module System Bus Access
+// Masters: CPU DMem, Debug Module System Bus Access (? CPU IMem ?)
 // Slaves: System Interconnect, PLIC, Near_Mem_IO
 typedef 2  Num_Masters;
 typedef 3  Num_Slaves;
@@ -80,9 +80,10 @@ typedef Bit #(TLog #(Num_Slaves))  Slave_Num;
 Master_Num  cpu_dmem_master_num         = 0;
 
 `ifdef Near_Mem_TCM
+Master_Num  loader_master_num           = 1;
 `ifdef INCLUDE_GDB_CONTROL
 
-Master_Num  debug_module_sba_master_num = 1;
+Master_Num  debug_module_sba_master_num = 2;
 
 `endif
 `else

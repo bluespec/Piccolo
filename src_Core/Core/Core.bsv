@@ -46,6 +46,7 @@ import AXI4_Lite_Types :: *;
 
 `ifdef INCLUDE_GDB_CONTROL
 import Debug_Module     :: *;
+import DM_CPU_Ifc       :: *;
 `endif
 
 import Core_IFC          :: *;
@@ -185,13 +186,16 @@ module mkCore #(Reset por_reset) (Core_IFC #(N_External_Interrupt_Sources));
    Bit #(1) reset_requestor_soc = 1;
 `ifdef INCLUDE_GDB_CONTROL
    FIFOF #(Bit #(1)) f_reset_requestor <- mkFIFOF(reset_by por_reset);
+   Server #(Bool, Bool)  hart_reset_server = cpu.debug.hart_reset_server;
+`else
+   Server #(Bool, Bool)  hart_reset_server = cpu.hart_reset_server;
 `endif
 
    // Reset-hart0 request from SoC
    rule rl_cpu_hart0_reset_from_soc_start;
       let running <- pop (f_reset_reqs);
 
-      cpu.hart0_server_reset.request.put (running);    // CPU
+      hart_reset_server.request.put (running);    // CPU
       clint.server_reset.request.put (?);        // Near_Mem_IO
       plic.server_reset.request.put (?);               // PLIC
       local_fabric.reset;                              // Local Fabric
@@ -206,9 +210,9 @@ module mkCore #(Reset por_reset) (Core_IFC #(N_External_Interrupt_Sources));
 `ifdef INCLUDE_GDB_CONTROL
    // Reset-hart0 from Debug Module
    rule rl_cpu_hart0_reset_from_dm_start;
-      let running <- debug_module.hart0_reset_client.request.get;
+      let running <- debug_module.hart0.hart_reset_client.request.get;
 
-      cpu.hart0_server_reset.request.put (running);    // CPU
+      hart_reset_server.request.put (running);    // CPU
       clint.server_reset.request.put (?);        // Near_Mem_IO
       plic.server_reset.request.put (?);               // PLIC
       local_fabric.reset;                                // Local 2x3 fabric
@@ -220,7 +224,7 @@ module mkCore #(Reset por_reset) (Core_IFC #(N_External_Interrupt_Sources));
 `endif
 
    rule rl_cpu_hart0_reset_complete;
-      let running <- cpu.hart0_server_reset.response.get;      // CPU
+      let running <- hart_reset_server.response.get;      // CPU
       let rsp2    <- clint.server_reset.response.get;    // Near_Mem_IO
       let rsp3    <- plic.server_reset.response.get;           // PLIC
 
@@ -231,7 +235,7 @@ module mkCore #(Reset por_reset) (Core_IFC #(N_External_Interrupt_Sources));
 `ifdef INCLUDE_GDB_CONTROL
       requestor <- pop (f_reset_requestor);
       if (requestor == reset_requestor_dm)
-	 debug_module.hart0_reset_client.response.put (running);
+	 debug_module.hart0.hart_reset_client.response.put (running);
 `endif
       if (requestor == reset_requestor_soc)
 	 f_reset_rsps.enq (running);
@@ -244,8 +248,8 @@ module mkCore #(Reset por_reset) (Core_IFC #(N_External_Interrupt_Sources));
 
 `ifdef INCLUDE_GDB_CONTROL
    // DM to CPU connections for run-control and other misc requests
-   mkConnection (debug_module.hart0_client_run_halt, cpu.hart0_server_run_halt);
-   mkConnection (debug_module.hart0_get_other_req,   cpu.hart0_put_other_req);
+   mkConnection (debug_module.hart0.hart_client_run_halt, cpu.debug.hart_server_run_halt);
+   mkConnection (debug_module.hart0.hart_get_other_req,   cpu.debug.hart_put_other_req);
 `endif
 
    // ================================================================
@@ -287,7 +291,7 @@ module mkCore #(Reset por_reset) (Core_IFC #(N_External_Interrupt_Sources));
 
    // Create a tap for DM's GPR writes to the CPU, and merge-in the trace data.
    DM_GPR_Tap_IFC  dm_gpr_tap_ifc <- mkDM_GPR_Tap;
-   mkConnection (debug_module.hart0_gpr_mem_client, dm_gpr_tap_ifc.server);
+   mkConnection (debug_module.hart0.hart_gpr_mem_client, dm_gpr_tap_ifc.server);
    mkConnection (dm_gpr_tap_ifc.client, cpu.hart0_gpr_mem_server);
 
    rule merge_dm_gpr_trace_data;
@@ -298,7 +302,7 @@ module mkCore #(Reset por_reset) (Core_IFC #(N_External_Interrupt_Sources));
 `ifdef ISA_F
    // Create a tap for DM's FPR writes to the CPU, and merge-in the trace data.
    DM_FPR_Tap_IFC  dm_fpr_tap_ifc <- mkDM_FPR_Tap;
-   mkConnection (debug_module.hart0_fpr_mem_client, dm_fpr_tap_ifc.server);
+   mkConnection (debug_module.hart0.hart_fpr_mem_client, dm_fpr_tap_ifc.server);
    mkConnection (dm_fpr_tap_ifc.client, cpu.hart0_fpr_mem_server);
 
    rule merge_dm_fpr_trace_data;
@@ -309,7 +313,7 @@ module mkCore #(Reset por_reset) (Core_IFC #(N_External_Interrupt_Sources));
 
    // Create a tap for DM's CSR writes, and merge-in the trace data.
    DM_CSR_Tap_IFC  dm_csr_tap <- mkDM_CSR_Tap;
-   mkConnection(debug_module.hart0_csr_mem_client, dm_csr_tap.server);
+   mkConnection(debug_module.hart0.hart_csr_mem_client, dm_csr_tap.server);
    mkConnection(dm_csr_tap.client, cpu.hart0_csr_mem_server);
 
 `ifdef ISA_F
@@ -330,15 +334,15 @@ module mkCore #(Reset por_reset) (Core_IFC #(N_External_Interrupt_Sources));
    // BEGIN SECTION: GDB and no TV
 
    // Connect DM's GPR interface directly to CPU
-   mkConnection (debug_module.hart0_gpr_mem_client, cpu.hart0_gpr_mem_server);
+   mkConnection (debug_module.hart0.hart_gpr_mem_client, cpu.debug.hart_gpr_mem_server);
 
 `ifdef ISA_F
    // Connect DM's FPR interface directly to CPU
-   mkConnection (debug_module.hart0_fpr_mem_client, cpu.hart0_fpr_mem_server);
+   mkConnection (debug_module.hart0.hart_fpr_mem_client, cpu.debug.hart_fpr_mem_server);
 `endif
 
    // Connect DM's CSR interface directly to CPU
-   mkConnection (debug_module.hart0_csr_mem_client, cpu.hart0_csr_mem_server);
+   mkConnection (debug_module.hart0.hart_csr_mem_client, cpu.debug.hart_csr_mem_server);
 
    // DM's bus master is directly the bus master
    let dm_master_local = debug_module_master;
@@ -545,6 +549,7 @@ module mkCore #(Reset por_reset) (Core_IFC #(N_External_Interrupt_Sources));
 
    method Bit #(64) mv_tohost_value = cpu.mv_tohost_value;
 `endif
+   interface loader_slave = local_fabric.v_from_masters [loader_master_num];
 `endif
 
 endmodule: mkCore

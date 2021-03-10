@@ -135,6 +135,14 @@ interface BSCore_IFC;
    method Action set_watch_tohost (Bool  watch_tohost, Bit #(64)  tohost_addr);
    method Bit #(64) mv_tohost_value;
 `endif
+
+   // connections to loader for MicroSemi version:
+   interface AXI4_Slave_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User) loader_slave;
+
+   (* always_ready *)
+   method Bool reset_done;
+   (* always_ready, always_enabled *)
+   method Action cpu_halt(Bool x);
 `endif
 
 endinterface
@@ -183,8 +191,11 @@ module mkBSCore ((*reset="dmi_reset"*)Reset dmi_reset, BSCore_IFC _ifc);
    // Reset on startup, and also on NDM reset from Debug Module
    // (NDM reset from Debug Module = "non-debug-module-reset" = reset all except Debug Module)
 
-   Reg #(Bool)          rg_once      <- mkReg (False, reset_by por_reset); // also set False by ndmreset
-   Reg #(Maybe #(Bool)) rg_ndm_reset <- mkReg (tagged Invalid, reset_by por_reset);
+   Reg #(Bool)          rg_once       <- mkReg (False, reset_by por_reset); // also set False by ndmreset
+   Reg #(Bool)          rg_reset_done <- mkReg (False, reset_by por_reset);
+   Reg #(Bool)          rg_last_cpuh  <- mkReg (False);
+   Reg #(Maybe #(Bool)) rg_ndm_reset  <- mkReg (tagged Invalid, reset_by por_reset);
+   Reg #(Maybe #(Bool)) rg_ldr_reset  <- mkReg (tagged Invalid, reset_by por_reset);
 `ifdef INCLUDE_GDB_CONTROL
    Reg #(UInt #(6))     rg_ndm_count <- mkReg (0, reset_by por_reset);
 
@@ -200,13 +211,18 @@ module mkBSCore ((*reset="dmi_reset"*)Reset dmi_reset, BSCore_IFC _ifc);
       Bool running = True;
       if (rg_ndm_reset matches tagged Valid False)
 	 running = False;
+      if (rg_ldr_reset matches tagged Valid False)
+	 running = False;
+      rg_ldr_reset <= Invalid;
       core.cpu_reset_server.request.put (running);
       // TODO: maybe set rg_ndm_count if debug_module present?
       rg_once <= True;
    endrule
 
+   (*descending_urgency="rl_once, cpu_halt"*)
    rule rl_reset_response;
       let running <- core.cpu_reset_server.response.get;
+
 `ifdef INCLUDE_GDB_CONTROL
       // wait for end of ndm_interval:
       when (rg_ndm_count == 0, noAction);
@@ -214,6 +230,7 @@ module mkBSCore ((*reset="dmi_reset"*)Reset dmi_reset, BSCore_IFC _ifc);
       if (rg_ndm_reset matches tagged Valid .x)
 	 core.ndm_reset_client.response.put (running);
       rg_ndm_reset <= tagged Invalid;
+      rg_reset_done <= True;
 `endif
    endrule
 
@@ -227,6 +244,7 @@ module mkBSCore ((*reset="dmi_reset"*)Reset dmi_reset, BSCore_IFC _ifc);
       rg_ndm_count <= ndm_interval;
 `endif
       rg_once <= False;
+      rg_reset_done <= False;
    endrule
 
    // ================================================================
@@ -355,6 +373,16 @@ module mkBSCore ((*reset="dmi_reset"*)Reset dmi_reset, BSCore_IFC _ifc);
 
    method Bit #(64) mv_tohost_value = core.mv_tohost_value;
 `endif
+   interface loader_slave = core.loader_slave;
+   method Action cpu_halt (x);
+      if (x != rg_last_cpuh && !isValid(rg_ldr_reset)) begin
+	 rg_ldr_reset <= tagged Valid (!x); // value is "running"
+	 rg_once <= False;
+	 rg_last_cpuh <= x;
+	 rg_reset_done <= False;
+      end
+   endmethod
+   method reset_done = rg_reset_done;
 `endif
 
 endmodule

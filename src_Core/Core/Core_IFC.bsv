@@ -143,6 +143,8 @@ interface Core_IFC #(numeric type t_n_interrupt_sources);
    method Action set_watch_tohost (Bool watch_tohost, Bit #(64) tohost_addr);
    method Bit #(64) mv_tohost_value;
 `endif
+   // connections to loader for MicroSemi version:
+   interface AXI4_Slave_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User) loader_slave;
 `endif
 endinterface
 
