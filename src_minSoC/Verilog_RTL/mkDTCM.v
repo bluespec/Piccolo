@@ -1105,7 +1105,7 @@ module mkDTCM(verbosity,
   reg [31 : 0] v__h3579;
   reg [31 : 0] v__h15666;
   reg [31 : 0] v__h15870;
-  reg [31 : 0] v__h19431;
+  reg [31 : 0] v__h19437;
   reg [31 : 0] v__h7090;
   reg [31 : 0] v__h8487;
   reg [31 : 0] v__h8622;
@@ -1147,7 +1147,7 @@ module mkDTCM(verbosity,
   reg [31 : 0] v__h15864;
   reg [31 : 0] v__h18558;
   reg [31 : 0] v__h18639;
-  reg [31 : 0] v__h19425;
+  reg [31 : 0] v__h19431;
   // synopsys translate_on
 
   // remaining internal signals
@@ -4729,16 +4729,16 @@ module mkDTCM(verbosity,
 	$display("   dtcm_rd_port.put (word_addr %08h)",
 		 tcm_word_addr__h16369);
     if (RST_N != `BSV_RESET_VALUE)
-      if (EN_set_watch_tohost)
+      if (EN_set_watch_tohost && verbosity != 2'd0)
 	begin
-	  v__h19431 = $stime;
+	  v__h19437 = $stime;
 	  #0;
 	end
-    v__h19425 = v__h19431 / 32'd10;
+    v__h19431 = v__h19437 / 32'd10;
     if (RST_N != `BSV_RESET_VALUE)
-      if (EN_set_watch_tohost)
+      if (EN_set_watch_tohost && verbosity != 2'd0)
 	$display("%0d: %m.set_watch_tohost: watch %0d, addr %08h",
-		 v__h19425,
+		 v__h19431,
 		 set_watch_tohost_watch_tohost,
 		 set_watch_tohost_tohost_addr);
     if (RST_N != `BSV_RESET_VALUE)

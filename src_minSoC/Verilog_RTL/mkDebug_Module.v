@@ -14,7 +14,7 @@
 // RDY_hart0_hart_reset_client_request_get  O     1 reg
 // RDY_hart0_hart_reset_client_response_put  O     1 reg
 // hart0_hart_client_run_halt_request_get  O     1 reg
-// RDY_hart0_hart_client_run_halt_request_get  O     1
+// RDY_hart0_hart_client_run_halt_request_get  O     1 reg
 // RDY_hart0_hart_client_run_halt_response_put  O     1 reg
 // hart0_hart_get_other_req_get   O     4 reg
 // RDY_hart0_hart_get_other_req_get  O     1 reg

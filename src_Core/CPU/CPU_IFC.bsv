@@ -26,8 +26,8 @@ import AXI4_Lite_Types :: *;
 `endif
 
 `ifdef INCLUDE_GDB_CONTROL
-import DM_CPU_Ifc     :: *;
-import DM_CPU_Req_Rsp :: *;
+import Debug_Interfaces :: *;
+import DM_CPU_Req_Rsp   :: *;
 `endif
 
 `ifdef INCLUDE_TANDEM_VERIF

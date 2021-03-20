@@ -16,7 +16,7 @@
 // RDY_hart0_reset_client_request_get  O     1 reg
 // RDY_hart0_reset_client_response_put  O     1 reg
 // hart0_client_run_halt_request_get  O     1 reg
-// RDY_hart0_client_run_halt_request_get  O     1
+// RDY_hart0_client_run_halt_request_get  O     1 reg
 // RDY_hart0_client_run_halt_response_put  O     1 reg
 // hart0_get_other_req_get        O     4 reg
 // RDY_hart0_get_other_req_get    O     1 reg
@@ -321,32 +321,35 @@ module mkDM_Run_Control(CLK,
 
   // declarations used by system tasks
   // synopsys translate_off
-  reg [31 : 0] v__h2683;
-  reg [31 : 0] v__h2789;
-  reg [31 : 0] v__h2904;
-  reg [31 : 0] v__h3024;
-  reg [31 : 0] v__h3064;
+  reg [31 : 0] v__h2183;
+  reg [31 : 0] v__h2726;
+  reg [31 : 0] v__h2832;
+  reg [31 : 0] v__h2947;
+  reg [31 : 0] v__h3067;
+  reg [31 : 0] v__h3107;
+  reg [31 : 0] v__h2144;
   reg [31 : 0] v__h2138;
-  reg [31 : 0] v__h2132;
-  reg [31 : 0] v__h2677;
-  reg [31 : 0] v__h2783;
-  reg [31 : 0] v__h2898;
-  reg [31 : 0] v__h3018;
-  reg [31 : 0] v__h3058;
+  reg [31 : 0] v__h2177;
+  reg [31 : 0] v__h2720;
+  reg [31 : 0] v__h2826;
+  reg [31 : 0] v__h2941;
+  reg [31 : 0] v__h3061;
+  reg [31 : 0] v__h3101;
   // synopsys translate_on
 
   // remaining internal signals
   wire [31 : 0] haltsum__h699,
 		virt_rg_dmcontrol__h930,
 		virt_rg_dmstatus__h805;
-  wire NOT_rg_dmcontrol_ndmreset_3_8_OR_write_dm_word_ETC___d89,
-       write_dm_addr_EQ_0x10_4_AND_write_dm_word_BIT__ETC___d106,
-       write_dm_addr_EQ_0x10_4_AND_write_dm_word_BIT__ETC___d46,
-       write_dm_addr_EQ_0x10_4_AND_write_dm_word_BIT__ETC___d53,
-       write_dm_addr_EQ_0x10_4_AND_write_dm_word_BIT__ETC___d60,
-       write_dm_addr_EQ_0x10_4_AND_write_dm_word_BIT__ETC___d79,
-       write_dm_addr_EQ_0x10_4_AND_write_dm_word_BIT__ETC___d98,
-       write_dm_word_BIT_0_8_AND_rg_dmcontrol_ndmrese_ETC___d69;
+  wire NOT_rg_dmcontrol_ndmreset_3_7_OR_write_dm_word_ETC___d102,
+       NOT_rg_dmstatus_allunavail_9_5_AND_rg_dmcontro_ETC___d111,
+       NOT_rg_dmstatus_allunavail_9_5_AND_rg_dmcontro_ETC___d120,
+       NOT_rg_dmstatus_allunavail_9_5_AND_rg_dmcontro_ETC___d61,
+       NOT_rg_dmstatus_allunavail_9_5_AND_rg_dmcontro_ETC___d69,
+       NOT_rg_dmstatus_allunavail_9_5_AND_rg_dmcontro_ETC___d80,
+       NOT_rg_dmstatus_allunavail_9_5_AND_rg_dmcontro_ETC___d90,
+       write_dm_addr_EQ_0x10_6_AND_write_dm_word_BIT__ETC___d50,
+       write_dm_word_BIT_0_0_AND_NOT_rg_dmstatus_allu_ETC___d54;
 
   // value method dmactive
   assign dmactive = rg_dmcontrol_dmactive ;
@@ -375,13 +378,11 @@ module mkDM_Run_Control(CLK,
 
   // action method write
   assign RDY_write =
-	     f_ndm_reset_reqs$FULL_N && f_hart0_reset_reqs$FULL_N &&
-	     f_hart0_run_halt_reqs$FULL_N &&
+	     (rg_dmstatus_allunavail ||
+	      f_ndm_reset_reqs$FULL_N && f_hart0_reset_reqs$FULL_N &&
+	      f_hart0_run_halt_reqs$FULL_N) &&
 	     f_hart0_other_reqs$FULL_N ;
-  assign CAN_FIRE_write =
-	     f_ndm_reset_reqs$FULL_N && f_hart0_reset_reqs$FULL_N &&
-	     f_hart0_run_halt_reqs$FULL_N &&
-	     f_hart0_other_reqs$FULL_N ;
+  assign CAN_FIRE_write = RDY_write ;
   assign WILL_FIRE_write = EN_write ;
 
   // actionvalue method hart0_reset_client_request_get
@@ -402,9 +403,9 @@ module mkDM_Run_Control(CLK,
   // actionvalue method hart0_client_run_halt_request_get
   assign hart0_client_run_halt_request_get = f_hart0_run_halt_reqs$D_OUT ;
   assign RDY_hart0_client_run_halt_request_get =
-	     !rg_dmstatus_allunavail && f_hart0_run_halt_reqs$EMPTY_N ;
+	     f_hart0_run_halt_reqs$EMPTY_N ;
   assign CAN_FIRE_hart0_client_run_halt_request_get =
-	     !rg_dmstatus_allunavail && f_hart0_run_halt_reqs$EMPTY_N ;
+	     f_hart0_run_halt_reqs$EMPTY_N ;
   assign WILL_FIRE_hart0_client_run_halt_request_get =
 	     EN_hart0_client_run_halt_request_get ;
 
@@ -529,15 +530,14 @@ module mkDM_Run_Control(CLK,
   assign MUX_rg_dmstatus_allresumeack$write_1__SEL_2 =
 	     WILL_FIRE_RL_rl_hart0_run_rsp && f_hart0_run_halt_rsps$D_OUT ;
   assign MUX_rg_dmstatus_allresumeack$write_1__SEL_3 =
-	     EN_write &&
-	     write_dm_addr_EQ_0x10_4_AND_write_dm_word_BIT__ETC___d98 ;
-  assign MUX_rg_dmstatus_allunavail$write_1__SEL_3 =
 	     EN_write && write_dm_addr == 7'h10 && write_dm_word[0] &&
-	     rg_dmcontrol_ndmreset &&
-	     !write_dm_word[1] ;
-  assign MUX_rg_hart0_hasreset$write_1__SEL_3 =
+	     NOT_rg_dmstatus_allunavail_9_5_AND_rg_dmcontro_ETC___d111 ;
+  assign MUX_rg_dmstatus_allunavail$write_1__SEL_3 =
 	     EN_write &&
-	     write_dm_addr_EQ_0x10_4_AND_write_dm_word_BIT__ETC___d53 ;
+	     write_dm_addr_EQ_0x10_6_AND_write_dm_word_BIT__ETC___d50 ;
+  assign MUX_rg_hart0_hasreset$write_1__SEL_3 =
+	     EN_write && write_dm_addr == 7'h10 && write_dm_word[0] &&
+	     NOT_rg_dmstatus_allunavail_9_5_AND_rg_dmcontro_ETC___d61 ;
   assign MUX_rg_verbosity$write_1__SEL_2 =
 	     EN_write && write_dm_addr == 7'h60 ;
 
@@ -575,25 +575,24 @@ module mkDM_Run_Control(CLK,
   endcase
   assign rg_dmstatus_allresumeack$EN =
 	     WILL_FIRE_RL_rl_hart0_run_rsp && f_hart0_run_halt_rsps$D_OUT ||
-	     EN_write &&
-	     write_dm_addr_EQ_0x10_4_AND_write_dm_word_BIT__ETC___d98 ||
+	     EN_write && write_dm_addr == 7'h10 && write_dm_word[0] &&
+	     NOT_rg_dmstatus_allunavail_9_5_AND_rg_dmcontro_ETC___d111 ||
 	     EN_reset ;
 
   // register rg_dmstatus_allunavail
   assign rg_dmstatus_allunavail$D_IN =
 	     !EN_reset && !f_ndm_reset_rsps$EMPTY_N ;
   assign rg_dmstatus_allunavail$EN =
-	     EN_write && write_dm_addr == 7'h10 && write_dm_word[0] &&
-	     rg_dmcontrol_ndmreset &&
-	     !write_dm_word[1] ||
+	     EN_write &&
+	     write_dm_addr_EQ_0x10_6_AND_write_dm_word_BIT__ETC___d50 ||
 	     f_ndm_reset_rsps$EMPTY_N ||
 	     EN_reset ;
 
   // register rg_hart0_hasreset
   assign rg_hart0_hasreset$D_IN = !EN_reset && !f_hart0_reset_rsps$EMPTY_N ;
   assign rg_hart0_hasreset$EN =
-	     EN_write &&
-	     write_dm_addr_EQ_0x10_4_AND_write_dm_word_BIT__ETC___d53 ||
+	     EN_write && write_dm_addr == 7'h10 && write_dm_word[0] &&
+	     NOT_rg_dmstatus_allunavail_9_5_AND_rg_dmcontro_ETC___d61 ||
 	     f_hart0_reset_rsps$EMPTY_N ||
 	     EN_reset ;
 
@@ -644,8 +643,9 @@ module mkDM_Run_Control(CLK,
   assign f_hart0_run_halt_reqs$D_IN = write_dm_word[30] && !rg_hart0_running ;
   assign f_hart0_run_halt_reqs$ENQ =
 	     EN_write && write_dm_addr == 7'h10 && write_dm_word[0] &&
+	     !rg_dmstatus_allunavail &&
 	     (rg_dmcontrol_ndmreset || !write_dm_word[1]) &&
-	     NOT_rg_dmcontrol_ndmreset_3_8_OR_write_dm_word_ETC___d89 ;
+	     NOT_rg_dmcontrol_ndmreset_3_7_OR_write_dm_word_ETC___d102 ;
   assign f_hart0_run_halt_reqs$DEQ = EN_hart0_client_run_halt_request_get ;
   assign f_hart0_run_halt_reqs$CLR = EN_reset ;
 
@@ -668,12 +668,52 @@ module mkDM_Run_Control(CLK,
   assign f_ndm_reset_rsps$CLR = EN_reset ;
 
   // remaining internal signals
-  assign NOT_rg_dmcontrol_ndmreset_3_8_OR_write_dm_word_ETC___d89 =
+  assign NOT_rg_dmcontrol_ndmreset_3_7_OR_write_dm_word_ETC___d102 =
 	     (!rg_dmcontrol_ndmreset || write_dm_word[1]) &&
 	     !write_dm_word[29] &&
 	     (!write_dm_word[31] || !write_dm_word[30]) &&
 	     (write_dm_word[30] && !rg_hart0_running ||
 	      write_dm_word[31] && rg_hart0_running) ;
+  assign NOT_rg_dmstatus_allunavail_9_5_AND_rg_dmcontro_ETC___d111 =
+	     !rg_dmstatus_allunavail &&
+	     (rg_dmcontrol_ndmreset || !write_dm_word[1]) &&
+	     (!rg_dmcontrol_ndmreset || write_dm_word[1]) &&
+	     !write_dm_word[29] &&
+	     !write_dm_word[31] &&
+	     write_dm_word[30] &&
+	     !rg_hart0_running ;
+  assign NOT_rg_dmstatus_allunavail_9_5_AND_rg_dmcontro_ETC___d120 =
+	     !rg_dmstatus_allunavail &&
+	     (rg_dmcontrol_ndmreset || !write_dm_word[1]) &&
+	     (!rg_dmcontrol_ndmreset || write_dm_word[1]) &&
+	     !write_dm_word[29] &&
+	     !write_dm_word[30] &&
+	     write_dm_word[31] &&
+	     rg_hart0_running ;
+  assign NOT_rg_dmstatus_allunavail_9_5_AND_rg_dmcontro_ETC___d61 =
+	     !rg_dmstatus_allunavail &&
+	     (rg_dmcontrol_ndmreset || !write_dm_word[1]) &&
+	     (!rg_dmcontrol_ndmreset || write_dm_word[1]) &&
+	     write_dm_word[29] ;
+  assign NOT_rg_dmstatus_allunavail_9_5_AND_rg_dmcontro_ETC___d69 =
+	     !rg_dmstatus_allunavail &&
+	     (rg_dmcontrol_ndmreset || !write_dm_word[1]) &&
+	     (!rg_dmcontrol_ndmreset || write_dm_word[1]) &&
+	     !write_dm_word[29] &&
+	     write_dm_word[26] ;
+  assign NOT_rg_dmstatus_allunavail_9_5_AND_rg_dmcontro_ETC___d80 =
+	     !rg_dmstatus_allunavail &&
+	     (rg_dmcontrol_ndmreset || !write_dm_word[1]) &&
+	     (!rg_dmcontrol_ndmreset || write_dm_word[1]) &&
+	     !write_dm_word[29] &&
+	     write_dm_word[25:16] != 10'd0 ;
+  assign NOT_rg_dmstatus_allunavail_9_5_AND_rg_dmcontro_ETC___d90 =
+	     !rg_dmstatus_allunavail &&
+	     (rg_dmcontrol_ndmreset || !write_dm_word[1]) &&
+	     (!rg_dmcontrol_ndmreset || write_dm_word[1]) &&
+	     !write_dm_word[29] &&
+	     write_dm_word[31] &&
+	     write_dm_word[30] ;
   assign haltsum__h699 = { 31'h0, !rg_hart0_running } ;
   assign virt_rg_dmcontrol__h930 =
 	     { 2'b0,
@@ -687,57 +727,24 @@ module mkDM_Run_Control(CLK,
 	       rg_hart0_hasreset,
 	       rg_dmstatus_allresumeack,
 	       rg_dmstatus_allresumeack,
-	       4'd0,
+	       2'd0,
+	       rg_dmstatus_allunavail,
+	       rg_dmstatus_allunavail,
 	       rg_hart0_running,
 	       rg_hart0_running,
 	       !rg_hart0_running,
 	       !rg_hart0_running,
 	       8'd130 } ;
-  assign write_dm_addr_EQ_0x10_4_AND_write_dm_word_BIT__ETC___d106 =
+  assign write_dm_addr_EQ_0x10_6_AND_write_dm_word_BIT__ETC___d50 =
 	     write_dm_addr == 7'h10 && write_dm_word[0] &&
-	     (rg_dmcontrol_ndmreset || !write_dm_word[1]) &&
-	     (!rg_dmcontrol_ndmreset || write_dm_word[1]) &&
-	     !write_dm_word[29] &&
-	     !write_dm_word[30] &&
-	     write_dm_word[31] &&
-	     rg_hart0_running ;
-  assign write_dm_addr_EQ_0x10_4_AND_write_dm_word_BIT__ETC___d46 =
-	     write_dm_addr == 7'h10 && write_dm_word[0] &&
+	     !rg_dmstatus_allunavail &&
+	     rg_dmcontrol_ndmreset &&
+	     !write_dm_word[1] ;
+  assign write_dm_word_BIT_0_0_AND_NOT_rg_dmstatus_allu_ETC___d54 =
+	     write_dm_word[0] && !rg_dmstatus_allunavail &&
 	     rg_dmcontrol_ndmreset &&
 	     !write_dm_word[1] &&
 	     write_dm_word[29] ;
-  assign write_dm_addr_EQ_0x10_4_AND_write_dm_word_BIT__ETC___d53 =
-	     write_dm_addr == 7'h10 && write_dm_word[0] &&
-	     (rg_dmcontrol_ndmreset || !write_dm_word[1]) &&
-	     (!rg_dmcontrol_ndmreset || write_dm_word[1]) &&
-	     write_dm_word[29] ;
-  assign write_dm_addr_EQ_0x10_4_AND_write_dm_word_BIT__ETC___d60 =
-	     write_dm_addr == 7'h10 && write_dm_word[0] &&
-	     (rg_dmcontrol_ndmreset || !write_dm_word[1]) &&
-	     (!rg_dmcontrol_ndmreset || write_dm_word[1]) &&
-	     !write_dm_word[29] &&
-	     write_dm_word[26] ;
-  assign write_dm_addr_EQ_0x10_4_AND_write_dm_word_BIT__ETC___d79 =
-	     write_dm_addr == 7'h10 && write_dm_word[0] &&
-	     (rg_dmcontrol_ndmreset || !write_dm_word[1]) &&
-	     (!rg_dmcontrol_ndmreset || write_dm_word[1]) &&
-	     !write_dm_word[29] &&
-	     write_dm_word[31] &&
-	     write_dm_word[30] ;
-  assign write_dm_addr_EQ_0x10_4_AND_write_dm_word_BIT__ETC___d98 =
-	     write_dm_addr == 7'h10 && write_dm_word[0] &&
-	     (rg_dmcontrol_ndmreset || !write_dm_word[1]) &&
-	     (!rg_dmcontrol_ndmreset || write_dm_word[1]) &&
-	     !write_dm_word[29] &&
-	     !write_dm_word[31] &&
-	     write_dm_word[30] &&
-	     !rg_hart0_running ;
-  assign write_dm_word_BIT_0_8_AND_rg_dmcontrol_ndmrese_ETC___d69 =
-	     write_dm_word[0] &&
-	     (rg_dmcontrol_ndmreset || !write_dm_word[1]) &&
-	     (!rg_dmcontrol_ndmreset || write_dm_word[1]) &&
-	     !write_dm_word[29] &&
-	     write_dm_word[25:16] != 10'd0 ;
 
   // handling of inlined registers
 
@@ -801,99 +808,113 @@ module mkDM_Run_Control(CLK,
   begin
     #0;
     if (RST_N != `BSV_RESET_VALUE)
-      if (EN_write &&
-	  write_dm_addr_EQ_0x10_4_AND_write_dm_word_BIT__ETC___d46)
-	$display("    WARNING: %m.dmcontrol_write 0x%08h:", write_dm_word);
-    if (RST_N != `BSV_RESET_VALUE)
-      if (EN_write &&
-	  write_dm_addr_EQ_0x10_4_AND_write_dm_word_BIT__ETC___d46)
-	$display("    Both ndmreset [1] and hartreset [29] are asserted");
-    if (RST_N != `BSV_RESET_VALUE)
-      if (EN_write &&
-	  write_dm_addr_EQ_0x10_4_AND_write_dm_word_BIT__ETC___d46)
-	$display("    ndmreset has priority; ignoring hartreset");
-    if (RST_N != `BSV_RESET_VALUE)
-      if (EN_write &&
-	  write_dm_addr_EQ_0x10_4_AND_write_dm_word_BIT__ETC___d60)
+      if (EN_write && write_dm_addr == 7'h10 && write_dm_word[0] &&
+	  rg_dmstatus_allunavail)
 	begin
-	  v__h2683 = $stime;
+	  v__h2183 = $stime;
 	  #0;
 	end
-    v__h2677 = v__h2683 / 32'd10;
+    v__h2177 = v__h2183 / 32'd10;
     if (RST_N != `BSV_RESET_VALUE)
-      if (EN_write &&
-	  write_dm_addr_EQ_0x10_4_AND_write_dm_word_BIT__ETC___d60)
-	$display("%0d:ERROR: %m.dmcontrol_write 0x%08h: hasel is not supported",
-		 v__h2677,
+      if (EN_write && write_dm_addr == 7'h10 && write_dm_word[0] &&
+	  rg_dmstatus_allunavail)
+	$display("%0d: %m.dmcontrol_write 0x%0h: ndm reset in progress; ignoring this write",
+		 v__h2177,
 		 write_dm_word);
     if (RST_N != `BSV_RESET_VALUE)
       if (EN_write && write_dm_addr == 7'h10 &&
-	  write_dm_word_BIT_0_8_AND_rg_dmcontrol_ndmrese_ETC___d69)
-	begin
-	  v__h2789 = $stime;
-	  #0;
-	end
-    v__h2783 = v__h2789 / 32'd10;
+	  write_dm_word_BIT_0_0_AND_NOT_rg_dmstatus_allu_ETC___d54)
+	$display("    WARNING: %m.dmcontrol_write 0x%08h:", write_dm_word);
     if (RST_N != `BSV_RESET_VALUE)
       if (EN_write && write_dm_addr == 7'h10 &&
-	  write_dm_word_BIT_0_8_AND_rg_dmcontrol_ndmrese_ETC___d69)
+	  write_dm_word_BIT_0_0_AND_NOT_rg_dmstatus_allu_ETC___d54)
+	$display("    Both ndmreset [1] and hartreset [29] are asserted");
+    if (RST_N != `BSV_RESET_VALUE)
+      if (EN_write && write_dm_addr == 7'h10 &&
+	  write_dm_word_BIT_0_0_AND_NOT_rg_dmstatus_allu_ETC___d54)
+	$display("    ndmreset has priority; ignoring hartreset");
+    if (RST_N != `BSV_RESET_VALUE)
+      if (EN_write && write_dm_addr == 7'h10 && write_dm_word[0] &&
+	  NOT_rg_dmstatus_allunavail_9_5_AND_rg_dmcontro_ETC___d69)
+	begin
+	  v__h2726 = $stime;
+	  #0;
+	end
+    v__h2720 = v__h2726 / 32'd10;
+    if (RST_N != `BSV_RESET_VALUE)
+      if (EN_write && write_dm_addr == 7'h10 && write_dm_word[0] &&
+	  NOT_rg_dmstatus_allunavail_9_5_AND_rg_dmcontro_ETC___d69)
+	$display("%0d:ERROR: %m.dmcontrol_write 0x%08h: hasel is not supported",
+		 v__h2720,
+		 write_dm_word);
+    if (RST_N != `BSV_RESET_VALUE)
+      if (EN_write && write_dm_addr == 7'h10 && write_dm_word[0] &&
+	  NOT_rg_dmstatus_allunavail_9_5_AND_rg_dmcontro_ETC___d80)
+	begin
+	  v__h2832 = $stime;
+	  #0;
+	end
+    v__h2826 = v__h2832 / 32'd10;
+    if (RST_N != `BSV_RESET_VALUE)
+      if (EN_write && write_dm_addr == 7'h10 && write_dm_word[0] &&
+	  NOT_rg_dmstatus_allunavail_9_5_AND_rg_dmcontro_ETC___d80)
 	$display("%0d:ERROR: %m.dmcontrol_write 0x%08h: hartsel 0x%0h not supported",
-		 v__h2783,
+		 v__h2826,
 		 write_dm_word,
 		 write_dm_word[25:16]);
     if (RST_N != `BSV_RESET_VALUE)
-      if (EN_write &&
-	  write_dm_addr_EQ_0x10_4_AND_write_dm_word_BIT__ETC___d79)
+      if (EN_write && write_dm_addr == 7'h10 && write_dm_word[0] &&
+	  NOT_rg_dmstatus_allunavail_9_5_AND_rg_dmcontro_ETC___d90)
 	begin
-	  v__h2904 = $stime;
+	  v__h2947 = $stime;
 	  #0;
 	end
-    v__h2898 = v__h2904 / 32'd10;
+    v__h2941 = v__h2947 / 32'd10;
     if (RST_N != `BSV_RESET_VALUE)
-      if (EN_write &&
-	  write_dm_addr_EQ_0x10_4_AND_write_dm_word_BIT__ETC___d79)
+      if (EN_write && write_dm_addr == 7'h10 && write_dm_word[0] &&
+	  NOT_rg_dmstatus_allunavail_9_5_AND_rg_dmcontro_ETC___d90)
 	$display("%0d:ERROR: %m.dmcontrol_write 0x%08h: haltreq=1 and resumereq=1",
-		 v__h2898,
+		 v__h2941,
 		 write_dm_word);
     if (RST_N != `BSV_RESET_VALUE)
-      if (EN_write &&
-	  write_dm_addr_EQ_0x10_4_AND_write_dm_word_BIT__ETC___d79)
+      if (EN_write && write_dm_addr == 7'h10 && write_dm_word[0] &&
+	  NOT_rg_dmstatus_allunavail_9_5_AND_rg_dmcontro_ETC___d90)
 	$display("    This behavior is 'undefined' in the spec; ignoring");
     if (RST_N != `BSV_RESET_VALUE)
-      if (EN_write &&
-	  write_dm_addr_EQ_0x10_4_AND_write_dm_word_BIT__ETC___d98)
+      if (EN_write && write_dm_addr == 7'h10 && write_dm_word[0] &&
+	  NOT_rg_dmstatus_allunavail_9_5_AND_rg_dmcontro_ETC___d111)
 	begin
-	  v__h3024 = $stime;
+	  v__h3067 = $stime;
 	  #0;
 	end
-    v__h3018 = v__h3024 / 32'd10;
+    v__h3061 = v__h3067 / 32'd10;
     if (RST_N != `BSV_RESET_VALUE)
-      if (EN_write &&
-	  write_dm_addr_EQ_0x10_4_AND_write_dm_word_BIT__ETC___d98)
-	$display("%0d: %m.dmcontrol_write: hart0 resume request", v__h3018);
+      if (EN_write && write_dm_addr == 7'h10 && write_dm_word[0] &&
+	  NOT_rg_dmstatus_allunavail_9_5_AND_rg_dmcontro_ETC___d111)
+	$display("%0d: %m.dmcontrol_write: hart0 resume request", v__h3061);
     if (RST_N != `BSV_RESET_VALUE)
-      if (EN_write &&
-	  write_dm_addr_EQ_0x10_4_AND_write_dm_word_BIT__ETC___d106)
+      if (EN_write && write_dm_addr == 7'h10 && write_dm_word[0] &&
+	  NOT_rg_dmstatus_allunavail_9_5_AND_rg_dmcontro_ETC___d120)
 	begin
-	  v__h3064 = $stime;
+	  v__h3107 = $stime;
 	  #0;
 	end
-    v__h3058 = v__h3064 / 32'd10;
+    v__h3101 = v__h3107 / 32'd10;
     if (RST_N != `BSV_RESET_VALUE)
-      if (EN_write &&
-	  write_dm_addr_EQ_0x10_4_AND_write_dm_word_BIT__ETC___d106)
-	$display("%0d: %m.dmcontrol_write: hart0 halt request", v__h3058);
+      if (EN_write && write_dm_addr == 7'h10 && write_dm_word[0] &&
+	  NOT_rg_dmstatus_allunavail_9_5_AND_rg_dmcontro_ETC___d120)
+	$display("%0d: %m.dmcontrol_write: hart0 halt request", v__h3101);
     if (RST_N != `BSV_RESET_VALUE)
       if (EN_write && write_dm_addr == 7'h10 && !write_dm_word[0])
 	begin
-	  v__h2138 = $stime;
+	  v__h2144 = $stime;
 	  #0;
 	end
-    v__h2132 = v__h2138 / 32'd10;
+    v__h2138 = v__h2144 / 32'd10;
     if (RST_N != `BSV_RESET_VALUE)
       if (EN_write && write_dm_addr == 7'h10 && !write_dm_word[0])
 	$display("%0d: %m.dmcontrol_write 0x%08h (dmactive=0): resetting Debug Module",
-		 v__h2132,
+		 v__h2138,
 		 write_dm_word);
     if (RST_N != `BSV_RESET_VALUE)
       if (EN_write && write_dm_addr == 7'h10 && !write_dm_word[0] &&

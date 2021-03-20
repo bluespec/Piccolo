@@ -14,66 +14,56 @@
 // master1_HTRANS                 O     2 reg
 // master1_HWDATA                 O    32 reg
 // master1_HWRITE                 O     1 reg
-// jtag_tdo                       O     1
+// debug_awready                  O     1 reg
+// debug_wready                   O     1 reg
+// debug_bvalid                   O     1 reg
+// debug_bid                      O     4 reg
+// debug_bresp                    O     2 reg
+// debug_arready                  O     1 reg
+// debug_rvalid                   O     1 reg
+// debug_rid                      O     4 reg
+// debug_rdata                    O    32 reg
+// debug_rresp                    O     2 reg
+// debug_rlast                    O     1 reg
 // RDY_set_watch_tohost           O     1 const
 // mv_tohost_value                O    64 reg
 // RDY_mv_tohost_value            O     1 const
-// loader_slave_awready           O     1 reg
-// loader_slave_wready            O     1 reg
-// loader_slave_bvalid            O     1 reg
-// loader_slave_bid               O     4 reg
-// loader_slave_bresp             O     2 reg
-// loader_slave_arready           O     1 reg
-// loader_slave_rvalid            O     1 reg
-// loader_slave_rid               O     4 reg
-// loader_slave_rdata             O    32 reg
-// loader_slave_rresp             O     2 reg
-// loader_slave_rlast             O     1 reg
-// reset_done                     O     1 reg
-// CLK_jtag_tclk_out              O     1 clock
-// CLK_GATE_jtag_tclk_out         O     1 const
-// RST_N_ndm_reset                O     1 reset
-// dmi_reset                      I     1 reset
 // CLK                            I     1 clock
 // RST_N                          I     1 reset
 // master1_HRDATA                 I    32
 // master1_HREADY                 I     1
 // master1_HRESP                  I     1
 // cpu_external_interrupt_req     I    32
-// jtag_tdi                       I     1
-// jtag_tms                       I     1
-// jtag_tclk                      I     1
+// debug_awvalid                  I     1
+// debug_awid                     I     4 reg
+// debug_awaddr                   I    32 reg
+// debug_awlen                    I     8 reg
+// debug_awsize                   I     3 reg
+// debug_awburst                  I     2 reg
+// debug_awlock                   I     1 reg
+// debug_awcache                  I     4 reg
+// debug_awprot                   I     3 reg
+// debug_awqos                    I     4 reg
+// debug_awregion                 I     4 reg
+// debug_wvalid                   I     1
+// debug_wdata                    I    32 reg
+// debug_wstrb                    I     4 reg
+// debug_wlast                    I     1 reg
+// debug_bready                   I     1
+// debug_arvalid                  I     1
+// debug_arid                     I     4 reg
+// debug_araddr                   I    32 reg
+// debug_arlen                    I     8 reg
+// debug_arsize                   I     3 reg
+// debug_arburst                  I     2 reg
+// debug_arlock                   I     1 reg
+// debug_arcache                  I     4 reg
+// debug_arprot                   I     3 reg
+// debug_arqos                    I     4 reg
+// debug_arregion                 I     4 reg
+// debug_rready                   I     1
 // set_watch_tohost_watch_tohost  I     1 reg
 // set_watch_tohost_tohost_addr   I    64 reg
-// loader_slave_awvalid           I     1
-// loader_slave_awid              I     4 reg
-// loader_slave_awaddr            I    32 reg
-// loader_slave_awlen             I     8 reg
-// loader_slave_awsize            I     3 reg
-// loader_slave_awburst           I     2 reg
-// loader_slave_awlock            I     1 reg
-// loader_slave_awcache           I     4 reg
-// loader_slave_awprot            I     3 reg
-// loader_slave_awqos             I     4 reg
-// loader_slave_awregion          I     4 reg
-// loader_slave_wvalid            I     1
-// loader_slave_wdata             I    32 reg
-// loader_slave_wstrb             I     4 reg
-// loader_slave_wlast             I     1 reg
-// loader_slave_bready            I     1
-// loader_slave_arvalid           I     1
-// loader_slave_arid              I     4 reg
-// loader_slave_araddr            I    32 reg
-// loader_slave_arlen             I     8 reg
-// loader_slave_arsize            I     3 reg
-// loader_slave_arburst           I     2 reg
-// loader_slave_arlock            I     1 reg
-// loader_slave_arcache           I     4 reg
-// loader_slave_arprot            I     3 reg
-// loader_slave_arqos             I     4 reg
-// loader_slave_arregion          I     4 reg
-// loader_slave_rready            I     1
-// cpu_halt_x                     I     1
 // EN_set_watch_tohost            I     1
 //
 // No combinational paths from inputs to outputs
@@ -93,8 +83,7 @@
   `define BSV_RESET_EDGE negedge
 `endif
 
-module mkBSCore(dmi_reset,
-		CLK,
+module mkBSCore(CLK,
 		RST_N,
 
 		master1_HADDR,
@@ -121,13 +110,60 @@ module mkBSCore(dmi_reset,
 
 		cpu_external_interrupt_req,
 
-		jtag_tdi,
+		debug_awvalid,
+		debug_awid,
+		debug_awaddr,
+		debug_awlen,
+		debug_awsize,
+		debug_awburst,
+		debug_awlock,
+		debug_awcache,
+		debug_awprot,
+		debug_awqos,
+		debug_awregion,
 
-		jtag_tms,
+		debug_awready,
 
-		jtag_tclk,
+		debug_wvalid,
+		debug_wdata,
+		debug_wstrb,
+		debug_wlast,
 
-		jtag_tdo,
+		debug_wready,
+
+		debug_bvalid,
+
+		debug_bid,
+
+		debug_bresp,
+
+		debug_bready,
+
+		debug_arvalid,
+		debug_arid,
+		debug_araddr,
+		debug_arlen,
+		debug_arsize,
+		debug_arburst,
+		debug_arlock,
+		debug_arcache,
+		debug_arprot,
+		debug_arqos,
+		debug_arregion,
+
+		debug_arready,
+
+		debug_rvalid,
+
+		debug_rid,
+
+		debug_rdata,
+
+		debug_rresp,
+
+		debug_rlast,
+
+		debug_rready,
 
 		set_watch_tohost_watch_tohost,
 		set_watch_tohost_tohost_addr,
@@ -135,72 +171,7 @@ module mkBSCore(dmi_reset,
 		RDY_set_watch_tohost,
 
 		mv_tohost_value,
-		RDY_mv_tohost_value,
-
-		loader_slave_awvalid,
-		loader_slave_awid,
-		loader_slave_awaddr,
-		loader_slave_awlen,
-		loader_slave_awsize,
-		loader_slave_awburst,
-		loader_slave_awlock,
-		loader_slave_awcache,
-		loader_slave_awprot,
-		loader_slave_awqos,
-		loader_slave_awregion,
-
-		loader_slave_awready,
-
-		loader_slave_wvalid,
-		loader_slave_wdata,
-		loader_slave_wstrb,
-		loader_slave_wlast,
-
-		loader_slave_wready,
-
-		loader_slave_bvalid,
-
-		loader_slave_bid,
-
-		loader_slave_bresp,
-
-		loader_slave_bready,
-
-		loader_slave_arvalid,
-		loader_slave_arid,
-		loader_slave_araddr,
-		loader_slave_arlen,
-		loader_slave_arsize,
-		loader_slave_arburst,
-		loader_slave_arlock,
-		loader_slave_arcache,
-		loader_slave_arprot,
-		loader_slave_arqos,
-		loader_slave_arregion,
-
-		loader_slave_arready,
-
-		loader_slave_rvalid,
-
-		loader_slave_rid,
-
-		loader_slave_rdata,
-
-		loader_slave_rresp,
-
-		loader_slave_rlast,
-
-		loader_slave_rready,
-
-		reset_done,
-
-		cpu_halt_x,
-
-		CLK_jtag_tclk_out,
-		CLK_GATE_jtag_tclk_out,
-
-		RST_N_ndm_reset);
-  input  dmi_reset;
+		RDY_mv_tohost_value);
   input  CLK;
   input  RST_N;
 
@@ -240,17 +211,80 @@ module mkBSCore(dmi_reset,
   // action method interrupt_reqs
   input  [31 : 0] cpu_external_interrupt_req;
 
-  // action method jtag_tdi
-  input  jtag_tdi;
+  // action method debug_m_awvalid
+  input  debug_awvalid;
+  input  [3 : 0] debug_awid;
+  input  [31 : 0] debug_awaddr;
+  input  [7 : 0] debug_awlen;
+  input  [2 : 0] debug_awsize;
+  input  [1 : 0] debug_awburst;
+  input  debug_awlock;
+  input  [3 : 0] debug_awcache;
+  input  [2 : 0] debug_awprot;
+  input  [3 : 0] debug_awqos;
+  input  [3 : 0] debug_awregion;
 
-  // action method jtag_tms
-  input  jtag_tms;
+  // value method debug_m_awready
+  output debug_awready;
 
-  // action method jtag_tclk
-  input  jtag_tclk;
+  // action method debug_m_wvalid
+  input  debug_wvalid;
+  input  [31 : 0] debug_wdata;
+  input  [3 : 0] debug_wstrb;
+  input  debug_wlast;
 
-  // value method jtag_tdo
-  output jtag_tdo;
+  // value method debug_m_wready
+  output debug_wready;
+
+  // value method debug_m_bvalid
+  output debug_bvalid;
+
+  // value method debug_m_bid
+  output [3 : 0] debug_bid;
+
+  // value method debug_m_bresp
+  output [1 : 0] debug_bresp;
+
+  // value method debug_m_buser
+
+  // action method debug_m_bready
+  input  debug_bready;
+
+  // action method debug_m_arvalid
+  input  debug_arvalid;
+  input  [3 : 0] debug_arid;
+  input  [31 : 0] debug_araddr;
+  input  [7 : 0] debug_arlen;
+  input  [2 : 0] debug_arsize;
+  input  [1 : 0] debug_arburst;
+  input  debug_arlock;
+  input  [3 : 0] debug_arcache;
+  input  [2 : 0] debug_arprot;
+  input  [3 : 0] debug_arqos;
+  input  [3 : 0] debug_arregion;
+
+  // value method debug_m_arready
+  output debug_arready;
+
+  // value method debug_m_rvalid
+  output debug_rvalid;
+
+  // value method debug_m_rid
+  output [3 : 0] debug_rid;
+
+  // value method debug_m_rdata
+  output [31 : 0] debug_rdata;
+
+  // value method debug_m_rresp
+  output [1 : 0] debug_rresp;
+
+  // value method debug_m_rlast
+  output debug_rlast;
+
+  // value method debug_m_ruser
+
+  // action method debug_m_rready
+  input  debug_rready;
 
   // action method set_watch_tohost
   input  set_watch_tohost_watch_tohost;
@@ -262,134 +296,22 @@ module mkBSCore(dmi_reset,
   output [63 : 0] mv_tohost_value;
   output RDY_mv_tohost_value;
 
-  // action method loader_slave_m_awvalid
-  input  loader_slave_awvalid;
-  input  [3 : 0] loader_slave_awid;
-  input  [31 : 0] loader_slave_awaddr;
-  input  [7 : 0] loader_slave_awlen;
-  input  [2 : 0] loader_slave_awsize;
-  input  [1 : 0] loader_slave_awburst;
-  input  loader_slave_awlock;
-  input  [3 : 0] loader_slave_awcache;
-  input  [2 : 0] loader_slave_awprot;
-  input  [3 : 0] loader_slave_awqos;
-  input  [3 : 0] loader_slave_awregion;
-
-  // value method loader_slave_m_awready
-  output loader_slave_awready;
-
-  // action method loader_slave_m_wvalid
-  input  loader_slave_wvalid;
-  input  [31 : 0] loader_slave_wdata;
-  input  [3 : 0] loader_slave_wstrb;
-  input  loader_slave_wlast;
-
-  // value method loader_slave_m_wready
-  output loader_slave_wready;
-
-  // value method loader_slave_m_bvalid
-  output loader_slave_bvalid;
-
-  // value method loader_slave_m_bid
-  output [3 : 0] loader_slave_bid;
-
-  // value method loader_slave_m_bresp
-  output [1 : 0] loader_slave_bresp;
-
-  // value method loader_slave_m_buser
-
-  // action method loader_slave_m_bready
-  input  loader_slave_bready;
-
-  // action method loader_slave_m_arvalid
-  input  loader_slave_arvalid;
-  input  [3 : 0] loader_slave_arid;
-  input  [31 : 0] loader_slave_araddr;
-  input  [7 : 0] loader_slave_arlen;
-  input  [2 : 0] loader_slave_arsize;
-  input  [1 : 0] loader_slave_arburst;
-  input  loader_slave_arlock;
-  input  [3 : 0] loader_slave_arcache;
-  input  [2 : 0] loader_slave_arprot;
-  input  [3 : 0] loader_slave_arqos;
-  input  [3 : 0] loader_slave_arregion;
-
-  // value method loader_slave_m_arready
-  output loader_slave_arready;
-
-  // value method loader_slave_m_rvalid
-  output loader_slave_rvalid;
-
-  // value method loader_slave_m_rid
-  output [3 : 0] loader_slave_rid;
-
-  // value method loader_slave_m_rdata
-  output [31 : 0] loader_slave_rdata;
-
-  // value method loader_slave_m_rresp
-  output [1 : 0] loader_slave_rresp;
-
-  // value method loader_slave_m_rlast
-  output loader_slave_rlast;
-
-  // value method loader_slave_m_ruser
-
-  // action method loader_slave_m_rready
-  input  loader_slave_rready;
-
-  // value method reset_done
-  output reset_done;
-
-  // action method cpu_halt
-  input  cpu_halt_x;
-
-  // oscillator and gates for output clock CLK_jtag_tclk_out
-  output CLK_jtag_tclk_out;
-  output CLK_GATE_jtag_tclk_out;
-
-  // output resets
-  output RST_N_ndm_reset;
-
   // signals for module outputs
   wire [63 : 0] mv_tohost_value;
-  wire [31 : 0] loader_slave_rdata, master1_HADDR, master1_HWDATA;
-  wire [3 : 0] loader_slave_bid, loader_slave_rid, master1_HPROT;
+  wire [31 : 0] debug_rdata, master1_HADDR, master1_HWDATA;
+  wire [3 : 0] debug_bid, debug_rid, master1_HPROT;
   wire [2 : 0] master1_HBURST, master1_HSIZE;
-  wire [1 : 0] loader_slave_bresp, loader_slave_rresp, master1_HTRANS;
-  wire CLK_GATE_jtag_tclk_out,
-       CLK_jtag_tclk_out,
-       RDY_mv_tohost_value,
+  wire [1 : 0] debug_bresp, debug_rresp, master1_HTRANS;
+  wire RDY_mv_tohost_value,
        RDY_set_watch_tohost,
-       RST_N_ndm_reset,
-       jtag_tdo,
-       loader_slave_arready,
-       loader_slave_awready,
-       loader_slave_bvalid,
-       loader_slave_rlast,
-       loader_slave_rvalid,
-       loader_slave_wready,
+       debug_arready,
+       debug_awready,
+       debug_bvalid,
+       debug_rlast,
+       debug_rvalid,
+       debug_wready,
        master1_HMASTLOCK,
-       master1_HWRITE,
-       reset_done;
-
-  // inlined wires
-  wire [40 : 0] bus_dmi_req_data_wire$wget;
-  wire bus_dmi_rsp_fifof_enqueueing$whas;
-
-  // register bus_dmi_rsp_fifof_cntr_r
-  reg [1 : 0] bus_dmi_rsp_fifof_cntr_r;
-  wire [1 : 0] bus_dmi_rsp_fifof_cntr_r$D_IN;
-  wire bus_dmi_rsp_fifof_cntr_r$EN;
-
-  // register bus_dmi_rsp_fifof_q_0
-  reg [33 : 0] bus_dmi_rsp_fifof_q_0;
-  reg [33 : 0] bus_dmi_rsp_fifof_q_0$D_IN;
-  wire bus_dmi_rsp_fifof_q_0$EN;
-
-  // register bus_dmi_rsp_fifof_q_1
-  reg [33 : 0] bus_dmi_rsp_fifof_q_1;
-  reg [33 : 0] bus_dmi_rsp_fifof_q_1$D_IN;
-  wire bus_dmi_rsp_fifof_q_1$EN;
+       master1_HWRITE;
 
   // register coreInReset_isInReset
   reg coreInReset_isInReset;
@@ -409,11 +331,6 @@ module mkBSCore(dmi_reset,
   wire [5 : 0] rg_ndm_count$D_IN;
   wire rg_ndm_count$EN;
 
-  // register rg_ndm_reset
-  reg [1 : 0] rg_ndm_reset;
-  wire [1 : 0] rg_ndm_reset$D_IN;
-  wire rg_ndm_reset$EN;
-
   // register rg_once
   reg rg_once;
   wire rg_once$D_IN, rg_once$EN;
@@ -422,14 +339,6 @@ module mkBSCore(dmi_reset,
   reg rg_reset_done;
   wire rg_reset_done$D_IN, rg_reset_done$EN;
 
-  // ports of submodule bus_dmi_req_fifof
-  wire [40 : 0] bus_dmi_req_fifof$D_IN, bus_dmi_req_fifof$D_OUT;
-  wire bus_dmi_req_fifof$CLR,
-       bus_dmi_req_fifof$DEQ,
-       bus_dmi_req_fifof$EMPTY_N,
-       bus_dmi_req_fifof$ENQ,
-       bus_dmi_req_fifof$FULL_N;
-
   // ports of submodule core
   wire [63 : 0] core$mv_tohost_value,
 		core$set_verbosity_logdelay,
@@ -437,54 +346,41 @@ module mkBSCore(dmi_reset,
   wire [31 : 0] core$cpu_dmem_master_HADDR,
 		core$cpu_dmem_master_HRDATA,
 		core$cpu_dmem_master_HWDATA,
-		core$dm_dmi_read_data,
-		core$dm_dmi_write_dm_word,
-		core$loader_slave_araddr,
-		core$loader_slave_awaddr,
-		core$loader_slave_rdata,
-		core$loader_slave_wdata;
-  wire [7 : 0] core$loader_slave_arlen, core$loader_slave_awlen;
-  wire [6 : 0] core$dm_dmi_read_addr_dm_addr, core$dm_dmi_write_dm_addr;
+		core$debug_araddr,
+		core$debug_awaddr,
+		core$debug_rdata,
+		core$debug_wdata;
+  wire [7 : 0] core$debug_arlen, core$debug_awlen;
   wire [3 : 0] core$cpu_dmem_master_HPROT,
-	       core$loader_slave_arcache,
-	       core$loader_slave_arid,
-	       core$loader_slave_arqos,
-	       core$loader_slave_arregion,
-	       core$loader_slave_awcache,
-	       core$loader_slave_awid,
-	       core$loader_slave_awqos,
-	       core$loader_slave_awregion,
-	       core$loader_slave_bid,
-	       core$loader_slave_rid,
-	       core$loader_slave_wstrb,
+	       core$debug_arcache,
+	       core$debug_arid,
+	       core$debug_arqos,
+	       core$debug_arregion,
+	       core$debug_awcache,
+	       core$debug_awid,
+	       core$debug_awqos,
+	       core$debug_awregion,
+	       core$debug_bid,
+	       core$debug_rid,
+	       core$debug_wstrb,
 	       core$set_verbosity_verbosity;
   wire [2 : 0] core$cpu_dmem_master_HBURST,
 	       core$cpu_dmem_master_HSIZE,
-	       core$loader_slave_arprot,
-	       core$loader_slave_arsize,
-	       core$loader_slave_awprot,
-	       core$loader_slave_awsize;
+	       core$debug_arprot,
+	       core$debug_arsize,
+	       core$debug_awprot,
+	       core$debug_awsize;
   wire [1 : 0] core$cpu_dmem_master_HTRANS,
-	       core$loader_slave_arburst,
-	       core$loader_slave_awburst,
-	       core$loader_slave_bresp,
-	       core$loader_slave_rresp;
+	       core$debug_arburst,
+	       core$debug_awburst,
+	       core$debug_bresp,
+	       core$debug_rresp;
   wire core$EN_cpu_reset_server_request_put,
        core$EN_cpu_reset_server_response_get,
-       core$EN_dm_dmi_read_addr,
-       core$EN_dm_dmi_read_data,
-       core$EN_dm_dmi_write,
-       core$EN_ndm_reset_client_request_get,
-       core$EN_ndm_reset_client_response_put,
        core$EN_set_verbosity,
        core$EN_set_watch_tohost,
        core$RDY_cpu_reset_server_request_put,
        core$RDY_cpu_reset_server_response_get,
-       core$RDY_dm_dmi_read_addr,
-       core$RDY_dm_dmi_read_data,
-       core$RDY_dm_dmi_write,
-       core$RDY_ndm_reset_client_request_get,
-       core$RDY_ndm_reset_client_response_put,
        core$core_external_interrupt_sources_0_m_interrupt_req_set_not_clear,
        core$core_external_interrupt_sources_10_m_interrupt_req_set_not_clear,
        core$core_external_interrupt_sources_11_m_interrupt_req_set_not_clear,
@@ -522,162 +418,57 @@ module mkBSCore(dmi_reset,
        core$cpu_dmem_master_HRESP,
        core$cpu_dmem_master_HWRITE,
        core$cpu_reset_server_request_put,
-       core$cpu_reset_server_response_get,
-       core$loader_slave_arlock,
-       core$loader_slave_arready,
-       core$loader_slave_arvalid,
-       core$loader_slave_awlock,
-       core$loader_slave_awready,
-       core$loader_slave_awvalid,
-       core$loader_slave_bready,
-       core$loader_slave_bvalid,
-       core$loader_slave_rlast,
-       core$loader_slave_rready,
-       core$loader_slave_rvalid,
-       core$loader_slave_wlast,
-       core$loader_slave_wready,
-       core$loader_slave_wvalid,
-       core$ndm_reset_client_request_get,
-       core$ndm_reset_client_response_put,
+       core$debug_arlock,
+       core$debug_arready,
+       core$debug_arvalid,
+       core$debug_awlock,
+       core$debug_awready,
+       core$debug_awvalid,
+       core$debug_bready,
+       core$debug_bvalid,
+       core$debug_rlast,
+       core$debug_rready,
+       core$debug_rvalid,
+       core$debug_wlast,
+       core$debug_wready,
+       core$debug_wvalid,
        core$nmi_req_set_not_clear,
        core$set_watch_tohost_watch_tohost;
-
-  // ports of submodule dmi_resetN
-  wire dmi_resetN$RESET_OUT;
-
-  // ports of submodule initCnt
-  wire [5 : 0] initCnt$D_IN, initCnt$Q_OUT;
-  wire initCnt$EN;
-
-  // ports of submodule jtagtap
-  wire [31 : 0] jtagtap$dmi_req_data, jtagtap$dmi_rsp_data;
-  wire [6 : 0] jtagtap$dmi_req_addr;
-  wire [1 : 0] jtagtap$dmi_req_op, jtagtap$dmi_rsp_response;
-  wire jtagtap$CLK_jtag_tclk_out,
-       jtagtap$dmi_req_ready,
-       jtagtap$dmi_req_valid,
-       jtagtap$dmi_rsp_ready,
-       jtagtap$dmi_rsp_valid,
-       jtagtap$jtag_tclk,
-       jtagtap$jtag_tdi,
-       jtagtap$jtag_tdo,
-       jtagtap$jtag_tms;
 
   // ports of submodule ndmIfc
   wire ndmIfc$ASSERT_IN, ndmIfc$OUT_RST;
 
-  // ports of submodule rstIfc
-  wire rstIfc$ASSERT_IN, rstIfc$OUT_RST;
-
   // rule scheduling signals
-  wire CAN_FIRE_RL_Prelude_inst_changeSpecialWires_1_mkConnectionVtoAf,
-       CAN_FIRE_RL_Prelude_inst_changeSpecialWires_2_mkConnectionVtoAf,
-       CAN_FIRE_RL_Prelude_inst_changeSpecialWires_3_mkConnectionVtoAf,
-       CAN_FIRE_RL_Prelude_inst_changeSpecialWires_4_mkConnectionVtoAf,
-       CAN_FIRE_RL_Prelude_inst_changeSpecialWires_5_mkConnectionVtoAf,
-       CAN_FIRE_RL_Prelude_inst_changeSpecialWires_6_mkConnectionVtoAf,
-       CAN_FIRE_RL_Prelude_inst_changeSpecialWires_7_mkConnectionVtoAf,
-       CAN_FIRE_RL_Prelude_inst_changeSpecialWires_8_mkConnectionVtoAf,
-       CAN_FIRE_RL_Prelude_inst_changeSpecialWires_mkConnectionVtoAf,
-       CAN_FIRE_RL_bus_dmi_req_do_enq,
-       CAN_FIRE_RL_bus_dmi_rsp_do_deq,
-       CAN_FIRE_RL_bus_dmi_rsp_fifof_both,
-       CAN_FIRE_RL_bus_dmi_rsp_fifof_decCtr,
-       CAN_FIRE_RL_bus_dmi_rsp_fifof_incCtr,
-       CAN_FIRE_RL_coreInReset_isResetAssertedUpdate,
+  wire CAN_FIRE_RL_coreInReset_isResetAssertedUpdate,
        CAN_FIRE_RL_decNdmCountRl,
        CAN_FIRE_RL_rl_always,
-       CAN_FIRE_RL_rl_decInitCnt,
-       CAN_FIRE_RL_rl_dmi_req,
-       CAN_FIRE_RL_rl_dmi_req_cpu,
-       CAN_FIRE_RL_rl_dmi_rsp,
-       CAN_FIRE_RL_rl_dmi_rsp_cpu,
-       CAN_FIRE_RL_rl_ndmreset,
        CAN_FIRE_RL_rl_once,
        CAN_FIRE_RL_rl_reset_response,
-       CAN_FIRE_cpu_halt,
+       CAN_FIRE_debug_m_arvalid,
+       CAN_FIRE_debug_m_awvalid,
+       CAN_FIRE_debug_m_bready,
+       CAN_FIRE_debug_m_rready,
+       CAN_FIRE_debug_m_wvalid,
        CAN_FIRE_interrupt_reqs,
-       CAN_FIRE_jtag_tclk,
-       CAN_FIRE_jtag_tdi,
-       CAN_FIRE_jtag_tms,
-       CAN_FIRE_loader_slave_m_arvalid,
-       CAN_FIRE_loader_slave_m_awvalid,
-       CAN_FIRE_loader_slave_m_bready,
-       CAN_FIRE_loader_slave_m_rready,
-       CAN_FIRE_loader_slave_m_wvalid,
        CAN_FIRE_master1_hrdata,
        CAN_FIRE_master1_hready,
        CAN_FIRE_master1_hresp,
        CAN_FIRE_set_watch_tohost,
-       WILL_FIRE_RL_Prelude_inst_changeSpecialWires_1_mkConnectionVtoAf,
-       WILL_FIRE_RL_Prelude_inst_changeSpecialWires_2_mkConnectionVtoAf,
-       WILL_FIRE_RL_Prelude_inst_changeSpecialWires_3_mkConnectionVtoAf,
-       WILL_FIRE_RL_Prelude_inst_changeSpecialWires_4_mkConnectionVtoAf,
-       WILL_FIRE_RL_Prelude_inst_changeSpecialWires_5_mkConnectionVtoAf,
-       WILL_FIRE_RL_Prelude_inst_changeSpecialWires_6_mkConnectionVtoAf,
-       WILL_FIRE_RL_Prelude_inst_changeSpecialWires_7_mkConnectionVtoAf,
-       WILL_FIRE_RL_Prelude_inst_changeSpecialWires_8_mkConnectionVtoAf,
-       WILL_FIRE_RL_Prelude_inst_changeSpecialWires_mkConnectionVtoAf,
-       WILL_FIRE_RL_bus_dmi_req_do_enq,
-       WILL_FIRE_RL_bus_dmi_rsp_do_deq,
-       WILL_FIRE_RL_bus_dmi_rsp_fifof_both,
-       WILL_FIRE_RL_bus_dmi_rsp_fifof_decCtr,
-       WILL_FIRE_RL_bus_dmi_rsp_fifof_incCtr,
        WILL_FIRE_RL_coreInReset_isResetAssertedUpdate,
        WILL_FIRE_RL_decNdmCountRl,
        WILL_FIRE_RL_rl_always,
-       WILL_FIRE_RL_rl_decInitCnt,
-       WILL_FIRE_RL_rl_dmi_req,
-       WILL_FIRE_RL_rl_dmi_req_cpu,
-       WILL_FIRE_RL_rl_dmi_rsp,
-       WILL_FIRE_RL_rl_dmi_rsp_cpu,
-       WILL_FIRE_RL_rl_ndmreset,
        WILL_FIRE_RL_rl_once,
        WILL_FIRE_RL_rl_reset_response,
-       WILL_FIRE_cpu_halt,
+       WILL_FIRE_debug_m_arvalid,
+       WILL_FIRE_debug_m_awvalid,
+       WILL_FIRE_debug_m_bready,
+       WILL_FIRE_debug_m_rready,
+       WILL_FIRE_debug_m_wvalid,
        WILL_FIRE_interrupt_reqs,
-       WILL_FIRE_jtag_tclk,
-       WILL_FIRE_jtag_tdi,
-       WILL_FIRE_jtag_tms,
-       WILL_FIRE_loader_slave_m_arvalid,
-       WILL_FIRE_loader_slave_m_awvalid,
-       WILL_FIRE_loader_slave_m_bready,
-       WILL_FIRE_loader_slave_m_rready,
-       WILL_FIRE_loader_slave_m_wvalid,
        WILL_FIRE_master1_hrdata,
        WILL_FIRE_master1_hready,
        WILL_FIRE_master1_hresp,
        WILL_FIRE_set_watch_tohost;
-
-  // inputs to muxes for submodule ports
-  wire [33 : 0] MUX_bus_dmi_rsp_fifof_q_0$write_1__VAL_1,
-		MUX_bus_dmi_rsp_fifof_q_0$write_1__VAL_2,
-		MUX_bus_dmi_rsp_fifof_q_1$write_1__VAL_2,
-		MUX_bus_dmi_rsp_fifof_x_wire$wset_1__VAL_1,
-		MUX_bus_dmi_rsp_fifof_x_wire$wset_1__VAL_2;
-  wire [5 : 0] MUX_rg_ndm_count$write_1__VAL_2;
-  wire [1 : 0] MUX_bus_dmi_rsp_fifof_cntr_r$write_1__VAL_2,
-	       MUX_rg_ldr_reset$write_1__VAL_1,
-	       MUX_rg_ndm_reset$write_1__VAL_1;
-  wire MUX_bus_dmi_rsp_fifof_q_0$write_1__SEL_1,
-       MUX_bus_dmi_rsp_fifof_q_0$write_1__SEL_2,
-       MUX_bus_dmi_rsp_fifof_q_1$write_1__SEL_1,
-       MUX_bus_dmi_rsp_fifof_q_1$write_1__SEL_2,
-       MUX_bus_dmi_rsp_fifof_x_wire$wset_1__SEL_1,
-       MUX_rg_ldr_reset$write_1__SEL_1;
-
-  // remaining internal signals
-  wire [1 : 0] bus_dmi_rsp_fifof_cntr_r_0_MINUS_1___d58;
-  wire IF_bus_dmi_req_fifof_first__7_BITS_1_TO_0_8_EQ_ETC___d108,
-       _dfoo1,
-       _dfoo3;
-
-  // oscillator and gates for output clock CLK_jtag_tclk_out
-  assign CLK_jtag_tclk_out = jtagtap$CLK_jtag_tclk_out ;
-  assign CLK_GATE_jtag_tclk_out = 1'b1 ;
-
-  // output resets
-  assign RST_N_ndm_reset = ndmIfc$OUT_RST ;
 
   // value method master1_haddr
   assign master1_HADDR = core$cpu_dmem_master_HADDR ;
@@ -719,20 +510,58 @@ module mkBSCore(dmi_reset,
   assign CAN_FIRE_interrupt_reqs = 1'd1 ;
   assign WILL_FIRE_interrupt_reqs = 1'd1 ;
 
-  // action method jtag_tdi
-  assign CAN_FIRE_jtag_tdi = 1'd1 ;
-  assign WILL_FIRE_jtag_tdi = 1'd1 ;
+  // action method debug_m_awvalid
+  assign CAN_FIRE_debug_m_awvalid = 1'd1 ;
+  assign WILL_FIRE_debug_m_awvalid = 1'd1 ;
 
-  // action method jtag_tms
-  assign CAN_FIRE_jtag_tms = 1'd1 ;
-  assign WILL_FIRE_jtag_tms = 1'd1 ;
+  // value method debug_m_awready
+  assign debug_awready = core$debug_awready ;
 
-  // action method jtag_tclk
-  assign CAN_FIRE_jtag_tclk = 1'd1 ;
-  assign WILL_FIRE_jtag_tclk = 1'd1 ;
+  // action method debug_m_wvalid
+  assign CAN_FIRE_debug_m_wvalid = 1'd1 ;
+  assign WILL_FIRE_debug_m_wvalid = 1'd1 ;
 
-  // value method jtag_tdo
-  assign jtag_tdo = jtagtap$jtag_tdo ;
+  // value method debug_m_wready
+  assign debug_wready = core$debug_wready ;
+
+  // value method debug_m_bvalid
+  assign debug_bvalid = core$debug_bvalid ;
+
+  // value method debug_m_bid
+  assign debug_bid = core$debug_bid ;
+
+  // value method debug_m_bresp
+  assign debug_bresp = core$debug_bresp ;
+
+  // action method debug_m_bready
+  assign CAN_FIRE_debug_m_bready = 1'd1 ;
+  assign WILL_FIRE_debug_m_bready = 1'd1 ;
+
+  // action method debug_m_arvalid
+  assign CAN_FIRE_debug_m_arvalid = 1'd1 ;
+  assign WILL_FIRE_debug_m_arvalid = 1'd1 ;
+
+  // value method debug_m_arready
+  assign debug_arready = core$debug_arready ;
+
+  // value method debug_m_rvalid
+  assign debug_rvalid = core$debug_rvalid ;
+
+  // value method debug_m_rid
+  assign debug_rid = core$debug_rid ;
+
+  // value method debug_m_rdata
+  assign debug_rdata = core$debug_rdata ;
+
+  // value method debug_m_rresp
+  assign debug_rresp = core$debug_rresp ;
+
+  // value method debug_m_rlast
+  assign debug_rlast = core$debug_rlast ;
+
+  // action method debug_m_rready
+  assign CAN_FIRE_debug_m_rready = 1'd1 ;
+  assign WILL_FIRE_debug_m_rready = 1'd1 ;
 
   // action method set_watch_tohost
   assign RDY_set_watch_tohost = 1'd1 ;
@@ -743,81 +572,8 @@ module mkBSCore(dmi_reset,
   assign mv_tohost_value = core$mv_tohost_value ;
   assign RDY_mv_tohost_value = 1'd1 ;
 
-  // action method loader_slave_m_awvalid
-  assign CAN_FIRE_loader_slave_m_awvalid = 1'd1 ;
-  assign WILL_FIRE_loader_slave_m_awvalid = 1'd1 ;
-
-  // value method loader_slave_m_awready
-  assign loader_slave_awready = core$loader_slave_awready ;
-
-  // action method loader_slave_m_wvalid
-  assign CAN_FIRE_loader_slave_m_wvalid = 1'd1 ;
-  assign WILL_FIRE_loader_slave_m_wvalid = 1'd1 ;
-
-  // value method loader_slave_m_wready
-  assign loader_slave_wready = core$loader_slave_wready ;
-
-  // value method loader_slave_m_bvalid
-  assign loader_slave_bvalid = core$loader_slave_bvalid ;
-
-  // value method loader_slave_m_bid
-  assign loader_slave_bid = core$loader_slave_bid ;
-
-  // value method loader_slave_m_bresp
-  assign loader_slave_bresp = core$loader_slave_bresp ;
-
-  // action method loader_slave_m_bready
-  assign CAN_FIRE_loader_slave_m_bready = 1'd1 ;
-  assign WILL_FIRE_loader_slave_m_bready = 1'd1 ;
-
-  // action method loader_slave_m_arvalid
-  assign CAN_FIRE_loader_slave_m_arvalid = 1'd1 ;
-  assign WILL_FIRE_loader_slave_m_arvalid = 1'd1 ;
-
-  // value method loader_slave_m_arready
-  assign loader_slave_arready = core$loader_slave_arready ;
-
-  // value method loader_slave_m_rvalid
-  assign loader_slave_rvalid = core$loader_slave_rvalid ;
-
-  // value method loader_slave_m_rid
-  assign loader_slave_rid = core$loader_slave_rid ;
-
-  // value method loader_slave_m_rdata
-  assign loader_slave_rdata = core$loader_slave_rdata ;
-
-  // value method loader_slave_m_rresp
-  assign loader_slave_rresp = core$loader_slave_rresp ;
-
-  // value method loader_slave_m_rlast
-  assign loader_slave_rlast = core$loader_slave_rlast ;
-
-  // action method loader_slave_m_rready
-  assign CAN_FIRE_loader_slave_m_rready = 1'd1 ;
-  assign WILL_FIRE_loader_slave_m_rready = 1'd1 ;
-
-  // value method reset_done
-  assign reset_done = rg_reset_done ;
-
-  // action method cpu_halt
-  assign CAN_FIRE_cpu_halt = 1'd1 ;
-  assign WILL_FIRE_cpu_halt = 1'd1 ;
-
-  // submodule bus_dmi_req_fifof
-  FIFO2 #(.width(32'd41),
-	  .guarded(32'd1)) bus_dmi_req_fifof(.RST(dmi_resetN$RESET_OUT),
-					     .CLK(CLK),
-					     .D_IN(bus_dmi_req_fifof$D_IN),
-					     .ENQ(bus_dmi_req_fifof$ENQ),
-					     .DEQ(bus_dmi_req_fifof$DEQ),
-					     .CLR(bus_dmi_req_fifof$CLR),
-					     .D_OUT(bus_dmi_req_fifof$D_OUT),
-					     .FULL_N(bus_dmi_req_fifof$FULL_N),
-					     .EMPTY_N(bus_dmi_req_fifof$EMPTY_N));
-
   // submodule core
-  mkCore core(.RST_N_por_reset(rstIfc$OUT_RST),
-	      .CLK(CLK),
+  mkCore core(.CLK(CLK),
 	      .RST_N(ndmIfc$OUT_RST),
 	      .core_external_interrupt_sources_0_m_interrupt_req_set_not_clear(core$core_external_interrupt_sources_0_m_interrupt_req_set_not_clear),
 	      .core_external_interrupt_sources_10_m_interrupt_req_set_not_clear(core$core_external_interrupt_sources_10_m_interrupt_req_set_not_clear),
@@ -855,38 +611,34 @@ module mkBSCore(dmi_reset,
 	      .cpu_dmem_master_HREADY(core$cpu_dmem_master_HREADY),
 	      .cpu_dmem_master_HRESP(core$cpu_dmem_master_HRESP),
 	      .cpu_reset_server_request_put(core$cpu_reset_server_request_put),
-	      .dm_dmi_read_addr_dm_addr(core$dm_dmi_read_addr_dm_addr),
-	      .dm_dmi_write_dm_addr(core$dm_dmi_write_dm_addr),
-	      .dm_dmi_write_dm_word(core$dm_dmi_write_dm_word),
-	      .loader_slave_araddr(core$loader_slave_araddr),
-	      .loader_slave_arburst(core$loader_slave_arburst),
-	      .loader_slave_arcache(core$loader_slave_arcache),
-	      .loader_slave_arid(core$loader_slave_arid),
-	      .loader_slave_arlen(core$loader_slave_arlen),
-	      .loader_slave_arlock(core$loader_slave_arlock),
-	      .loader_slave_arprot(core$loader_slave_arprot),
-	      .loader_slave_arqos(core$loader_slave_arqos),
-	      .loader_slave_arregion(core$loader_slave_arregion),
-	      .loader_slave_arsize(core$loader_slave_arsize),
-	      .loader_slave_arvalid(core$loader_slave_arvalid),
-	      .loader_slave_awaddr(core$loader_slave_awaddr),
-	      .loader_slave_awburst(core$loader_slave_awburst),
-	      .loader_slave_awcache(core$loader_slave_awcache),
-	      .loader_slave_awid(core$loader_slave_awid),
-	      .loader_slave_awlen(core$loader_slave_awlen),
-	      .loader_slave_awlock(core$loader_slave_awlock),
-	      .loader_slave_awprot(core$loader_slave_awprot),
-	      .loader_slave_awqos(core$loader_slave_awqos),
-	      .loader_slave_awregion(core$loader_slave_awregion),
-	      .loader_slave_awsize(core$loader_slave_awsize),
-	      .loader_slave_awvalid(core$loader_slave_awvalid),
-	      .loader_slave_bready(core$loader_slave_bready),
-	      .loader_slave_rready(core$loader_slave_rready),
-	      .loader_slave_wdata(core$loader_slave_wdata),
-	      .loader_slave_wlast(core$loader_slave_wlast),
-	      .loader_slave_wstrb(core$loader_slave_wstrb),
-	      .loader_slave_wvalid(core$loader_slave_wvalid),
-	      .ndm_reset_client_response_put(core$ndm_reset_client_response_put),
+	      .debug_araddr(core$debug_araddr),
+	      .debug_arburst(core$debug_arburst),
+	      .debug_arcache(core$debug_arcache),
+	      .debug_arid(core$debug_arid),
+	      .debug_arlen(core$debug_arlen),
+	      .debug_arlock(core$debug_arlock),
+	      .debug_arprot(core$debug_arprot),
+	      .debug_arqos(core$debug_arqos),
+	      .debug_arregion(core$debug_arregion),
+	      .debug_arsize(core$debug_arsize),
+	      .debug_arvalid(core$debug_arvalid),
+	      .debug_awaddr(core$debug_awaddr),
+	      .debug_awburst(core$debug_awburst),
+	      .debug_awcache(core$debug_awcache),
+	      .debug_awid(core$debug_awid),
+	      .debug_awlen(core$debug_awlen),
+	      .debug_awlock(core$debug_awlock),
+	      .debug_awprot(core$debug_awprot),
+	      .debug_awqos(core$debug_awqos),
+	      .debug_awregion(core$debug_awregion),
+	      .debug_awsize(core$debug_awsize),
+	      .debug_awvalid(core$debug_awvalid),
+	      .debug_bready(core$debug_bready),
+	      .debug_rready(core$debug_rready),
+	      .debug_wdata(core$debug_wdata),
+	      .debug_wlast(core$debug_wlast),
+	      .debug_wstrb(core$debug_wstrb),
+	      .debug_wvalid(core$debug_wvalid),
 	      .nmi_req_set_not_clear(core$nmi_req_set_not_clear),
 	      .set_verbosity_logdelay(core$set_verbosity_logdelay),
 	      .set_verbosity_verbosity(core$set_verbosity_verbosity),
@@ -894,15 +646,10 @@ module mkBSCore(dmi_reset,
 	      .set_watch_tohost_watch_tohost(core$set_watch_tohost_watch_tohost),
 	      .EN_cpu_reset_server_request_put(core$EN_cpu_reset_server_request_put),
 	      .EN_cpu_reset_server_response_get(core$EN_cpu_reset_server_response_get),
-	      .EN_dm_dmi_read_addr(core$EN_dm_dmi_read_addr),
-	      .EN_dm_dmi_read_data(core$EN_dm_dmi_read_data),
-	      .EN_dm_dmi_write(core$EN_dm_dmi_write),
-	      .EN_ndm_reset_client_request_get(core$EN_ndm_reset_client_request_get),
-	      .EN_ndm_reset_client_response_put(core$EN_ndm_reset_client_response_put),
 	      .EN_set_verbosity(core$EN_set_verbosity),
 	      .EN_set_watch_tohost(core$EN_set_watch_tohost),
 	      .RDY_cpu_reset_server_request_put(core$RDY_cpu_reset_server_request_put),
-	      .cpu_reset_server_response_get(core$cpu_reset_server_response_get),
+	      .cpu_reset_server_response_get(),
 	      .RDY_cpu_reset_server_response_get(core$RDY_cpu_reset_server_response_get),
 	      .cpu_dmem_master_HADDR(core$cpu_dmem_master_HADDR),
 	      .cpu_dmem_master_HBURST(core$cpu_dmem_master_HBURST),
@@ -912,58 +659,21 @@ module mkBSCore(dmi_reset,
 	      .cpu_dmem_master_HTRANS(core$cpu_dmem_master_HTRANS),
 	      .cpu_dmem_master_HWDATA(core$cpu_dmem_master_HWDATA),
 	      .cpu_dmem_master_HWRITE(core$cpu_dmem_master_HWRITE),
-	      .RDY_dm_dmi_read_addr(core$RDY_dm_dmi_read_addr),
-	      .dm_dmi_read_data(core$dm_dmi_read_data),
-	      .RDY_dm_dmi_read_data(core$RDY_dm_dmi_read_data),
-	      .RDY_dm_dmi_write(core$RDY_dm_dmi_write),
-	      .ndm_reset_client_request_get(core$ndm_reset_client_request_get),
-	      .RDY_ndm_reset_client_request_get(core$RDY_ndm_reset_client_request_get),
-	      .RDY_ndm_reset_client_response_put(core$RDY_ndm_reset_client_response_put),
+	      .debug_awready(core$debug_awready),
+	      .debug_wready(core$debug_wready),
+	      .debug_bvalid(core$debug_bvalid),
+	      .debug_bid(core$debug_bid),
+	      .debug_bresp(core$debug_bresp),
+	      .debug_arready(core$debug_arready),
+	      .debug_rvalid(core$debug_rvalid),
+	      .debug_rid(core$debug_rid),
+	      .debug_rdata(core$debug_rdata),
+	      .debug_rresp(core$debug_rresp),
+	      .debug_rlast(core$debug_rlast),
 	      .RDY_set_verbosity(),
 	      .RDY_set_watch_tohost(),
 	      .mv_tohost_value(core$mv_tohost_value),
-	      .RDY_mv_tohost_value(),
-	      .loader_slave_awready(core$loader_slave_awready),
-	      .loader_slave_wready(core$loader_slave_wready),
-	      .loader_slave_bvalid(core$loader_slave_bvalid),
-	      .loader_slave_bid(core$loader_slave_bid),
-	      .loader_slave_bresp(core$loader_slave_bresp),
-	      .loader_slave_arready(core$loader_slave_arready),
-	      .loader_slave_rvalid(core$loader_slave_rvalid),
-	      .loader_slave_rid(core$loader_slave_rid),
-	      .loader_slave_rdata(core$loader_slave_rdata),
-	      .loader_slave_rresp(core$loader_slave_rresp),
-	      .loader_slave_rlast(core$loader_slave_rlast));
-
-  // submodule dmi_resetN
-  ResetInverter dmi_resetN(.RESET_IN(dmi_reset),
-			   .RESET_OUT(dmi_resetN$RESET_OUT));
-
-  // submodule initCnt
-  RegUNInit #(.width(32'd6), .init(6'd20)) initCnt(.CLK(CLK),
-						   .RST(RST_N),
-						   .D_IN(initCnt$D_IN),
-						   .EN(initCnt$EN),
-						   .Q_OUT(initCnt$Q_OUT));
-
-  // submodule jtagtap
-  mkJtagTap jtagtap(.CLK(CLK),
-		    .RST_N(dmi_resetN$RESET_OUT),
-		    .dmi_req_ready(jtagtap$dmi_req_ready),
-		    .dmi_rsp_data(jtagtap$dmi_rsp_data),
-		    .dmi_rsp_response(jtagtap$dmi_rsp_response),
-		    .dmi_rsp_valid(jtagtap$dmi_rsp_valid),
-		    .jtag_tclk(jtagtap$jtag_tclk),
-		    .jtag_tdi(jtagtap$jtag_tdi),
-		    .jtag_tms(jtagtap$jtag_tms),
-		    .jtag_tdo(jtagtap$jtag_tdo),
-		    .dmi_req_valid(jtagtap$dmi_req_valid),
-		    .dmi_req_addr(jtagtap$dmi_req_addr),
-		    .dmi_req_data(jtagtap$dmi_req_data),
-		    .dmi_req_op(jtagtap$dmi_req_op),
-		    .dmi_rsp_ready(jtagtap$dmi_rsp_ready),
-		    .CLK_jtag_tclk_out(jtagtap$CLK_jtag_tclk_out),
-		    .CLK_GATE_jtag_tclk_out());
+	      .RDY_mv_tohost_value());
 
   // submodule ndmIfc
   MakeResetA #(.RSTDELAY(32'd2), .init(1'd0)) ndmIfc(.CLK(CLK),
@@ -972,18 +682,6 @@ module mkBSCore(dmi_reset,
 						     .ASSERT_IN(ndmIfc$ASSERT_IN),
 						     .ASSERT_OUT(),
 						     .OUT_RST(ndmIfc$OUT_RST));
-
-  // submodule rstIfc
-  MakeResetA #(.RSTDELAY(32'd2), .init(1'd0)) rstIfc(.CLK(CLK),
-						     .RST(!`BSV_RESET_VALUE),
-						     .DST_CLK(CLK),
-						     .ASSERT_IN(rstIfc$ASSERT_IN),
-						     .ASSERT_OUT(),
-						     .OUT_RST(rstIfc$OUT_RST));
-
-  // rule RL_rl_decInitCnt
-  assign CAN_FIRE_RL_rl_decInitCnt = initCnt$Q_OUT != 6'd0 ;
-  assign WILL_FIRE_RL_rl_decInitCnt = CAN_FIRE_RL_rl_decInitCnt ;
 
   // rule RL_rl_always
   assign CAN_FIRE_RL_rl_always = 1'd1 ;
@@ -999,9 +697,10 @@ module mkBSCore(dmi_reset,
 	     !coreInReset_isInReset ;
   assign WILL_FIRE_RL_rl_once = CAN_FIRE_RL_rl_once ;
 
-  // rule RL_rl_dmi_rsp
-  assign CAN_FIRE_RL_rl_dmi_rsp = 1'd1 ;
-  assign WILL_FIRE_RL_rl_dmi_rsp = 1'd1 ;
+  // rule RL_rl_reset_response
+  assign CAN_FIRE_RL_rl_reset_response =
+	     rg_ndm_count == 6'd0 && core$RDY_cpu_reset_server_response_get ;
+  assign WILL_FIRE_RL_rl_reset_response = CAN_FIRE_RL_rl_reset_response ;
 
   // rule RL_coreInReset_isResetAssertedUpdate
   assign CAN_FIRE_RL_coreInReset_isResetAssertedUpdate =
@@ -1009,285 +708,29 @@ module mkBSCore(dmi_reset,
   assign WILL_FIRE_RL_coreInReset_isResetAssertedUpdate =
 	     coreInReset_isInReset ;
 
-  // rule RL_Prelude_inst_changeSpecialWires_mkConnectionVtoAf
-  assign CAN_FIRE_RL_Prelude_inst_changeSpecialWires_mkConnectionVtoAf =
-	     1'd1 ;
-  assign WILL_FIRE_RL_Prelude_inst_changeSpecialWires_mkConnectionVtoAf =
-	     1'd1 ;
-
-  // rule RL_rl_dmi_req_cpu
-  assign CAN_FIRE_RL_rl_dmi_req_cpu =
-	     bus_dmi_req_fifof$EMPTY_N &&
-	     IF_bus_dmi_req_fifof_first__7_BITS_1_TO_0_8_EQ_ETC___d108 ;
-  assign WILL_FIRE_RL_rl_dmi_req_cpu = CAN_FIRE_RL_rl_dmi_req_cpu ;
-
-  // rule RL_rl_dmi_rsp_cpu
-  assign CAN_FIRE_RL_rl_dmi_rsp_cpu =
-	     bus_dmi_rsp_fifof_cntr_r != 2'd2 && core$RDY_dm_dmi_read_data ;
-  assign WILL_FIRE_RL_rl_dmi_rsp_cpu =
-	     CAN_FIRE_RL_rl_dmi_rsp_cpu && !WILL_FIRE_RL_rl_dmi_req_cpu ;
-
-  // rule RL_rl_reset_response
-  assign CAN_FIRE_RL_rl_reset_response =
-	     rg_ndm_count == 6'd0 && core$RDY_cpu_reset_server_response_get &&
-	     (!rg_ndm_reset[1] || core$RDY_ndm_reset_client_response_put) ;
-  assign WILL_FIRE_RL_rl_reset_response = CAN_FIRE_RL_rl_reset_response ;
-
-  // rule RL_rl_ndmreset
-  assign CAN_FIRE_RL_rl_ndmreset =
-	     core$RDY_ndm_reset_client_request_get && rg_once ;
-  assign WILL_FIRE_RL_rl_ndmreset = CAN_FIRE_RL_rl_ndmreset ;
-
-  // rule RL_Prelude_inst_changeSpecialWires_1_mkConnectionVtoAf
-  assign CAN_FIRE_RL_Prelude_inst_changeSpecialWires_1_mkConnectionVtoAf =
-	     1'd1 ;
-  assign WILL_FIRE_RL_Prelude_inst_changeSpecialWires_1_mkConnectionVtoAf =
-	     1'd1 ;
-
-  // rule RL_Prelude_inst_changeSpecialWires_2_mkConnectionVtoAf
-  assign CAN_FIRE_RL_Prelude_inst_changeSpecialWires_2_mkConnectionVtoAf =
-	     1'd1 ;
-  assign WILL_FIRE_RL_Prelude_inst_changeSpecialWires_2_mkConnectionVtoAf =
-	     1'd1 ;
-
-  // rule RL_Prelude_inst_changeSpecialWires_3_mkConnectionVtoAf
-  assign CAN_FIRE_RL_Prelude_inst_changeSpecialWires_3_mkConnectionVtoAf =
-	     1'd1 ;
-  assign WILL_FIRE_RL_Prelude_inst_changeSpecialWires_3_mkConnectionVtoAf =
-	     1'd1 ;
-
-  // rule RL_Prelude_inst_changeSpecialWires_4_mkConnectionVtoAf
-  assign CAN_FIRE_RL_Prelude_inst_changeSpecialWires_4_mkConnectionVtoAf =
-	     1'd1 ;
-  assign WILL_FIRE_RL_Prelude_inst_changeSpecialWires_4_mkConnectionVtoAf =
-	     1'd1 ;
-
-  // rule RL_rl_dmi_req
-  assign CAN_FIRE_RL_rl_dmi_req = 1'd1 ;
-  assign WILL_FIRE_RL_rl_dmi_req = 1'd1 ;
-
-  // rule RL_bus_dmi_req_do_enq
-  assign CAN_FIRE_RL_bus_dmi_req_do_enq =
-	     bus_dmi_req_fifof$FULL_N && jtagtap$dmi_req_valid ;
-  assign WILL_FIRE_RL_bus_dmi_req_do_enq = CAN_FIRE_RL_bus_dmi_req_do_enq ;
-
-  // rule RL_Prelude_inst_changeSpecialWires_5_mkConnectionVtoAf
-  assign CAN_FIRE_RL_Prelude_inst_changeSpecialWires_5_mkConnectionVtoAf =
-	     1'd1 ;
-  assign WILL_FIRE_RL_Prelude_inst_changeSpecialWires_5_mkConnectionVtoAf =
-	     1'd1 ;
-
-  // rule RL_Prelude_inst_changeSpecialWires_6_mkConnectionVtoAf
-  assign CAN_FIRE_RL_Prelude_inst_changeSpecialWires_6_mkConnectionVtoAf =
-	     1'd1 ;
-  assign WILL_FIRE_RL_Prelude_inst_changeSpecialWires_6_mkConnectionVtoAf =
-	     1'd1 ;
-
-  // rule RL_bus_dmi_rsp_do_deq
-  assign CAN_FIRE_RL_bus_dmi_rsp_do_deq =
-	     bus_dmi_rsp_fifof_cntr_r != 2'd0 && jtagtap$dmi_rsp_ready ;
-  assign WILL_FIRE_RL_bus_dmi_rsp_do_deq = CAN_FIRE_RL_bus_dmi_rsp_do_deq ;
-
-  // rule RL_bus_dmi_rsp_fifof_incCtr
-  assign CAN_FIRE_RL_bus_dmi_rsp_fifof_incCtr =
-	     bus_dmi_rsp_fifof_enqueueing$whas &&
-	     bus_dmi_rsp_fifof_enqueueing$whas &&
-	     !CAN_FIRE_RL_bus_dmi_rsp_do_deq ;
-  assign WILL_FIRE_RL_bus_dmi_rsp_fifof_incCtr =
-	     CAN_FIRE_RL_bus_dmi_rsp_fifof_incCtr ;
-
-  // rule RL_bus_dmi_rsp_fifof_decCtr
-  assign CAN_FIRE_RL_bus_dmi_rsp_fifof_decCtr =
-	     CAN_FIRE_RL_bus_dmi_rsp_do_deq &&
-	     !bus_dmi_rsp_fifof_enqueueing$whas ;
-  assign WILL_FIRE_RL_bus_dmi_rsp_fifof_decCtr =
-	     CAN_FIRE_RL_bus_dmi_rsp_fifof_decCtr ;
-
-  // rule RL_bus_dmi_rsp_fifof_both
-  assign CAN_FIRE_RL_bus_dmi_rsp_fifof_both =
-	     bus_dmi_rsp_fifof_enqueueing$whas &&
-	     CAN_FIRE_RL_bus_dmi_rsp_do_deq &&
-	     bus_dmi_rsp_fifof_enqueueing$whas ;
-  assign WILL_FIRE_RL_bus_dmi_rsp_fifof_both =
-	     CAN_FIRE_RL_bus_dmi_rsp_fifof_both ;
-
-  // rule RL_Prelude_inst_changeSpecialWires_7_mkConnectionVtoAf
-  assign CAN_FIRE_RL_Prelude_inst_changeSpecialWires_7_mkConnectionVtoAf =
-	     1'd1 ;
-  assign WILL_FIRE_RL_Prelude_inst_changeSpecialWires_7_mkConnectionVtoAf =
-	     1'd1 ;
-
-  // rule RL_Prelude_inst_changeSpecialWires_8_mkConnectionVtoAf
-  assign CAN_FIRE_RL_Prelude_inst_changeSpecialWires_8_mkConnectionVtoAf =
-	     1'd1 ;
-  assign WILL_FIRE_RL_Prelude_inst_changeSpecialWires_8_mkConnectionVtoAf =
-	     1'd1 ;
-
-  // inputs to muxes for submodule ports
-  assign MUX_bus_dmi_rsp_fifof_q_0$write_1__SEL_1 =
-	     WILL_FIRE_RL_bus_dmi_rsp_fifof_incCtr &&
-	     bus_dmi_rsp_fifof_cntr_r == 2'd0 ;
-  assign MUX_bus_dmi_rsp_fifof_q_0$write_1__SEL_2 =
-	     WILL_FIRE_RL_bus_dmi_rsp_fifof_both && _dfoo3 ;
-  assign MUX_bus_dmi_rsp_fifof_q_1$write_1__SEL_1 =
-	     WILL_FIRE_RL_bus_dmi_rsp_fifof_incCtr &&
-	     bus_dmi_rsp_fifof_cntr_r == 2'd1 ;
-  assign MUX_bus_dmi_rsp_fifof_q_1$write_1__SEL_2 =
-	     WILL_FIRE_RL_bus_dmi_rsp_fifof_both && _dfoo1 ;
-  assign MUX_bus_dmi_rsp_fifof_x_wire$wset_1__SEL_1 =
-	     WILL_FIRE_RL_rl_dmi_req_cpu &&
-	     bus_dmi_req_fifof$D_OUT[1:0] != 2'd1 ;
-  assign MUX_rg_ldr_reset$write_1__SEL_1 =
-	     cpu_halt_x != rg_last_cpuh && !rg_ldr_reset[1] ;
-  assign MUX_bus_dmi_rsp_fifof_cntr_r$write_1__VAL_2 =
-	     bus_dmi_rsp_fifof_cntr_r + 2'd1 ;
-  assign MUX_bus_dmi_rsp_fifof_q_0$write_1__VAL_1 =
-	     MUX_bus_dmi_rsp_fifof_x_wire$wset_1__SEL_1 ?
-	       MUX_bus_dmi_rsp_fifof_x_wire$wset_1__VAL_1 :
-	       MUX_bus_dmi_rsp_fifof_x_wire$wset_1__VAL_2 ;
-  assign MUX_bus_dmi_rsp_fifof_q_0$write_1__VAL_2 =
-	     (bus_dmi_rsp_fifof_cntr_r == 2'd1) ?
-	       MUX_bus_dmi_rsp_fifof_q_0$write_1__VAL_1 :
-	       bus_dmi_rsp_fifof_q_1 ;
-  assign MUX_bus_dmi_rsp_fifof_q_1$write_1__VAL_2 =
-	     (bus_dmi_rsp_fifof_cntr_r == 2'd2) ?
-	       MUX_bus_dmi_rsp_fifof_q_0$write_1__VAL_1 :
-	       34'd0 ;
-  assign MUX_bus_dmi_rsp_fifof_x_wire$wset_1__VAL_1 =
-	     { 32'hAAAAAAAA,
-	       (bus_dmi_req_fifof$D_OUT[1:0] == 2'd2) ? 2'd0 : 2'd2 } ;
-  assign MUX_bus_dmi_rsp_fifof_x_wire$wset_1__VAL_2 =
-	     { core$dm_dmi_read_data, 2'd0 } ;
-  assign MUX_rg_ldr_reset$write_1__VAL_1 = { 1'd1, !cpu_halt_x } ;
-  assign MUX_rg_ndm_count$write_1__VAL_2 = rg_ndm_count - 6'd1 ;
-  assign MUX_rg_ndm_reset$write_1__VAL_1 =
-	     { 1'd1, core$ndm_reset_client_request_get } ;
-
-  // inlined wires
-  assign bus_dmi_rsp_fifof_enqueueing$whas =
-	     WILL_FIRE_RL_rl_dmi_req_cpu &&
-	     bus_dmi_req_fifof$D_OUT[1:0] != 2'd1 ||
-	     WILL_FIRE_RL_rl_dmi_rsp_cpu ;
-  assign bus_dmi_req_data_wire$wget =
-	     { jtagtap$dmi_req_addr,
-	       jtagtap$dmi_req_data,
-	       jtagtap$dmi_req_op } ;
-
-  // register bus_dmi_rsp_fifof_cntr_r
-  assign bus_dmi_rsp_fifof_cntr_r$D_IN =
-	     WILL_FIRE_RL_bus_dmi_rsp_fifof_decCtr ?
-	       bus_dmi_rsp_fifof_cntr_r_0_MINUS_1___d58 :
-	       MUX_bus_dmi_rsp_fifof_cntr_r$write_1__VAL_2 ;
-  assign bus_dmi_rsp_fifof_cntr_r$EN =
-	     WILL_FIRE_RL_bus_dmi_rsp_fifof_decCtr ||
-	     WILL_FIRE_RL_bus_dmi_rsp_fifof_incCtr ;
-
-  // register bus_dmi_rsp_fifof_q_0
-  always@(MUX_bus_dmi_rsp_fifof_q_0$write_1__SEL_1 or
-	  MUX_bus_dmi_rsp_fifof_q_0$write_1__VAL_1 or
-	  MUX_bus_dmi_rsp_fifof_q_0$write_1__SEL_2 or
-	  MUX_bus_dmi_rsp_fifof_q_0$write_1__VAL_2 or
-	  WILL_FIRE_RL_bus_dmi_rsp_fifof_decCtr or bus_dmi_rsp_fifof_q_1)
-  begin
-    case (1'b1) // synopsys parallel_case
-      MUX_bus_dmi_rsp_fifof_q_0$write_1__SEL_1:
-	  bus_dmi_rsp_fifof_q_0$D_IN =
-	      MUX_bus_dmi_rsp_fifof_q_0$write_1__VAL_1;
-      MUX_bus_dmi_rsp_fifof_q_0$write_1__SEL_2:
-	  bus_dmi_rsp_fifof_q_0$D_IN =
-	      MUX_bus_dmi_rsp_fifof_q_0$write_1__VAL_2;
-      WILL_FIRE_RL_bus_dmi_rsp_fifof_decCtr:
-	  bus_dmi_rsp_fifof_q_0$D_IN = bus_dmi_rsp_fifof_q_1;
-      default: bus_dmi_rsp_fifof_q_0$D_IN =
-		   34'h2AAAAAAAA /* unspecified value */ ;
-    endcase
-  end
-  assign bus_dmi_rsp_fifof_q_0$EN =
-	     WILL_FIRE_RL_bus_dmi_rsp_fifof_incCtr &&
-	     bus_dmi_rsp_fifof_cntr_r == 2'd0 ||
-	     WILL_FIRE_RL_bus_dmi_rsp_fifof_both && _dfoo3 ||
-	     WILL_FIRE_RL_bus_dmi_rsp_fifof_decCtr ;
-
-  // register bus_dmi_rsp_fifof_q_1
-  always@(MUX_bus_dmi_rsp_fifof_q_1$write_1__SEL_1 or
-	  MUX_bus_dmi_rsp_fifof_q_0$write_1__VAL_1 or
-	  MUX_bus_dmi_rsp_fifof_q_1$write_1__SEL_2 or
-	  MUX_bus_dmi_rsp_fifof_q_1$write_1__VAL_2 or
-	  WILL_FIRE_RL_bus_dmi_rsp_fifof_decCtr)
-  begin
-    case (1'b1) // synopsys parallel_case
-      MUX_bus_dmi_rsp_fifof_q_1$write_1__SEL_1:
-	  bus_dmi_rsp_fifof_q_1$D_IN =
-	      MUX_bus_dmi_rsp_fifof_q_0$write_1__VAL_1;
-      MUX_bus_dmi_rsp_fifof_q_1$write_1__SEL_2:
-	  bus_dmi_rsp_fifof_q_1$D_IN =
-	      MUX_bus_dmi_rsp_fifof_q_1$write_1__VAL_2;
-      WILL_FIRE_RL_bus_dmi_rsp_fifof_decCtr:
-	  bus_dmi_rsp_fifof_q_1$D_IN = 34'd0;
-      default: bus_dmi_rsp_fifof_q_1$D_IN =
-		   34'h2AAAAAAAA /* unspecified value */ ;
-    endcase
-  end
-  assign bus_dmi_rsp_fifof_q_1$EN =
-	     WILL_FIRE_RL_bus_dmi_rsp_fifof_incCtr &&
-	     bus_dmi_rsp_fifof_cntr_r == 2'd1 ||
-	     WILL_FIRE_RL_bus_dmi_rsp_fifof_both && _dfoo1 ||
-	     WILL_FIRE_RL_bus_dmi_rsp_fifof_decCtr ;
-
   // register coreInReset_isInReset
   assign coreInReset_isInReset$D_IN = 1'd0 ;
   assign coreInReset_isInReset$EN = coreInReset_isInReset ;
 
   // register rg_last_cpuh
-  assign rg_last_cpuh$D_IN = cpu_halt_x ;
-  assign rg_last_cpuh$EN = MUX_rg_ldr_reset$write_1__SEL_1 ;
+  assign rg_last_cpuh$D_IN = 1'b0 ;
+  assign rg_last_cpuh$EN = 1'b0 ;
 
   // register rg_ldr_reset
-  assign rg_ldr_reset$D_IN =
-	     MUX_rg_ldr_reset$write_1__SEL_1 ?
-	       MUX_rg_ldr_reset$write_1__VAL_1 :
-	       2'd0 ;
-  assign rg_ldr_reset$EN =
-	     cpu_halt_x != rg_last_cpuh && !rg_ldr_reset[1] ||
-	     WILL_FIRE_RL_rl_once ;
+  assign rg_ldr_reset$D_IN = 2'd0 ;
+  assign rg_ldr_reset$EN = CAN_FIRE_RL_rl_once ;
 
   // register rg_ndm_count
-  assign rg_ndm_count$D_IN =
-	     WILL_FIRE_RL_rl_ndmreset ?
-	       6'd20 :
-	       MUX_rg_ndm_count$write_1__VAL_2 ;
-  assign rg_ndm_count$EN =
-	     WILL_FIRE_RL_decNdmCountRl || WILL_FIRE_RL_rl_ndmreset ;
-
-  // register rg_ndm_reset
-  assign rg_ndm_reset$D_IN =
-	     WILL_FIRE_RL_rl_ndmreset ?
-	       MUX_rg_ndm_reset$write_1__VAL_1 :
-	       2'd0 ;
-  assign rg_ndm_reset$EN =
-	     WILL_FIRE_RL_rl_reset_response || WILL_FIRE_RL_rl_ndmreset ;
+  assign rg_ndm_count$D_IN = rg_ndm_count - 6'd1 ;
+  assign rg_ndm_count$EN = CAN_FIRE_RL_decNdmCountRl ;
 
   // register rg_once
-  assign rg_once$D_IN =
-	     !MUX_rg_ldr_reset$write_1__SEL_1 && !WILL_FIRE_RL_rl_ndmreset ;
-  assign rg_once$EN =
-	     cpu_halt_x != rg_last_cpuh && !rg_ldr_reset[1] ||
-	     WILL_FIRE_RL_rl_ndmreset ||
-	     WILL_FIRE_RL_rl_once ;
+  assign rg_once$D_IN = 1'd1 ;
+  assign rg_once$EN = CAN_FIRE_RL_rl_once ;
 
   // register rg_reset_done
-  assign rg_reset_done$D_IN =
-	     !MUX_rg_ldr_reset$write_1__SEL_1 && !WILL_FIRE_RL_rl_ndmreset ;
-  assign rg_reset_done$EN =
-	     cpu_halt_x != rg_last_cpuh && !rg_ldr_reset[1] ||
-	     WILL_FIRE_RL_rl_ndmreset ||
-	     WILL_FIRE_RL_rl_reset_response ;
-
-  // submodule bus_dmi_req_fifof
-  assign bus_dmi_req_fifof$D_IN = bus_dmi_req_data_wire$wget ;
-  assign bus_dmi_req_fifof$ENQ = CAN_FIRE_RL_bus_dmi_req_do_enq ;
-  assign bus_dmi_req_fifof$DEQ = CAN_FIRE_RL_rl_dmi_req_cpu ;
-  assign bus_dmi_req_fifof$CLR = 1'b0 ;
+  assign rg_reset_done$D_IN = 1'd1 ;
+  assign rg_reset_done$EN = CAN_FIRE_RL_rl_reset_response ;
 
   // submodule core
   assign core$core_external_interrupt_sources_0_m_interrupt_req_set_not_clear =
@@ -1358,41 +801,35 @@ module mkBSCore(dmi_reset,
   assign core$cpu_dmem_master_HREADY = master1_HREADY ;
   assign core$cpu_dmem_master_HRESP = master1_HRESP ;
   assign core$cpu_reset_server_request_put =
-	     (!rg_ldr_reset[1] || rg_ldr_reset[0]) &&
-	     (!rg_ndm_reset[1] || rg_ndm_reset[0]) ;
-  assign core$dm_dmi_read_addr_dm_addr = bus_dmi_req_fifof$D_OUT[40:34] ;
-  assign core$dm_dmi_write_dm_addr = bus_dmi_req_fifof$D_OUT[40:34] ;
-  assign core$dm_dmi_write_dm_word = bus_dmi_req_fifof$D_OUT[33:2] ;
-  assign core$loader_slave_araddr = loader_slave_araddr ;
-  assign core$loader_slave_arburst = loader_slave_arburst ;
-  assign core$loader_slave_arcache = loader_slave_arcache ;
-  assign core$loader_slave_arid = loader_slave_arid ;
-  assign core$loader_slave_arlen = loader_slave_arlen ;
-  assign core$loader_slave_arlock = loader_slave_arlock ;
-  assign core$loader_slave_arprot = loader_slave_arprot ;
-  assign core$loader_slave_arqos = loader_slave_arqos ;
-  assign core$loader_slave_arregion = loader_slave_arregion ;
-  assign core$loader_slave_arsize = loader_slave_arsize ;
-  assign core$loader_slave_arvalid = loader_slave_arvalid ;
-  assign core$loader_slave_awaddr = loader_slave_awaddr ;
-  assign core$loader_slave_awburst = loader_slave_awburst ;
-  assign core$loader_slave_awcache = loader_slave_awcache ;
-  assign core$loader_slave_awid = loader_slave_awid ;
-  assign core$loader_slave_awlen = loader_slave_awlen ;
-  assign core$loader_slave_awlock = loader_slave_awlock ;
-  assign core$loader_slave_awprot = loader_slave_awprot ;
-  assign core$loader_slave_awqos = loader_slave_awqos ;
-  assign core$loader_slave_awregion = loader_slave_awregion ;
-  assign core$loader_slave_awsize = loader_slave_awsize ;
-  assign core$loader_slave_awvalid = loader_slave_awvalid ;
-  assign core$loader_slave_bready = loader_slave_bready ;
-  assign core$loader_slave_rready = loader_slave_rready ;
-  assign core$loader_slave_wdata = loader_slave_wdata ;
-  assign core$loader_slave_wlast = loader_slave_wlast ;
-  assign core$loader_slave_wstrb = loader_slave_wstrb ;
-  assign core$loader_slave_wvalid = loader_slave_wvalid ;
-  assign core$ndm_reset_client_response_put =
-	     core$cpu_reset_server_response_get ;
+	     !rg_ldr_reset[1] || rg_ldr_reset[0] ;
+  assign core$debug_araddr = debug_araddr ;
+  assign core$debug_arburst = debug_arburst ;
+  assign core$debug_arcache = debug_arcache ;
+  assign core$debug_arid = debug_arid ;
+  assign core$debug_arlen = debug_arlen ;
+  assign core$debug_arlock = debug_arlock ;
+  assign core$debug_arprot = debug_arprot ;
+  assign core$debug_arqos = debug_arqos ;
+  assign core$debug_arregion = debug_arregion ;
+  assign core$debug_arsize = debug_arsize ;
+  assign core$debug_arvalid = debug_arvalid ;
+  assign core$debug_awaddr = debug_awaddr ;
+  assign core$debug_awburst = debug_awburst ;
+  assign core$debug_awcache = debug_awcache ;
+  assign core$debug_awid = debug_awid ;
+  assign core$debug_awlen = debug_awlen ;
+  assign core$debug_awlock = debug_awlock ;
+  assign core$debug_awprot = debug_awprot ;
+  assign core$debug_awqos = debug_awqos ;
+  assign core$debug_awregion = debug_awregion ;
+  assign core$debug_awsize = debug_awsize ;
+  assign core$debug_awvalid = debug_awvalid ;
+  assign core$debug_bready = debug_bready ;
+  assign core$debug_rready = debug_rready ;
+  assign core$debug_wdata = debug_wdata ;
+  assign core$debug_wlast = debug_wlast ;
+  assign core$debug_wstrb = debug_wstrb ;
+  assign core$debug_wvalid = debug_wvalid ;
   assign core$nmi_req_set_not_clear = 1'd0 ;
   assign core$set_verbosity_logdelay = 64'h0 ;
   assign core$set_verbosity_verbosity = 4'h0 ;
@@ -1401,54 +838,11 @@ module mkBSCore(dmi_reset,
   assign core$EN_cpu_reset_server_request_put = CAN_FIRE_RL_rl_once ;
   assign core$EN_cpu_reset_server_response_get =
 	     CAN_FIRE_RL_rl_reset_response ;
-  assign core$EN_dm_dmi_read_addr =
-	     WILL_FIRE_RL_rl_dmi_req_cpu &&
-	     bus_dmi_req_fifof$D_OUT[1:0] == 2'd1 ;
-  assign core$EN_dm_dmi_read_data = WILL_FIRE_RL_rl_dmi_rsp_cpu ;
-  assign core$EN_dm_dmi_write =
-	     WILL_FIRE_RL_rl_dmi_req_cpu &&
-	     bus_dmi_req_fifof$D_OUT[1:0] == 2'd2 ;
-  assign core$EN_ndm_reset_client_request_get = CAN_FIRE_RL_rl_ndmreset ;
-  assign core$EN_ndm_reset_client_response_put =
-	     WILL_FIRE_RL_rl_reset_response && rg_ndm_reset[1] ;
   assign core$EN_set_verbosity = 1'b0 ;
   assign core$EN_set_watch_tohost = EN_set_watch_tohost ;
 
-  // submodule initCnt
-  assign initCnt$D_IN = initCnt$Q_OUT - 6'd1 ;
-  assign initCnt$EN = CAN_FIRE_RL_rl_decInitCnt ;
-
-  // submodule jtagtap
-  assign jtagtap$dmi_req_ready = bus_dmi_req_fifof$FULL_N ;
-  assign jtagtap$dmi_rsp_data = bus_dmi_rsp_fifof_q_0[33:2] ;
-  assign jtagtap$dmi_rsp_response = bus_dmi_rsp_fifof_q_0[1:0] ;
-  assign jtagtap$dmi_rsp_valid = bus_dmi_rsp_fifof_cntr_r != 2'd0 ;
-  assign jtagtap$jtag_tclk = jtag_tclk ;
-  assign jtagtap$jtag_tdi = jtag_tdi ;
-  assign jtagtap$jtag_tms = jtag_tms ;
-
   // submodule ndmIfc
   assign ndmIfc$ASSERT_IN = CAN_FIRE_RL_decNdmCountRl ;
-
-  // submodule rstIfc
-  assign rstIfc$ASSERT_IN = CAN_FIRE_RL_rl_decInitCnt ;
-
-  // remaining internal signals
-  assign IF_bus_dmi_req_fifof_first__7_BITS_1_TO_0_8_EQ_ETC___d108 =
-	     (bus_dmi_req_fifof$D_OUT[1:0] == 2'd1) ?
-	       core$RDY_dm_dmi_read_addr :
-	       (bus_dmi_req_fifof$D_OUT[1:0] == 2'd2 ||
-		bus_dmi_rsp_fifof_cntr_r != 2'd2) &&
-	       (bus_dmi_req_fifof$D_OUT[1:0] != 2'd2 ||
-		bus_dmi_rsp_fifof_cntr_r != 2'd2 && core$RDY_dm_dmi_write) ;
-  assign _dfoo1 =
-	     bus_dmi_rsp_fifof_cntr_r != 2'd2 ||
-	     bus_dmi_rsp_fifof_cntr_r_0_MINUS_1___d58 == 2'd1 ;
-  assign _dfoo3 =
-	     bus_dmi_rsp_fifof_cntr_r != 2'd1 ||
-	     bus_dmi_rsp_fifof_cntr_r_0_MINUS_1___d58 == 2'd0 ;
-  assign bus_dmi_rsp_fifof_cntr_r_0_MINUS_1___d58 =
-	     bus_dmi_rsp_fifof_cntr_r - 2'd1 ;
 
   // handling of inlined registers
 
@@ -1457,46 +851,19 @@ module mkBSCore(dmi_reset,
     if (RST_N == `BSV_RESET_VALUE)
       begin
         rg_last_cpuh <= `BSV_ASSIGNMENT_DELAY 1'd0;
-      end
-    else
-      begin
-        if (rg_last_cpuh$EN)
-	  rg_last_cpuh <= `BSV_ASSIGNMENT_DELAY rg_last_cpuh$D_IN;
-      end
-    if (dmi_resetN$RESET_OUT == `BSV_RESET_VALUE)
-      begin
-        bus_dmi_rsp_fifof_cntr_r <= `BSV_ASSIGNMENT_DELAY 2'd0;
-	bus_dmi_rsp_fifof_q_0 <= `BSV_ASSIGNMENT_DELAY 34'd0;
-	bus_dmi_rsp_fifof_q_1 <= `BSV_ASSIGNMENT_DELAY 34'd0;
-      end
-    else
-      begin
-        if (bus_dmi_rsp_fifof_cntr_r$EN)
-	  bus_dmi_rsp_fifof_cntr_r <= `BSV_ASSIGNMENT_DELAY
-	      bus_dmi_rsp_fifof_cntr_r$D_IN;
-	if (bus_dmi_rsp_fifof_q_0$EN)
-	  bus_dmi_rsp_fifof_q_0 <= `BSV_ASSIGNMENT_DELAY
-	      bus_dmi_rsp_fifof_q_0$D_IN;
-	if (bus_dmi_rsp_fifof_q_1$EN)
-	  bus_dmi_rsp_fifof_q_1 <= `BSV_ASSIGNMENT_DELAY
-	      bus_dmi_rsp_fifof_q_1$D_IN;
-      end
-    if (rstIfc$OUT_RST == `BSV_RESET_VALUE)
-      begin
-        rg_ldr_reset <= `BSV_ASSIGNMENT_DELAY 2'd0;
+	rg_ldr_reset <= `BSV_ASSIGNMENT_DELAY 2'd0;
 	rg_ndm_count <= `BSV_ASSIGNMENT_DELAY 6'd0;
-	rg_ndm_reset <= `BSV_ASSIGNMENT_DELAY 2'd0;
 	rg_once <= `BSV_ASSIGNMENT_DELAY 1'd0;
 	rg_reset_done <= `BSV_ASSIGNMENT_DELAY 1'd0;
       end
     else
       begin
-        if (rg_ldr_reset$EN)
+        if (rg_last_cpuh$EN)
+	  rg_last_cpuh <= `BSV_ASSIGNMENT_DELAY rg_last_cpuh$D_IN;
+	if (rg_ldr_reset$EN)
 	  rg_ldr_reset <= `BSV_ASSIGNMENT_DELAY rg_ldr_reset$D_IN;
 	if (rg_ndm_count$EN)
 	  rg_ndm_count <= `BSV_ASSIGNMENT_DELAY rg_ndm_count$D_IN;
-	if (rg_ndm_reset$EN)
-	  rg_ndm_reset <= `BSV_ASSIGNMENT_DELAY rg_ndm_reset$D_IN;
 	if (rg_once$EN) rg_once <= `BSV_ASSIGNMENT_DELAY rg_once$D_IN;
 	if (rg_reset_done$EN)
 	  rg_reset_done <= `BSV_ASSIGNMENT_DELAY rg_reset_done$D_IN;
@@ -1520,14 +887,10 @@ module mkBSCore(dmi_reset,
   `else // not BSV_NO_INITIAL_BLOCKS
   initial
   begin
-    bus_dmi_rsp_fifof_cntr_r = 2'h2;
-    bus_dmi_rsp_fifof_q_0 = 34'h2AAAAAAAA;
-    bus_dmi_rsp_fifof_q_1 = 34'h2AAAAAAAA;
     coreInReset_isInReset = 1'h0;
     rg_last_cpuh = 1'h0;
     rg_ldr_reset = 2'h2;
     rg_ndm_count = 6'h2A;
-    rg_ndm_reset = 2'h2;
     rg_once = 1'h0;
     rg_reset_done = 1'h0;
   end

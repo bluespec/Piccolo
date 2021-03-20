@@ -65,10 +65,11 @@ import AXI4_Stream ::*;
 `endif
 
 `ifdef INCLUDE_GDB_CONTROL
-import Debug_Module :: *;
-import Jtag         :: *;
-import JtagTap      :: *;
-import Giraffe_IFC  :: *;
+import Debug_Module       :: *;
+import Debug_Interfaces   :: *;
+import Jtag               :: *;
+import JtagTap            :: *;
+import Giraffe_IFC        :: *;
 `endif
 
 // ================================================================
@@ -118,14 +119,7 @@ interface BSCore_IFC;
 `endif
 
 `ifdef INCLUDE_GDB_CONTROL
-   // ----------------
-   // JTAG interface
-
-`ifdef JTAG_TAP
-   interface JTAG_IFC jtag;
-`endif
-   // This reset output only if there's a debug module:
-   interface Reset ndm_reset;
+   interface AXI4_Slave_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User) debug;
 `endif
 
    // ----------------
@@ -136,13 +130,14 @@ interface BSCore_IFC;
    method Bit #(64) mv_tohost_value;
 `endif
 
-   // connections to loader for MicroSemi version:
+`ifdef TCM_LOADER
+   // connections to loader
    interface AXI4_Slave_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User) loader_slave;
-
    (* always_ready *)
    method Bool reset_done;
    (* always_ready, always_enabled *)
    method Action cpu_halt(Bool x);
+`endif
 `endif
 
 endinterface
@@ -150,28 +145,14 @@ endinterface
 // ================================================================
 
 (* synthesize *)
-module mkBSCore ((*reset="dmi_reset"*)Reset dmi_reset, BSCore_IFC _ifc);
-   // A "power-on reset" generator:
-   Reg #(UInt #(6)) initCnt <- mkRegUInit(por_interval);
+module mkBSCore (BSCore_IFC);
    let clk <- exposeCurrentClock;
-   let rstIfc <- mkReset(2, True, clk, reset_by noReset);
-   rule rl_decInitCnt (initCnt != 0);
-      initCnt <= initCnt - 1;
-      rstIfc.assertReset();
-   endrule
-   let por_reset = rstIfc.new_rst;
-
-   // -----------------
-   let dmi_resetN <- mkResetInverter(dmi_reset); // dmi_reset is active-high
-
-   // -----------------
-
    // Reset this by default reset, so core is reset by both default and ndm
-   let ndmIfc <- mkReset(2, True, clk); //, reset_by por_reset); -- JES 12/9
+   let ndmIfc <- mkReset(2, True, clk);
    let coreRSTN = ndmIfc.new_rst;
 
    // Core: CPU + Near_Mem_IO (CLINT) + PLIC + Debug module (optional) + TV (optional)
-   Core_IFC::Core_IFC #(N_External_Interrupt_Sources)  core <- mkCore(por_reset, reset_by coreRSTN);
+   Core_IFC::Core_IFC #(N_External_Interrupt_Sources)  core <- mkCore(reset_by coreRSTN);
 
    // ================================================================
    // Tie-offs (not used in SSITH GFE)
@@ -191,13 +172,12 @@ module mkBSCore ((*reset="dmi_reset"*)Reset dmi_reset, BSCore_IFC _ifc);
    // Reset on startup, and also on NDM reset from Debug Module
    // (NDM reset from Debug Module = "non-debug-module-reset" = reset all except Debug Module)
 
-   Reg #(Bool)          rg_once       <- mkReg (False, reset_by por_reset); // also set False by ndmreset
-   Reg #(Bool)          rg_reset_done <- mkReg (False, reset_by por_reset);
+   Reg #(Bool)          rg_once       <- mkReg (False); // also set False by ndmreset
+   Reg #(Bool)          rg_reset_done <- mkReg (False);
    Reg #(Bool)          rg_last_cpuh  <- mkReg (False);
-   Reg #(Maybe #(Bool)) rg_ndm_reset  <- mkReg (tagged Invalid, reset_by por_reset);
-   Reg #(Maybe #(Bool)) rg_ldr_reset  <- mkReg (tagged Invalid, reset_by por_reset);
+   Reg #(Maybe #(Bool)) rg_ldr_reset  <- mkReg (tagged Invalid);
 `ifdef INCLUDE_GDB_CONTROL
-   Reg #(UInt #(6))     rg_ndm_count <- mkReg (0, reset_by por_reset);
+   Reg #(UInt #(6))     rg_ndm_count <- mkReg (0);
 
    rule decNdmCountRl (rg_ndm_count != 0);
       rg_ndm_count <= rg_ndm_count -1;
@@ -209,8 +189,6 @@ module mkBSCore ((*reset="dmi_reset"*)Reset dmi_reset, BSCore_IFC _ifc);
 
    rule rl_once (! rg_once && ! coreInReset);
       Bool running = True;
-      if (rg_ndm_reset matches tagged Valid False)
-	 running = False;
       if (rg_ldr_reset matches tagged Valid False)
 	 running = False;
       rg_ldr_reset <= Invalid;
@@ -219,95 +197,20 @@ module mkBSCore ((*reset="dmi_reset"*)Reset dmi_reset, BSCore_IFC _ifc);
       rg_once <= True;
    endrule
 
+`ifdef TCM_LOADER
    (*descending_urgency="rl_once, cpu_halt"*)
+`endif
    rule rl_reset_response;
       let running <- core.cpu_reset_server.response.get;
 
 `ifdef INCLUDE_GDB_CONTROL
       // wait for end of ndm_interval:
       when (rg_ndm_count == 0, noAction);
-      // Respond to Debug module if this is an ndm-reset:
-      if (rg_ndm_reset matches tagged Valid .x)
-	 core.ndm_reset_client.response.put (running);
-      rg_ndm_reset <= tagged Invalid;
       rg_reset_done <= True;
 `endif
    endrule
 
    // ----------------
-   // Also do a reset if requested from Debug Module (NDM = Non-Debug-Module reset)
-
-   rule rl_ndmreset (rg_once); // inhibited until after initialization
-`ifdef INCLUDE_GDB_CONTROL
-      let running <- core.ndm_reset_client.request.get;
-      rg_ndm_reset <= tagged Valid running;
-      rg_ndm_count <= ndm_interval;
-`endif
-      rg_once <= False;
-      rg_reset_done <= False;
-   endrule
-
-   // ================================================================
-`ifdef INCLUDE_GDB_CONTROL
-
-   // Instantiate JTAG TAP controller,
-   // connect to core.dm_dmi;
-   // and export its JTAG interface
-
-   Wire#(Bit#(7)) w_dmi_req_addr <- mkDWire(0);
-   Wire#(Bit#(32)) w_dmi_req_data <- mkDWire(0);
-   Wire#(Bit#(2)) w_dmi_req_op <- mkDWire(0);
-
-   Wire#(Bit#(32)) w_dmi_rsp_data <- mkDWire(0);
-   Wire#(Bit#(2)) w_dmi_rsp_response <- mkDWire(0);
-
-   BusReceiver#(Tuple3#(Bit#(7),Bit#(32),Bit#(2))) bus_dmi_req <- mkBusReceiver(reset_by dmi_resetN);
-   BusSender#(Tuple2#(Bit#(32),Bit#(2))) bus_dmi_rsp <- mkBusSender(unpack(0), reset_by dmi_resetN);
-
-`ifdef JTAG_TAP
-   let jtagtap <- mkJtagTap(reset_by dmi_resetN);
-
-   mkConnection(jtagtap.dmi.req_ready, pack(bus_dmi_req.in.ready), reset_by dmi_resetN);
-   mkConnection(jtagtap.dmi.req_valid, compose(bus_dmi_req.in.valid, unpack), reset_by dmi_resetN);
-   mkConnection(jtagtap.dmi.req_addr, w_dmi_req_addr._write, reset_by dmi_resetN);
-   mkConnection(jtagtap.dmi.req_data, w_dmi_req_data._write, reset_by dmi_resetN);
-   mkConnection(jtagtap.dmi.req_op, w_dmi_req_op._write, reset_by dmi_resetN);
-   mkConnection(jtagtap.dmi.rsp_valid, pack(bus_dmi_rsp.out.valid), reset_by dmi_resetN);
-   mkConnection(jtagtap.dmi.rsp_ready, compose(bus_dmi_rsp.out.ready, unpack), reset_by dmi_resetN);
-   mkConnection(jtagtap.dmi.rsp_data, w_dmi_rsp_data, reset_by dmi_resetN);
-   mkConnection(jtagtap.dmi.rsp_response, w_dmi_rsp_response, reset_by dmi_resetN);
-`endif
-
-   rule rl_dmi_req;
-      bus_dmi_req.in.data(tuple3(w_dmi_req_addr, w_dmi_req_data, w_dmi_req_op));
-   endrule
-
-   rule rl_dmi_rsp;
-      match {.data, .response} = bus_dmi_rsp.out.data;
-      w_dmi_rsp_data <= data;
-      w_dmi_rsp_response <= response;
-   endrule
-
-   (* preempts = "rl_dmi_req_cpu, rl_dmi_rsp_cpu" *)
-   rule rl_dmi_req_cpu;
-      match {.addr, .data, .op} = bus_dmi_req.out.first;
-      bus_dmi_req.out.deq;
-      case (op)
-	 1: core.dm_dmi.read_addr(addr);
-	 2: begin
-	       core.dm_dmi.write(addr, data);
-	       bus_dmi_rsp.in.enq(tuple2(?, 0));
-	    end
-	 default: bus_dmi_rsp.in.enq(tuple2(?, 2));
-      endcase
-   endrule
-
-   rule rl_dmi_rsp_cpu;
-      let data <- core.dm_dmi.read_data;
-      bus_dmi_rsp.in.enq(tuple2(data, 0));
-   endrule
-
-`endif
 
 `ifdef INCLUDE_TANDEM_VERIF
    let tv_xactor <- mkTV_Xactor;
@@ -354,14 +257,7 @@ module mkBSCore ((*reset="dmi_reset"*)Reset dmi_reset, BSCore_IFC _ifc);
 `endif
 
 `ifdef INCLUDE_GDB_CONTROL
-   // ----------------------------------------------------------------
-   // Optional Debug Module interfaces
-
-`ifdef JTAG_TAP
-   interface JTAG_IFC jtag = jtagtap.jtag;
-`endif
-
-   interface ndm_reset = coreRSTN;
+   interface debug = core.debug;
 `endif
 
 `ifdef Near_Mem_TCM
@@ -373,6 +269,7 @@ module mkBSCore ((*reset="dmi_reset"*)Reset dmi_reset, BSCore_IFC _ifc);
 
    method Bit #(64) mv_tohost_value = core.mv_tohost_value;
 `endif
+`ifdef TCM_LOADER
    interface loader_slave = core.loader_slave;
    method Action cpu_halt (x);
       if (x != rg_last_cpuh && !isValid(rg_ldr_reset)) begin
@@ -383,6 +280,7 @@ module mkBSCore ((*reset="dmi_reset"*)Reset dmi_reset, BSCore_IFC _ifc);
       end
    endmethod
    method reset_done = rg_reset_done;
+`endif
 `endif
 
 endmodule

@@ -16,6 +16,7 @@ all: compile
 # ================================================================
 
 REPO ?= ..
+DEBUG_REPO ?= ../Debug_Module
 ARCH ?= RV32ACIMU
 
 # ================================================================
@@ -36,11 +37,12 @@ BSC_COMPILATION_FLAGS += \
 	-D WATCH_TOHOST \
 	-D JTAG_TAP \
 	-D XILINX_BSCAN -D XILINX_XC7K325T \
+#	-D TCM_LOADER
 
 # ================================================================
 # Search path for bsc for .bsv files
 
-CORE_DIRS = $(REPO)/src_Core/CPU:$(REPO)/src_Core/ISA:$(REPO)/src_Core/RegFiles:$(REPO)/src_Core/Core:$(REPO)/src_Core/Near_Mem/Near_Mem_TCM/src:$(REPO)/src_Core/Near_Mem/Near_Mem_TCM/fabrics/AHB_Lite/src:$(REPO)/src_Core/PLIC:$(REPO)/src_Core/Near_Mem_IO:$(REPO)/src_Core/Debug_Module:$(REPO)/src_Core/BSV_Additional_Libs
+CORE_DIRS = $(REPO)/src_Core/CPU:$(REPO)/src_Core/ISA:$(REPO)/src_Core/RegFiles:$(REPO)/src_Core/Core:$(REPO)/src_Core/Near_Mem/Near_Mem_TCM/src:$(REPO)/src_Core/Near_Mem/Near_Mem_TCM/fabrics/AHB_Lite/src:$(REPO)/src_Core/PLIC:$(REPO)/src_Core/Near_Mem_IO:$(REPO)/src_Core/BSV_Additional_Libs:$(DEBUG_REPO)/src
 
 TESTBENCH_DIRS  = $(REPO)/src_Testbench/Fabrics/AXI4
 

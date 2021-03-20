@@ -452,9 +452,9 @@ module mkITCM(verbosity,
   reg [31 : 0] v__h2917;
   reg [31 : 0] v__h4555;
   reg [31 : 0] v__h4613;
+  reg [31 : 0] v__h2144;
   reg [31 : 0] v__h2599;
   reg [31 : 0] v__h2019;
-  reg [31 : 0] v__h2144;
   reg [31 : 0] v__h2320;
   reg [31 : 0] v__h2911;
   reg [31 : 0] v__h3475;

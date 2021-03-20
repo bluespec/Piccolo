@@ -79,9 +79,10 @@ import Near_Mem_TCM :: *;
 `endif
 
 `ifdef INCLUDE_GDB_CONTROL
-import Debug_Module   :: *;
-import DM_CPU_Ifc     :: *;
-import DM_CPU_Req_Rsp :: *;
+//import Debug_Module     :: *;
+import DM_Common        :: *;
+import Debug_Interfaces :: *;
+import DM_CPU_Req_Rsp   :: *;
 `endif
 
 // System address map and pc_reset value

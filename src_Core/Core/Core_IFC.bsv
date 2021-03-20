@@ -45,7 +45,8 @@ import TV_Info  :: *;
 `endif
 
 `ifdef INCLUDE_GDB_CONTROL
-import Debug_Module  :: *;
+import Debug_Module     :: *;
+import Debug_Interfaces :: *;
 `endif
 
 // ================================================================
@@ -115,16 +116,8 @@ interface Core_IFC #(numeric type t_n_interrupt_sources);
 
 `ifdef INCLUDE_GDB_CONTROL
    // ----------------
-   // DMI (Debug Module Interface) facing remote debugger
-
-   interface DMI dm_dmi;
-
-   // ----------------
-   // Facing Platform
-   // Non-Debug-Module Reset (reset all except DM)
-   // Bool indicates 'running' hart state.
-
-   interface Client #(Bool, Bool) ndm_reset_client;
+   // Debug Module Interface (facing external debug module)
+   interface AXI4_Slave_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User) debug;
 `endif
    // ----------------------------------------------------------------
    // Misc. control and status
@@ -143,8 +136,9 @@ interface Core_IFC #(numeric type t_n_interrupt_sources);
    method Action set_watch_tohost (Bool watch_tohost, Bit #(64) tohost_addr);
    method Bit #(64) mv_tohost_value;
 `endif
-   // connections to loader for MicroSemi version:
+`ifdef TCM_LOADER
    interface AXI4_Slave_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User) loader_slave;
+`endif
 `endif
 endinterface
 
