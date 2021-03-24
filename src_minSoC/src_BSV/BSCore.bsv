@@ -25,7 +25,6 @@ import ClientServer  :: *;
 import Connectable   :: *;
 import Bus           :: *;
 import Clocks        :: *;
-import RegUInit      :: *;
 
 // ----------------
 // BSV additional libs
