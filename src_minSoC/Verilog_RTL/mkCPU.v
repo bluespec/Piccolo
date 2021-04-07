@@ -1613,6 +1613,7 @@ module mkCPU(CLK,
        MUX_rg_next_pc$write_1__SEL_1,
        MUX_rg_state$write_1__SEL_1,
        MUX_rg_state$write_1__SEL_10,
+       MUX_rg_state$write_1__SEL_2,
        MUX_rg_state$write_1__SEL_4,
        MUX_rg_state$write_1__SEL_9,
        MUX_rg_step_count$write_1__PSEL_1,
@@ -2801,7 +2802,9 @@ module mkCPU(CLK,
 	     rg_state_1_EQ_4_140_AND_NOT_near_mem_imem_exc__ETC___d1284 &&
 	     (x_out_trap_info_exc_code__h14820 != 4'd3 ||
 	      !csr_regfile$dcsr_break_enters_debug) ;
-  assign WILL_FIRE_RL_rl_stage1_trap = CAN_FIRE_RL_rl_stage1_trap ;
+  assign WILL_FIRE_RL_rl_stage1_trap =
+	     CAN_FIRE_RL_rl_stage1_trap &&
+	     !WILL_FIRE_RL_rl_reset_from_Debug_Module ;
 
   // rule RL_rl_stage1_CSRR_W
   assign CAN_FIRE_RL_rl_stage1_CSRR_W =
@@ -2812,7 +2815,9 @@ module mkCPU(CLK,
 	     near_mem_imem_valid_AND_NOT_imem_c_rg_pc_BITS__ETC___d666 &&
 	     IF_NOT_stage1_rg_full_96_97_OR_NOT_near_mem_im_ETC___d770 ==
 	     4'd2 ;
-  assign WILL_FIRE_RL_rl_stage1_CSRR_W = CAN_FIRE_RL_rl_stage1_CSRR_W ;
+  assign WILL_FIRE_RL_rl_stage1_CSRR_W =
+	     CAN_FIRE_RL_rl_stage1_CSRR_W &&
+	     !WILL_FIRE_RL_rl_reset_from_Debug_Module ;
 
   // rule RL_rl_stage1_CSRR_S_or_C
   assign CAN_FIRE_RL_rl_stage1_CSRR_S_or_C =
@@ -2824,7 +2829,8 @@ module mkCPU(CLK,
 	     IF_NOT_stage1_rg_full_96_97_OR_NOT_near_mem_im_ETC___d770 ==
 	     4'd3 ;
   assign WILL_FIRE_RL_rl_stage1_CSRR_S_or_C =
-	     CAN_FIRE_RL_rl_stage1_CSRR_S_or_C ;
+	     CAN_FIRE_RL_rl_stage1_CSRR_S_or_C &&
+	     !WILL_FIRE_RL_rl_reset_from_Debug_Module ;
 
   // rule RL_rl_stage1_xRET
   assign CAN_FIRE_RL_rl_stage1_xRET =
@@ -2839,7 +2845,9 @@ module mkCPU(CLK,
 	      4'd8 ||
 	      IF_NOT_stage1_rg_full_96_97_OR_NOT_near_mem_im_ETC___d770 ==
 	      4'd9) ;
-  assign WILL_FIRE_RL_rl_stage1_xRET = CAN_FIRE_RL_rl_stage1_xRET ;
+  assign WILL_FIRE_RL_rl_stage1_xRET =
+	     CAN_FIRE_RL_rl_stage1_xRET &&
+	     !WILL_FIRE_RL_rl_reset_from_Debug_Module ;
 
   // rule RL_rl_stage1_FENCE_I
   assign CAN_FIRE_RL_rl_stage1_FENCE_I =
@@ -2867,7 +2875,9 @@ module mkCPU(CLK,
 	     near_mem_imem_valid_AND_NOT_imem_c_rg_pc_BITS__ETC___d666 &&
 	     IF_NOT_stage1_rg_full_96_97_OR_NOT_near_mem_im_ETC___d770 ==
 	     4'd10 ;
-  assign WILL_FIRE_RL_rl_stage1_WFI = CAN_FIRE_RL_rl_stage1_WFI ;
+  assign WILL_FIRE_RL_rl_stage1_WFI =
+	     CAN_FIRE_RL_rl_stage1_WFI &&
+	     !WILL_FIRE_RL_rl_reset_from_Debug_Module ;
 
   // rule RL_rl_WFI_resume
   assign CAN_FIRE_RL_rl_WFI_resume =
@@ -2933,15 +2943,15 @@ module mkCPU(CLK,
 	     rg_state != 4'd3 ;
   assign WILL_FIRE_RL_rl_debug_halt =
 	     CAN_FIRE_RL_rl_debug_halt && !WILL_FIRE_RL_rl_stage1_stop &&
-	     !WILL_FIRE_RL_rl_trap_BREAK_to_Debug_Mode &&
-	     !WILL_FIRE_RL_rl_WFI_resume &&
 	     !WILL_FIRE_RL_rl_stage1_WFI &&
-	     !WILL_FIRE_RL_rl_stage1_FENCE &&
-	     !WILL_FIRE_RL_rl_stage1_FENCE_I &&
 	     !WILL_FIRE_RL_rl_stage1_xRET &&
 	     !WILL_FIRE_RL_rl_stage1_CSRR_S_or_C &&
 	     !WILL_FIRE_RL_rl_stage1_CSRR_W &&
-	     !WILL_FIRE_RL_rl_stage1_trap ;
+	     !WILL_FIRE_RL_rl_stage1_trap &&
+	     !WILL_FIRE_RL_rl_trap_BREAK_to_Debug_Mode &&
+	     !WILL_FIRE_RL_rl_WFI_resume &&
+	     !WILL_FIRE_RL_rl_stage1_FENCE &&
+	     !WILL_FIRE_RL_rl_stage1_FENCE_I ;
 
   // rule RL_rl_stage2_nonpipe
   assign CAN_FIRE_RL_rl_stage2_nonpipe =
@@ -2955,15 +2965,17 @@ module mkCPU(CLK,
 	     rg_state == 4'd5 &&
 	     (!stage1_rg_full ||
 	      near_mem_imem_valid_AND_NOT_imem_c_rg_pc_BITS__ETC___d514) ;
-  assign WILL_FIRE_RL_rl_trap = CAN_FIRE_RL_rl_trap ;
+  assign WILL_FIRE_RL_rl_trap =
+	     CAN_FIRE_RL_rl_trap && !WILL_FIRE_RL_rl_reset_from_Debug_Module ;
 
   // rule RL_rl_stage1_CSRR_W_2
   assign CAN_FIRE_RL_rl_stage1_CSRR_W_2 = rg_state == 4'd7 ;
-  assign WILL_FIRE_RL_rl_stage1_CSRR_W_2 = rg_state == 4'd7 ;
+  assign WILL_FIRE_RL_rl_stage1_CSRR_W_2 = MUX_rg_state$write_1__SEL_2 ;
 
   // rule RL_rl_stage1_CSRR_S_or_C_2
   assign CAN_FIRE_RL_rl_stage1_CSRR_S_or_C_2 = rg_state == 4'd8 ;
-  assign WILL_FIRE_RL_rl_stage1_CSRR_S_or_C_2 = rg_state == 4'd8 ;
+  assign WILL_FIRE_RL_rl_stage1_CSRR_S_or_C_2 =
+	     CAN_FIRE_RL_rl_stage1_CSRR_S_or_C_2 ;
 
   // rule RL_rl_stage1_restart_after_csrrx
   assign CAN_FIRE_RL_rl_stage1_restart_after_csrrx =
@@ -3007,19 +3019,12 @@ module mkCPU(CLK,
 	     !WILL_FIRE_RL_rl_trap_fetch &&
 	     !WILL_FIRE_RL_rl_reset_from_WFI &&
 	     !WILL_FIRE_RL_rl_WFI_resume &&
-	     !WILL_FIRE_RL_rl_stage1_WFI &&
 	     !WILL_FIRE_RL_rl_finish_FENCE &&
 	     !WILL_FIRE_RL_rl_stage1_FENCE &&
 	     !WILL_FIRE_RL_rl_finish_FENCE_I &&
 	     !WILL_FIRE_RL_rl_stage1_FENCE_I &&
-	     !WILL_FIRE_RL_rl_stage1_xRET &&
 	     !WILL_FIRE_RL_rl_stage1_restart_after_csrrx &&
 	     !WILL_FIRE_RL_rl_stage1_CSRR_S_or_C_2 &&
-	     !WILL_FIRE_RL_rl_stage1_CSRR_S_or_C &&
-	     !WILL_FIRE_RL_rl_stage1_CSRR_W_2 &&
-	     !WILL_FIRE_RL_rl_stage1_CSRR_W &&
-	     !WILL_FIRE_RL_rl_trap &&
-	     !WILL_FIRE_RL_rl_stage1_trap &&
 	     !WILL_FIRE_RL_rl_stage2_nonpipe ;
 
   // rule RL_rl_stage1_interrupt
@@ -3134,23 +3139,26 @@ module mkCPU(CLK,
 	     WILL_FIRE_RL_rl_finish_FENCE ||
 	     WILL_FIRE_RL_rl_finish_FENCE_I ;
   assign MUX_rg_next_pc$write_1__SEL_1 =
-	     WILL_FIRE_RL_rl_stage1_WFI || WILL_FIRE_RL_rl_stage1_FENCE ||
-	     WILL_FIRE_RL_rl_stage1_FENCE_I ||
+	     WILL_FIRE_RL_rl_stage1_FENCE || WILL_FIRE_RL_rl_stage1_FENCE_I ||
+	     WILL_FIRE_RL_rl_stage1_WFI ||
 	     WILL_FIRE_RL_rl_stage1_CSRR_S_or_C ||
 	     WILL_FIRE_RL_rl_stage1_CSRR_W ;
   assign MUX_rg_state$write_1__SEL_1 =
 	     CAN_FIRE_RL_rl_reset_complete &&
 	     !WILL_FIRE_RL_imem_c_rl_fetch_next_32b &&
 	     !WILL_FIRE_RL_rl_reset_from_Debug_Module ;
+  assign MUX_rg_state$write_1__SEL_2 =
+	     CAN_FIRE_RL_rl_stage1_CSRR_W_2 &&
+	     !WILL_FIRE_RL_rl_reset_from_Debug_Module ;
   assign MUX_rg_state$write_1__SEL_4 =
-	     WILL_FIRE_RL_rl_reset_from_Debug_Module ||
-	     WILL_FIRE_RL_rl_reset_from_WFI ;
+	     WILL_FIRE_RL_rl_reset_from_WFI ||
+	     WILL_FIRE_RL_rl_reset_from_Debug_Module ;
   assign MUX_rg_state$write_1__SEL_9 =
 	     WILL_FIRE_RL_rl_stage1_interrupt ||
-	     WILL_FIRE_RL_rl_stage1_trap ||
-	     WILL_FIRE_RL_rl_stage2_nonpipe ;
+	     WILL_FIRE_RL_rl_stage2_nonpipe ||
+	     WILL_FIRE_RL_rl_stage1_trap ;
   assign MUX_rg_state$write_1__SEL_10 =
-	     WILL_FIRE_RL_rl_stage1_xRET || WILL_FIRE_RL_rl_trap ;
+	     WILL_FIRE_RL_rl_trap || WILL_FIRE_RL_rl_stage1_xRET ;
   assign MUX_rg_step_count$write_1__PSEL_1 =
 	     WILL_FIRE_RL_rl_finish_FENCE || WILL_FIRE_RL_rl_finish_FENCE_I ||
 	     WILL_FIRE_RL_rl_stage1_restart_after_csrrx ||
@@ -3167,10 +3175,10 @@ module mkCPU(CLK,
 	     WILL_FIRE_RL_rl_stage1_CSRR_W ||
 	     WILL_FIRE_RL_rl_stage1_trap ;
   assign MUX_rg_trap_interrupt$write_1__SEL_1 =
+	     WILL_FIRE_RL_rl_stage2_nonpipe ||
 	     WILL_FIRE_RL_rl_stage1_CSRR_S_or_C ||
 	     WILL_FIRE_RL_rl_stage1_CSRR_W ||
-	     WILL_FIRE_RL_rl_stage1_trap ||
-	     WILL_FIRE_RL_rl_stage2_nonpipe ;
+	     WILL_FIRE_RL_rl_stage1_trap ;
   always@(rg_trap_instr or
 	  csr_regfile$read_csr or
 	  y__h20811 or
@@ -3248,7 +3256,7 @@ module mkCPU(CLK,
 	       set_verbosity_verbosity :
 	       debug_hart_put_other_req_put ;
   assign cfg_verbosity$EN =
-	     EN_set_verbosity || EN_debug_hart_put_other_req_put ;
+	     EN_debug_hart_put_other_req_put || EN_set_verbosity ;
 
   // register imem_c_rg_cache_addr
   assign imem_c_rg_cache_addr$D_IN = near_mem$imem_pc ;
@@ -3445,8 +3453,8 @@ module mkCPU(CLK,
     endcase
   end
   assign rg_next_pc$EN =
-	     WILL_FIRE_RL_rl_stage1_WFI || WILL_FIRE_RL_rl_stage1_FENCE ||
-	     WILL_FIRE_RL_rl_stage1_FENCE_I ||
+	     WILL_FIRE_RL_rl_stage1_FENCE || WILL_FIRE_RL_rl_stage1_FENCE_I ||
+	     WILL_FIRE_RL_rl_stage1_WFI ||
 	     WILL_FIRE_RL_rl_stage1_CSRR_S_or_C ||
 	     WILL_FIRE_RL_rl_stage1_CSRR_W ||
 	     WILL_FIRE_RL_rl_trap ||
@@ -3517,8 +3525,8 @@ module mkCPU(CLK,
 	     WILL_FIRE_RL_rl_reset_complete ||
 	     WILL_FIRE_RL_rl_stage1_CSRR_W_2 ||
 	     WILL_FIRE_RL_rl_stage1_CSRR_S_or_C_2 ||
-	     WILL_FIRE_RL_rl_reset_from_Debug_Module ||
 	     WILL_FIRE_RL_rl_reset_from_WFI ||
+	     WILL_FIRE_RL_rl_reset_from_Debug_Module ||
 	     WILL_FIRE_RL_rl_reset_start ||
 	     WILL_FIRE_RL_rl_stage1_stop ||
 	     WILL_FIRE_RL_rl_trap_BREAK_to_Debug_Mode ||
@@ -3530,10 +3538,10 @@ module mkCPU(CLK,
 	     WILL_FIRE_RL_rl_finish_FENCE_I ||
 	     WILL_FIRE_RL_rl_stage1_restart_after_csrrx ||
 	     WILL_FIRE_RL_rl_stage1_interrupt ||
-	     WILL_FIRE_RL_rl_stage1_trap ||
 	     WILL_FIRE_RL_rl_stage2_nonpipe ||
-	     WILL_FIRE_RL_rl_stage1_xRET ||
+	     WILL_FIRE_RL_rl_stage1_trap ||
 	     WILL_FIRE_RL_rl_trap ||
+	     WILL_FIRE_RL_rl_stage1_xRET ||
 	     WILL_FIRE_RL_rl_stage1_CSRR_W ||
 	     WILL_FIRE_RL_rl_stage1_CSRR_S_or_C ||
 	     WILL_FIRE_RL_rl_stage1_FENCE_I ||
@@ -3602,10 +3610,10 @@ module mkCPU(CLK,
   // register rg_trap_interrupt
   assign rg_trap_interrupt$D_IN = !MUX_rg_trap_interrupt$write_1__SEL_1 ;
   assign rg_trap_interrupt$EN =
+	     WILL_FIRE_RL_rl_stage2_nonpipe ||
 	     WILL_FIRE_RL_rl_stage1_CSRR_S_or_C ||
 	     WILL_FIRE_RL_rl_stage1_CSRR_W ||
 	     WILL_FIRE_RL_rl_stage1_trap ||
-	     WILL_FIRE_RL_rl_stage2_nonpipe ||
 	     WILL_FIRE_RL_rl_stage1_interrupt ;
 
   // register stage1_rg_full
@@ -3640,10 +3648,10 @@ module mkCPU(CLK,
   assign stage1_rg_full$EN =
 	     WILL_FIRE_RL_rl_reset_complete && rg_run_on_reset ||
 	     WILL_FIRE_RL_rl_pipe ||
+	     WILL_FIRE_RL_stage1_rl_reset ||
+	     WILL_FIRE_RL_rl_trap ||
 	     WILL_FIRE_RL_rl_stage1_WFI ||
 	     WILL_FIRE_RL_rl_stage1_xRET ||
-	     WILL_FIRE_RL_rl_trap ||
-	     WILL_FIRE_RL_stage1_rl_reset ||
 	     WILL_FIRE_RL_rl_debug_run ||
 	     WILL_FIRE_RL_rl_trap_fetch ||
 	     WILL_FIRE_RL_rl_WFI_resume ||
@@ -3670,8 +3678,8 @@ module mkCPU(CLK,
 	     WILL_FIRE_RL_rl_reset_complete && rg_run_on_reset ||
 	     WILL_FIRE_RL_rl_pipe ||
 	     WILL_FIRE_RL_rl_debug_run ||
-	     WILL_FIRE_RL_rl_trap ||
-	     stage2_f_reset_reqs$EMPTY_N ;
+	     stage2_f_reset_reqs$EMPTY_N ||
+	     WILL_FIRE_RL_rl_trap ;
 
   // register stage2_rg_resetting
   assign stage2_rg_resetting$D_IN = stage2_f_reset_reqs$EMPTY_N ;
@@ -3826,8 +3834,8 @@ module mkCPU(CLK,
 	     csr_regfile$access_permitted_2 &&
 	     rg_trap_instr[19:15] != 5'd0 ||
 	     WILL_FIRE_RL_rl_debug_write_csr ;
-  assign csr_regfile$EN_csr_trap_actions = CAN_FIRE_RL_rl_trap ;
-  assign csr_regfile$EN_csr_ret_actions = CAN_FIRE_RL_rl_stage1_xRET ;
+  assign csr_regfile$EN_csr_trap_actions = WILL_FIRE_RL_rl_trap ;
+  assign csr_regfile$EN_csr_ret_actions = WILL_FIRE_RL_rl_stage1_xRET ;
   assign csr_regfile$EN_csr_minstret_incr =
 	     WILL_FIRE_RL_rl_pipe &&
 	     IF_stage2_rg_full_2_THEN_IF_stage2_rg_stage2_3_ETC___d123 ==
@@ -3836,9 +3844,9 @@ module mkCPU(CLK,
 	     csr_regfile$access_permitted_1 ||
 	     WILL_FIRE_RL_rl_stage1_CSRR_S_or_C_2 &&
 	     csr_regfile$access_permitted_2 ||
-	     WILL_FIRE_RL_rl_stage1_WFI ||
 	     WILL_FIRE_RL_rl_stage1_FENCE ||
 	     WILL_FIRE_RL_rl_stage1_FENCE_I ||
+	     WILL_FIRE_RL_rl_stage1_WFI ||
 	     WILL_FIRE_RL_rl_stage1_xRET ;
   assign csr_regfile$EN_write_dpc =
 	     WILL_FIRE_RL_rl_reset_complete && !rg_run_on_reset ||
@@ -3911,15 +3919,15 @@ module mkCPU(CLK,
   // submodule f_reset_reqs
   assign f_reset_reqs$D_IN = debug_hart_reset_server_request_put ;
   assign f_reset_reqs$ENQ = EN_debug_hart_reset_server_request_put ;
-  assign f_reset_reqs$DEQ =
-	     gpr_regfile_RDY_server_reset_request_put__050__ETC___d1062 &&
-	     rg_state == 4'd0 &&
-	     !isInReset_isInReset ;
+  assign f_reset_reqs$DEQ = CAN_FIRE_RL_rl_reset_start ;
   assign f_reset_reqs$CLR = 1'b0 ;
 
   // submodule f_reset_rsps
   assign f_reset_rsps$D_IN = rg_run_on_reset ;
-  assign f_reset_rsps$ENQ = MUX_rg_state$write_1__SEL_1 ;
+  assign f_reset_rsps$ENQ =
+	     CAN_FIRE_RL_rl_reset_complete &&
+	     !WILL_FIRE_RL_imem_c_rl_fetch_next_32b &&
+	     !WILL_FIRE_RL_rl_reset_from_Debug_Module ;
   assign f_reset_rsps$DEQ = EN_debug_hart_reset_server_response_get ;
   assign f_reset_rsps$CLR = 1'b0 ;
 

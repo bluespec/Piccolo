@@ -64,6 +64,7 @@ module BRAM2BELoad(CLKA,
    input [DATA_WIDTH-1:0]         DIB;
    output [DATA_WIDTH-1:0]        DOB;
 
+   (* RAM_STYLE = "BLOCK" *)
    reg [DATA_WIDTH-1:0]           RAM[0:MEMSIZE-1] /* synthesis syn_ramstyle="no_rw_check" */ ;
    reg [DATA_WIDTH-1:0]           DOA_R;
    reg [DATA_WIDTH-1:0]           DOA_R2;
@@ -90,7 +91,7 @@ module BRAM2BELoad(CLKA,
       else
         $readmemh(FILENAME, RAM, 0, MEMSIZE-1);
    end
-   
+
    // PORT A
 
    // iverilog does not support the full verilog-2001 language.  This fixes that for simulation.

@@ -1383,6 +1383,14 @@ module mkCPU (CPU_IFC);
    // ----------------
    // Reset from Debug Module
 
+   (* descending_urgency = "rl_reset_from_Debug_Module, rl_stage1_trap" *)
+   (* descending_urgency = "rl_reset_from_Debug_Module, rl_stage1_CSRR_W" *)
+   (* descending_urgency = "rl_reset_from_Debug_Module, rl_stage1_CSRR_W_2" *)
+   (* descending_urgency = "rl_reset_from_Debug_Module, rl_stage1_CSRR_S_or_C" *)
+   (* descending_urgency = "rl_reset_from_Debug_Module, rl_stage1_xRET" *)
+   (* descending_urgency = "rl_reset_from_Debug_Module, rl_stage1_WFI" *)
+   (* descending_urgency = "rl_reset_from_Debug_Module, rl_stage1_trap" *)
+   (* descending_urgency = "rl_reset_from_Debug_Module, rl_trap" *)
    rule rl_reset_from_Debug_Module (f_reset_reqs.notEmpty && (rg_state != CPU_RESET1));
       $display ("%0d: %m.rl_reset_from_Debug_Module", mcycle);
       rg_state <= CPU_RESET1;

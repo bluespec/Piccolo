@@ -58,9 +58,9 @@ typedef 4  Num_Slaves;
 `else
 // Dual fabric, no gdb, no tcm loader, tcm assumed
 
-// 2x4 Fabric for the Core
-// Masters: CPU DMem, Debug Module System Bus Access
-// Slaves: PLIC, Near_Mem_IO, IMem, DMem
+// 1x2 Fabric for the Core
+// Masters: CPU DMem
+// Slaves: PLIC, Near_Mem_IO
 typedef 1  Num_Masters;
 typedef 2  Num_Slaves;
 
@@ -84,18 +84,29 @@ typedef 5  Num_Slaves;
 
 // 2x5 Fabric for the Core
 // Masters: CPU DMem, Debug Module System Bus Access
-// Slaves: PLIC, Near_Mem_IO, IMem, DMem
+// Slaves: PLIC, Near_Mem_IO, Interconnect, IMem, DMem
+typedef 2  Num_Masters;
+typedef 5  Num_Slaves;
+
+`endif
+`else
+// No dual fabric, no gdb
+`ifdef TCM_LOADER
+
+// 2x5 Fabric for the Core
+// Masters: CPU DMem, TCM Loader
+// Slaves: PLIC, Near_Mem_IO, Interconnect, IMem, DMem
 typedef 2  Num_Masters;
 typedef 5  Num_Slaves;
 
 `else
 // No dual fabric, tcm, no gdb, no tcm loader
 
-// 2x4 Fabric for the Core
-// Masters: CPU DMem, Debug Module System Bus Access
-// Slaves: PLIC, Near_Mem_IO, IMem, DMem
+// 1x3 Fabric for the Core
+// Masters: CPU DMem
+// Slaves: PLIC, Near_Mem_IO, Interconnect
 typedef 1  Num_Masters;
-typedef 2  Num_Slaves;
+typedef 3  Num_Slaves;
 
 `endif
 `endif
@@ -104,21 +115,21 @@ typedef 2  Num_Slaves;
 `ifdef INCLUDE_GDB_CONTROL
 // No dual fabric, no tcm, gdb
 
-// 2x5 Fabric for the Core
+// 2x3 Fabric for the Core
 // Masters: CPU DMem, Debug Module System Bus Access
-// Slaves: PLIC, Near_Mem_IO, IMem, DMem
+// Slaves: PLIC, Near_Mem_IO, Interconnect
 typedef 2  Num_Masters;
-typedef 5  Num_Slaves;
+typedef 3  Num_Slaves;
 
 `else
 // No dual fabric, no gdb
 // No dual fabric, no tcm, no gdb
 
-// 2x4 Fabric for the Core
-// Masters: CPU DMem, Debug Module System Bus Access
-// Slaves: PLIC, Near_Mem_IO, IMem, DMem
+// 1x3 Fabric for the Core
+// Masters: CPU DMem
+// Slaves: PLIC, Near_Mem_IO, Interconnect
 typedef 1  Num_Masters;
-typedef 2  Num_Slaves;
+typedef 3  Num_Slaves;
 
 `endif
 `endif
@@ -176,9 +187,9 @@ Slave_Num  dmem_dma_slave_num    = 3;
 `else
 // Dual fabric, no gdb, no tcm loader, tcm assumed
 
-// 2x4 Fabric for the Core
-// Masters: CPU DMem, Debug Module System Bus Access
-// Slaves: PLIC, Near_Mem_IO, IMem, DMem
+// 1x2 Fabric for the Core
+// Masters: CPU DMem
+// Slaves: PLIC, Near_Mem_IO
 Master_Num  cpu_dmem_master_num         = 0;
 Slave_Num  plic_slave_num        = 0;
 Slave_Num  clint_slave_num       = 1;
@@ -209,7 +220,7 @@ Slave_Num  dmem_dma_slave_num    = 4;
 
 // 2x5 Fabric for the Core
 // Masters: CPU DMem, Debug Module System Bus Access
-// Slaves: PLIC, Near_Mem_IO, IMem, DMem
+// Slaves: PLIC, Near_Mem_IO, Interconnect, IMem, DMem
 Master_Num  cpu_dmem_master_num         = 0;
 Master_Num  debug_module_sba_master_num = 1;
 Slave_Num  plic_slave_num        = 0;
@@ -225,7 +236,7 @@ Slave_Num  dmem_dma_slave_num    = 4;
 
 // 2x5 Fabric for the Core
 // Masters: CPU DMem, TCM Loader
-// Slaves: PLIC, Near_Mem_IO, IMem, DMem
+// Slaves: PLIC, Near_Mem_IO, Interconnect, IMem, DMem
 Master_Num  cpu_dmem_master_num         = 0;
 Master_Num  loader_master_num           = 1;
 Slave_Num  plic_slave_num        = 0;
@@ -237,9 +248,9 @@ Slave_Num  dmem_dma_slave_num    = 4;
 `else
 // No dual fabric, tcm, no gdb, no tcm loader
 
-// 2x4 Fabric for the Core
-// Masters: CPU DMem, Debug Module System Bus Access
-// Slaves: PLIC, Near_Mem_IO, IMem, DMem
+// 1x3 Fabric for the Core
+// Masters: CPU DMem
+// Slaves: PLIC, Near_Mem_IO, Interconnect
 Master_Num  cpu_dmem_master_num         = 0;
 Slave_Num  plic_slave_num        = 0;
 Slave_Num  clint_slave_num       = 1;
@@ -252,24 +263,22 @@ Slave_Num  default_slave_num     = 2; // for interconnect
 `ifdef INCLUDE_GDB_CONTROL
 // No dual fabric, no tcm, gdb
 
-// 2x5 Fabric for the Core
+// 2x3 Fabric for the Core
 // Masters: CPU DMem, Debug Module System Bus Access
-// Slaves: PLIC, Near_Mem_IO, IMem, DMem
+// Slaves: PLIC, Near_Mem_IO, Interconnect
 Master_Num  cpu_dmem_master_num         = 0;
 Master_Num  debug_module_sba_master_num = 1;
 Slave_Num  plic_slave_num        = 0;
 Slave_Num  clint_slave_num       = 1;
 Slave_Num  default_slave_num     = 2; // for interconnect
-Slave_Num  imem_dma_slave_num    = 3;
-Slave_Num  dmem_dma_slave_num    = 4;
 
 `else
 // No dual fabric, no gdb
 // No dual fabric, no tcm, no gdb
 
-// 2x4 Fabric for the Core
-// Masters: CPU DMem, Debug Module System Bus Access
-// Slaves: PLIC, Near_Mem_IO, IMem, DMem
+// 1x3 Fabric for the Core
+// Masters: CPU DMem
+// Slaves: PLIC, Near_Mem_IO, Interconnect
 Master_Num  cpu_dmem_master_num         = 0;
 Slave_Num  plic_slave_num        = 0;
 Slave_Num  clint_slave_num       = 1;

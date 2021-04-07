@@ -387,7 +387,7 @@ module mkITCM(verbosity,
 
   // ports of submodule itcm
   wire [63 : 0] itcm$DIA, itcm$DIB, itcm$DOA, itcm$DOB;
-  wire [31 : 0] itcm$ADDRA, itcm$ADDRB;
+  wire [12 : 0] itcm$ADDRA, itcm$ADDRB;
   wire [7 : 0] itcm$WEA, itcm$WEB;
   wire itcm$ENA, itcm$ENB;
 
@@ -436,42 +436,41 @@ module mkITCM(verbosity,
   wire [63 : 0] MUX_itcm$b_put_3__VAL_1;
   wire [38 : 0] MUX_dma_port_slave_xactor_f_rd_data$enq_1__VAL_1,
 		MUX_dma_port_slave_xactor_f_rd_data$enq_1__VAL_2;
-  wire [31 : 0] MUX_itcm$b_put_2__VAL_1, MUX_itcm$b_put_2__VAL_2;
   wire [7 : 0] MUX_itcm$b_put_1__VAL_1;
   wire [5 : 0] MUX_dma_port_slave_xactor_f_wr_resp$enq_1__VAL_1,
 	       MUX_dma_port_slave_xactor_f_wr_resp$enq_1__VAL_2;
 
   // declarations used by system tasks
   // synopsys translate_off
-  reg [31 : 0] v__h3481;
-  reg [31 : 0] v__h3832;
-  reg [31 : 0] v__h2025;
-  reg [31 : 0] v__h2326;
-  reg [31 : 0] v__h2605;
-  reg [31 : 0] v__h2150;
-  reg [31 : 0] v__h2917;
-  reg [31 : 0] v__h4555;
-  reg [31 : 0] v__h4613;
-  reg [31 : 0] v__h2144;
-  reg [31 : 0] v__h2599;
-  reg [31 : 0] v__h2019;
-  reg [31 : 0] v__h2320;
-  reg [31 : 0] v__h2911;
-  reg [31 : 0] v__h3475;
-  reg [31 : 0] v__h3826;
-  reg [31 : 0] v__h4549;
-  reg [31 : 0] v__h4607;
+  reg [31 : 0] v__h3498;
+  reg [31 : 0] v__h3851;
+  reg [31 : 0] v__h2030;
+  reg [31 : 0] v__h2339;
+  reg [31 : 0] v__h2618;
+  reg [31 : 0] v__h2163;
+  reg [31 : 0] v__h2934;
+  reg [31 : 0] v__h4577;
+  reg [31 : 0] v__h4635;
+  reg [31 : 0] v__h2024;
+  reg [31 : 0] v__h2157;
+  reg [31 : 0] v__h2333;
+  reg [31 : 0] v__h2612;
+  reg [31 : 0] v__h2928;
+  reg [31 : 0] v__h3492;
+  reg [31 : 0] v__h3845;
+  reg [31 : 0] v__h4571;
+  reg [31 : 0] v__h4629;
   // synopsys translate_on
 
   // remaining internal signals
   wire [31 : 0] dma_port_slave_xactor_f_rd_addrD_OUT_BITS_60__ETC__q2,
 		dma_port_slave_xactor_f_wr_addrD_OUT_BITS_60__ETC__q1,
-		instr__h3434,
+		instr__h3451,
 		w_imem_reqwget_BITS_34_TO_3_MINUS_soc_mapm_i_ETC__q3,
-		word__h2185;
-  wire [7 : 0] strb__h2816;
-  wire NOT_verbosity_ULE_1_9___d30,
-       NOT_w_imem_req_wget__09_BITS_1_TO_0_11_EQ_0b0__ETC___d132;
+		word__h2198;
+  wire [7 : 0] strb__h2829;
+  wire NOT_verbosity_ULE_1_8___d29,
+       NOT_w_imem_req_wget__07_BITS_1_TO_0_09_EQ_0b0__ETC___d130;
 
   // action method reset
   assign RDY_reset = 1'd1 ;
@@ -686,11 +685,11 @@ module mkITCM(verbosity,
   // submodule itcm
   BRAM2BELoad #(.FILENAME("/tmp/e342zni.hex"),
 		.PIPELINED(1'd0),
-		.ADDR_WIDTH(32'd32),
+		.ADDR_WIDTH(32'd13),
 		.DATA_WIDTH(32'd64),
 		.CHUNKSIZE(32'd8),
 		.WE_WIDTH(32'd8),
-		.MEMSIZE(33'd8192),
+		.MEMSIZE(14'd8192),
 		.BINARY(1'd0)) itcm(.CLKA(CLK),
 				    .CLKB(CLK),
 				    .ADDRA(itcm$ADDRA),
@@ -810,7 +809,7 @@ module mkITCM(verbosity,
 	     { dma_port_slave_xactor_f_rd_addr$D_OUT[64:29], 3'd5 } ;
   assign MUX_dma_port_slave_xactor_f_rd_data$enq_1__VAL_2 =
 	     { dma_port_slave_xactor_f_rd_addr$D_OUT[64:61],
-	       word__h2185,
+	       word__h2198,
 	       3'd1 } ;
   assign MUX_dma_port_slave_xactor_f_wr_resp$enq_1__VAL_1 =
 	     { dma_port_slave_xactor_f_wr_addr$D_OUT[64:61], 2'd2 } ;
@@ -818,14 +817,8 @@ module mkITCM(verbosity,
 	     { dma_port_slave_xactor_f_wr_addr$D_OUT[64:61], 2'd0 } ;
   assign MUX_itcm$b_put_1__VAL_1 =
 	     (dma_port_slave_xactor_f_wr_addr$D_OUT[31:29] == 3'd0) ?
-	       strb__h2816 :
+	       strb__h2829 :
 	       { dma_port_slave_xactor_f_wr_data$D_OUT[4:1], 4'd0 } ;
-  assign MUX_itcm$b_put_2__VAL_1 =
-	     { 3'd0,
-	       dma_port_slave_xactor_f_wr_addrD_OUT_BITS_60__ETC__q1[31:3] } ;
-  assign MUX_itcm$b_put_2__VAL_2 =
-	     { 3'd0,
-	       dma_port_slave_xactor_f_rd_addrD_OUT_BITS_60__ETC__q2[31:3] } ;
   assign MUX_itcm$b_put_3__VAL_1 =
 	     {2{dma_port_slave_xactor_f_wr_data$D_OUT[36:5]}} ;
 
@@ -847,18 +840,18 @@ module mkITCM(verbosity,
 
   // register rg_exc
   assign rg_exc$D_IN =
-	     NOT_w_imem_req_wget__09_BITS_1_TO_0_11_EQ_0b0__ETC___d132 ||
+	     NOT_w_imem_req_wget__07_BITS_1_TO_0_09_EQ_0b0__ETC___d130 ||
 	     !soc_map$m_is_itcm_addr ;
   assign rg_exc$EN = EN_imem_req ;
 
   // register rg_exc_code
   assign rg_exc_code$D_IN =
-	     NOT_w_imem_req_wget__09_BITS_1_TO_0_11_EQ_0b0__ETC___d132 ?
+	     NOT_w_imem_req_wget__07_BITS_1_TO_0_09_EQ_0b0__ETC___d130 ?
 	       4'd0 :
 	       4'd1 ;
   assign rg_exc_code$EN =
 	     EN_imem_req &&
-	     (NOT_w_imem_req_wget__09_BITS_1_TO_0_11_EQ_0b0__ETC___d132 ||
+	     (NOT_w_imem_req_wget__07_BITS_1_TO_0_09_EQ_0b0__ETC___d130 ||
 	      !soc_map$m_is_itcm_addr) ;
 
   // register rg_imem_req
@@ -976,12 +969,11 @@ module mkITCM(verbosity,
 
   // submodule itcm
   assign itcm$ADDRA =
-	     { 3'd0,
-	       w_imem_reqwget_BITS_34_TO_3_MINUS_soc_mapm_i_ETC__q3[31:3] } ;
+	     w_imem_reqwget_BITS_34_TO_3_MINUS_soc_mapm_i_ETC__q3[15:3] ;
   assign itcm$ADDRB =
 	     WILL_FIRE_RL_dma_port_rl_wr_req ?
-	       MUX_itcm$b_put_2__VAL_1 :
-	       MUX_itcm$b_put_2__VAL_2 ;
+	       dma_port_slave_xactor_f_wr_addrD_OUT_BITS_60__ETC__q1[15:3] :
+	       dma_port_slave_xactor_f_rd_addrD_OUT_BITS_60__ETC__q2[15:3] ;
   assign itcm$DIA = 64'hAAAAAAAAAAAAAAAA /* unspecified value */  ;
   assign itcm$DIB =
 	     WILL_FIRE_RL_dma_port_rl_wr_req ?
@@ -1014,8 +1006,8 @@ module mkITCM(verbosity,
   assign soc_map$m_is_tcm_addr_addr = 32'h0 ;
 
   // remaining internal signals
-  assign NOT_verbosity_ULE_1_9___d30 = verbosity > 2'd1 ;
-  assign NOT_w_imem_req_wget__09_BITS_1_TO_0_11_EQ_0b0__ETC___d132 =
+  assign NOT_verbosity_ULE_1_8___d29 = verbosity > 2'd1 ;
+  assign NOT_w_imem_req_wget__07_BITS_1_TO_0_09_EQ_0b0__ETC___d130 =
 	     w_imem_req$wget[1:0] != 2'b0 &&
 	     (w_imem_req$wget[1:0] != 2'b01 || w_imem_req$wget[3]) &&
 	     (w_imem_req$wget[1:0] != 2'b10 ||
@@ -1027,11 +1019,11 @@ module mkITCM(verbosity,
   assign dma_port_slave_xactor_f_wr_addrD_OUT_BITS_60__ETC__q1 =
 	     dma_port_slave_xactor_f_wr_addr$D_OUT[60:29] -
 	     dma_port_soc_map$m_itcm_addr_base ;
-  assign instr__h3434 = imem_instr ;
-  assign strb__h2816 = { 4'd0, dma_port_slave_xactor_f_wr_data$D_OUT[4:1] } ;
+  assign instr__h3451 = imem_instr ;
+  assign strb__h2829 = { 4'd0, dma_port_slave_xactor_f_wr_data$D_OUT[4:1] } ;
   assign w_imem_reqwget_BITS_34_TO_3_MINUS_soc_mapm_i_ETC__q3 =
 	     w_imem_req$wget[34:3] - soc_map$m_itcm_addr_base ;
-  assign word__h2185 =
+  assign word__h2198 =
 	     (dma_port_slave_xactor_f_rd_addr$D_OUT[31:29] == 3'd0) ?
 	       itcm$DOB[31:0] :
 	       itcm$DOB[63:32] ;
@@ -1089,63 +1081,63 @@ module mkITCM(verbosity,
     if (RST_N != `BSV_RESET_VALUE)
       if (WILL_FIRE_RL_rl_tcm_rsp && verbosity != 2'd0)
 	begin
-	  v__h3481 = $stime;
+	  v__h3498 = $stime;
 	  #0;
 	end
-    v__h3475 = v__h3481 / 32'd10;
+    v__h3492 = v__h3498 / 32'd10;
     if (RST_N != `BSV_RESET_VALUE)
       if (WILL_FIRE_RL_rl_tcm_rsp && verbosity != 2'd0)
 	$display("%0d: %m.rl_tcm_rsp: pc %08h data %08h",
-		 v__h3475,
+		 v__h3492,
 		 rg_imem_req[34:3],
-		 instr__h3434);
+		 instr__h3451);
     if (RST_N != `BSV_RESET_VALUE)
-      if (EN_imem_req && NOT_verbosity_ULE_1_9___d30)
+      if (EN_imem_req && NOT_verbosity_ULE_1_8___d29)
 	begin
-	  v__h3832 = $stime;
+	  v__h3851 = $stime;
 	  #0;
 	end
-    v__h3826 = v__h3832 / 32'd10;
+    v__h3845 = v__h3851 / 32'd10;
     if (RST_N != `BSV_RESET_VALUE)
-      if (EN_imem_req && NOT_verbosity_ULE_1_9___d30)
+      if (EN_imem_req && NOT_verbosity_ULE_1_8___d29)
 	$display("%0d: %m.rl_req: pc 0x%08h",
-		 v__h3826,
+		 v__h3845,
 		 w_imem_req$wget[34:3]);
     if (RST_N != `BSV_RESET_VALUE)
       if (WILL_FIRE_RL_dma_port_rl_bad_rd_addr && verbosity != 2'd0)
 	begin
-	  v__h2025 = $stime;
+	  v__h2030 = $stime;
 	  #0;
 	end
-    v__h2019 = v__h2025 / 32'd10;
+    v__h2024 = v__h2030 / 32'd10;
     if (RST_N != `BSV_RESET_VALUE)
       if (WILL_FIRE_RL_dma_port_rl_bad_rd_addr && verbosity != 2'd0)
 	$display("%0d: %m.rl_bad_rd_addr 0x%0h",
-		 v__h2019,
+		 v__h2024,
 		 dma_port_slave_xactor_f_rd_addr$D_OUT[60:29]);
     if (RST_N != `BSV_RESET_VALUE)
-      if (WILL_FIRE_RL_dma_port_rl_rd_rsp && NOT_verbosity_ULE_1_9___d30)
+      if (WILL_FIRE_RL_dma_port_rl_rd_rsp && NOT_verbosity_ULE_1_8___d29)
 	begin
-	  v__h2326 = $stime;
+	  v__h2339 = $stime;
 	  #0;
 	end
-    v__h2320 = v__h2326 / 32'd10;
+    v__h2333 = v__h2339 / 32'd10;
     if (RST_N != `BSV_RESET_VALUE)
-      if (WILL_FIRE_RL_dma_port_rl_rd_rsp && NOT_verbosity_ULE_1_9___d30)
+      if (WILL_FIRE_RL_dma_port_rl_rd_rsp && NOT_verbosity_ULE_1_8___d29)
 	$display("%0d: %m.rl_rd_rsp: addr 0x%0h => data 0x%0h",
-		 v__h2320,
+		 v__h2333,
 		 dma_port_slave_xactor_f_rd_addr$D_OUT[60:29],
-		 word__h2185);
+		 word__h2198);
     if (RST_N != `BSV_RESET_VALUE)
       if (WILL_FIRE_RL_dma_port_rl_bad_wr_addr && verbosity != 2'd0)
 	begin
-	  v__h2605 = $stime;
+	  v__h2618 = $stime;
 	  #0;
 	end
-    v__h2599 = v__h2605 / 32'd10;
+    v__h2612 = v__h2618 / 32'd10;
     if (RST_N != `BSV_RESET_VALUE)
       if (WILL_FIRE_RL_dma_port_rl_bad_wr_addr && verbosity != 2'd0)
-	$display("%0d: %m.rl_bad_wr_addr", v__h2599);
+	$display("%0d: %m.rl_bad_wr_addr", v__h2612);
     if (RST_N != `BSV_RESET_VALUE)
       if (WILL_FIRE_RL_dma_port_rl_bad_wr_addr && verbosity != 2'd0)
 	$write("    ");
@@ -1278,154 +1270,154 @@ module mkITCM(verbosity,
       if (WILL_FIRE_RL_dma_port_rl_bad_wr_addr && verbosity != 2'd0)
 	$write("\n");
     if (RST_N != `BSV_RESET_VALUE)
-      if (WILL_FIRE_RL_dma_port_rl_rd_req && NOT_verbosity_ULE_1_9___d30)
+      if (WILL_FIRE_RL_dma_port_rl_rd_req && NOT_verbosity_ULE_1_8___d29)
 	begin
-	  v__h2150 = $stime;
+	  v__h2163 = $stime;
 	  #0;
 	end
-    v__h2144 = v__h2150 / 32'd10;
+    v__h2157 = v__h2163 / 32'd10;
     if (RST_N != `BSV_RESET_VALUE)
-      if (WILL_FIRE_RL_dma_port_rl_rd_req && NOT_verbosity_ULE_1_9___d30)
+      if (WILL_FIRE_RL_dma_port_rl_rd_req && NOT_verbosity_ULE_1_8___d29)
 	$display("%0d: %m.rl_rd_req: addr 0x%0h",
-		 v__h2144,
+		 v__h2157,
 		 dma_port_slave_xactor_f_rd_addr$D_OUT[60:29]);
     if (RST_N != `BSV_RESET_VALUE)
-      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_9___d30)
+      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_8___d29)
 	begin
-	  v__h2917 = $stime;
+	  v__h2934 = $stime;
 	  #0;
 	end
-    v__h2911 = v__h2917 / 32'd10;
+    v__h2928 = v__h2934 / 32'd10;
     if (RST_N != `BSV_RESET_VALUE)
-      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_9___d30)
-	$display("%0d: %m.rl_wr_req", v__h2911);
+      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_8___d29)
+	$display("%0d: %m.rl_wr_req", v__h2928);
     if (RST_N != `BSV_RESET_VALUE)
-      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_9___d30)
+      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_8___d29)
 	$write("    ");
     if (RST_N != `BSV_RESET_VALUE)
-      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_9___d30)
+      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_8___d29)
 	$write("AXI4_Wr_Addr { ", "awid: ");
     if (RST_N != `BSV_RESET_VALUE)
-      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_9___d30)
+      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_8___d29)
 	$write("'h%h", dma_port_slave_xactor_f_wr_addr$D_OUT[64:61]);
     if (RST_N != `BSV_RESET_VALUE)
-      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_9___d30)
+      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_8___d29)
 	$write(", ", "awaddr: ");
     if (RST_N != `BSV_RESET_VALUE)
-      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_9___d30)
+      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_8___d29)
 	$write("'h%h", dma_port_slave_xactor_f_wr_addr$D_OUT[60:29]);
     if (RST_N != `BSV_RESET_VALUE)
-      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_9___d30)
+      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_8___d29)
 	$write(", ", "awlen: ");
     if (RST_N != `BSV_RESET_VALUE)
-      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_9___d30)
+      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_8___d29)
 	$write("'h%h", dma_port_slave_xactor_f_wr_addr$D_OUT[28:21]);
     if (RST_N != `BSV_RESET_VALUE)
-      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_9___d30)
+      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_8___d29)
 	$write(", ", "awsize: ");
     if (RST_N != `BSV_RESET_VALUE)
-      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_9___d30)
+      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_8___d29)
 	$write("'h%h", dma_port_slave_xactor_f_wr_addr$D_OUT[20:18]);
     if (RST_N != `BSV_RESET_VALUE)
-      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_9___d30)
+      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_8___d29)
 	$write(", ", "awburst: ");
     if (RST_N != `BSV_RESET_VALUE)
-      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_9___d30)
+      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_8___d29)
 	$write("'h%h", dma_port_slave_xactor_f_wr_addr$D_OUT[17:16]);
     if (RST_N != `BSV_RESET_VALUE)
-      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_9___d30)
+      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_8___d29)
 	$write(", ", "awlock: ");
     if (RST_N != `BSV_RESET_VALUE)
-      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_9___d30)
+      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_8___d29)
 	$write("'h%h", dma_port_slave_xactor_f_wr_addr$D_OUT[15]);
     if (RST_N != `BSV_RESET_VALUE)
-      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_9___d30)
+      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_8___d29)
 	$write(", ", "awcache: ");
     if (RST_N != `BSV_RESET_VALUE)
-      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_9___d30)
+      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_8___d29)
 	$write("'h%h", dma_port_slave_xactor_f_wr_addr$D_OUT[14:11]);
     if (RST_N != `BSV_RESET_VALUE)
-      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_9___d30)
+      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_8___d29)
 	$write(", ", "awprot: ");
     if (RST_N != `BSV_RESET_VALUE)
-      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_9___d30)
+      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_8___d29)
 	$write("'h%h", dma_port_slave_xactor_f_wr_addr$D_OUT[10:8]);
     if (RST_N != `BSV_RESET_VALUE)
-      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_9___d30)
+      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_8___d29)
 	$write(", ", "awqos: ");
     if (RST_N != `BSV_RESET_VALUE)
-      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_9___d30)
+      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_8___d29)
 	$write("'h%h", dma_port_slave_xactor_f_wr_addr$D_OUT[7:4]);
     if (RST_N != `BSV_RESET_VALUE)
-      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_9___d30)
+      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_8___d29)
 	$write(", ", "awregion: ");
     if (RST_N != `BSV_RESET_VALUE)
-      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_9___d30)
+      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_8___d29)
 	$write("'h%h", dma_port_slave_xactor_f_wr_addr$D_OUT[3:0]);
     if (RST_N != `BSV_RESET_VALUE)
-      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_9___d30)
+      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_8___d29)
 	$write(", ", "awuser: ");
     if (RST_N != `BSV_RESET_VALUE)
-      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_9___d30)
+      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_8___d29)
 	$write("'h%h", 1'd0, " }");
     if (RST_N != `BSV_RESET_VALUE)
-      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_9___d30)
+      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_8___d29)
 	$write("\n");
     if (RST_N != `BSV_RESET_VALUE)
-      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_9___d30)
+      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_8___d29)
 	$write("    ");
     if (RST_N != `BSV_RESET_VALUE)
-      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_9___d30)
+      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_8___d29)
 	$write("AXI4_Wr_Data { ", "wdata: ");
     if (RST_N != `BSV_RESET_VALUE)
-      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_9___d30)
+      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_8___d29)
 	$write("'h%h", dma_port_slave_xactor_f_wr_data$D_OUT[36:5]);
     if (RST_N != `BSV_RESET_VALUE)
-      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_9___d30)
+      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_8___d29)
 	$write(", ", "wstrb: ");
     if (RST_N != `BSV_RESET_VALUE)
-      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_9___d30)
+      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_8___d29)
 	$write("'h%h", dma_port_slave_xactor_f_wr_data$D_OUT[4:1]);
     if (RST_N != `BSV_RESET_VALUE)
-      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_9___d30)
+      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_8___d29)
 	$write(", ", "wlast: ");
     if (RST_N != `BSV_RESET_VALUE)
-      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_9___d30 &&
+      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_8___d29 &&
 	  dma_port_slave_xactor_f_wr_data$D_OUT[0])
 	$write("True");
     if (RST_N != `BSV_RESET_VALUE)
-      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_9___d30 &&
+      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_8___d29 &&
 	  !dma_port_slave_xactor_f_wr_data$D_OUT[0])
 	$write("False");
     if (RST_N != `BSV_RESET_VALUE)
-      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_9___d30)
+      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_8___d29)
 	$write(", ", "wuser: ");
     if (RST_N != `BSV_RESET_VALUE)
-      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_9___d30)
+      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_8___d29)
 	$write("'h%h", 1'd0, " }");
     if (RST_N != `BSV_RESET_VALUE)
-      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_9___d30)
+      if (WILL_FIRE_RL_dma_port_rl_wr_req && NOT_verbosity_ULE_1_8___d29)
 	$write("\n");
     if (RST_N != `BSV_RESET_VALUE)
-      if (EN_reset && NOT_verbosity_ULE_1_9___d30)
+      if (EN_reset && NOT_verbosity_ULE_1_8___d29)
 	begin
-	  v__h4555 = $stime;
+	  v__h4577 = $stime;
 	  #0;
 	end
-    v__h4549 = v__h4555 / 32'd10;
+    v__h4571 = v__h4577 / 32'd10;
     if (RST_N != `BSV_RESET_VALUE)
-      if (EN_reset && NOT_verbosity_ULE_1_9___d30)
-	$display("%0d: %m.reset", v__h4549);
+      if (EN_reset && NOT_verbosity_ULE_1_8___d29)
+	$display("%0d: %m.reset", v__h4571);
     if (RST_N != `BSV_RESET_VALUE)
-      if (EN_reset && NOT_verbosity_ULE_1_9___d30)
+      if (EN_reset && NOT_verbosity_ULE_1_8___d29)
 	begin
-	  v__h4613 = $stime;
+	  v__h4635 = $stime;
 	  #0;
 	end
-    v__h4607 = v__h4613 / 32'd10;
+    v__h4629 = v__h4635 / 32'd10;
     if (RST_N != `BSV_RESET_VALUE)
-      if (EN_reset && NOT_verbosity_ULE_1_9___d30)
-	$display("%0d: %m.reset", v__h4607);
+      if (EN_reset && NOT_verbosity_ULE_1_8___d29)
+	$display("%0d: %m.reset", v__h4629);
   end
   // synopsys translate_on
 endmodule  // mkITCM

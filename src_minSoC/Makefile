@@ -37,7 +37,7 @@ BSC_COMPILATION_FLAGS += \
 	-D WATCH_TOHOST \
 	-D JTAG_TAP \
 	-D XILINX_BSCAN -D XILINX_XC7K325T \
-#	-D TCM_LOADER
+	-D TCM_LOADER
 
 # ================================================================
 # Search path for bsc for .bsv files

@@ -4,3 +4,6 @@
 [submodule "tools"]
 	path = tools
 	url = https://github.com/bluespec/brvf-tools.git
+[submodule "Debug_Module"]
+	path = Debug_Module
+	url = https://github.com/bluespec/RISCV_Debug_Module
