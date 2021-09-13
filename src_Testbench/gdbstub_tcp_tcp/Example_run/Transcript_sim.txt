@@ -1,0 +1,137 @@
+NOTE: Annotated and edited transcript of example run of simulation
+NOTE: process in a GDB<-->gdbstub<-->simulation setup
+NOTE: Annotations below start with 'NOTE:'
+
+$ cd ~/git_clones/Piccolo/src_Testbench/gdbstub_tcp_tcp/Example_run
+
+$ ../../../builds/RV32ACIMU_Piccolo_DM_verilator/exe_HW_sim +v1 +tohost
+1: Debug_Module reset
+1: TOP.mkTop_HW_Side.soc_top.boot_rom_axi4_deburster::AXI4_Deburster.rl_reset
+1: TOP.mkTop_HW_Side.soc_top.mem0_controller_axi4_deburster::AXI4_Deburster.rl_reset
+================================================================
+Bluespec RISC-V standalone system simulation v1.2
+Copyright (c) 2017-2019 Bluespec, Inc. All Rights Reserved.
+================================================================
+INFO: watch_tohost = 1, tohost_addr = 0x80001000
+Awaiting remote debug client connection on tcp port 30000 ...
+Connected
+    Unable to open logfile for debug client transactions: 'debug_server_log.txt'
+2:TOP.mkTop_HW_Side.soc_top.rl_reset_start_initial ...
+3: Core.rl_cpu_hart0_reset_from_soc_start
+================================================================
+CPU: Bluespec  RISC-V  Piccolo  v3.0 (RV32)
+Copyright (c) 2016-2020 Bluespec, Inc. All Rights Reserved.
+================================================================
+3: TOP.mkTop_HW_Side.soc_top.core.cpu.rl_reset_start
+135: TOP.mkTop_HW_Side.soc_top.core.cpu.rl_reset_complete: restart at PC = 0x1000
+137: Core.rl_cpu_hart0_reset_complete
+137: Near_Mem_IO_AXI4.set_addr_map: addr_base 0x2000000 addr_lim 0x200c000
+138:TOP.mkTop_HW_Side.soc_top.rl_reset_complete_initial
+138: Mem_Controller.set_addr_map: addr_base 0x80000000 addr_lim 0x90000000
+instret:0  PC:0x1000  instr:0x297  priv:3
+instret:1  PC:0x1004  instr:0x2028593  priv:3
+instret:2  PC:0x1008  instr:0xf1402573  priv:3
+instret:3  PC:0x100c  instr:0x182a283  priv:3
+instret:4  PC:0x1010  instr:0x28067  priv:3
+instret:5  PC:0x80000000  instr:0x0  priv:3
+    mcause:0x2  epc 0x80000000  tval:0xaaaa  next_pc 0x1000, new_priv 3 new_mstatus 0x1800
+instret:5  PC:0x1000  instr:0x297  priv:3
+instret:6  PC:0x1004  instr:0x2028593  priv:3
+instret:7  PC:0x1008  instr:0xf1402573  priv:3
+instret:8  PC:0x100c  instr:0x182a283  priv:3
+instret:9  PC:0x1010  instr:0x28067  priv:3
+instret:10  PC:0x80000000  instr:0x0  priv:3
+    mcause:0x2  epc 0x80000000  tval:0xaaaa  next_pc 0x1000, new_priv 3 new_mstatus 0x1800
+
+NOTE: ... and this infinite trap-from-80000000 repeats until halted by gdb ...
+
+instret:1445  PC:0x1000  instr:0x297  priv:3
+instret:1446  PC:0x1004  instr:0x2028593  priv:3
+instret:1447  PC:0x1008  instr:0xf1402573  priv:3
+instret:1448  PC:0x100c  instr:0x182a283  priv:3
+instret:1449  PC:0x1010  instr:0x28067  priv:3
+instret:1450  PC:0x80000000  instr:0x0  priv:3
+    mcause:0x2  epc 0x80000000  tval:0xaaaa  next_pc 0x1000, new_priv 3 new_mstatus 0x1800
+
+NOTE: here we receive a HALT request from GDB (via gdbstub)
+
+14659: TOP.mkTop_HW_Side.soc_top.core.debug_module.dm_run_control.dmcontrol_write: hart0 halt request
+14676: TOP.mkTop_HW_Side.soc_top.core.cpu.rl_stage1_stop: Stop for debugger. minstret 1450 priv 3 PC 0x1000 instr 0x297
+CPI: 10.0 = (14541/1450) since last 'continue'
+
+NOTE: here we receive a CONTINUE reqeust from GDB (via gdbstub)
+
+45409: TOP.mkTop_HW_Side.soc_top.core.debug_module.dm_run_control.dmcontrol_write: hart0 resume request
+45410: TOP.mkTop_HW_Side.soc_top.core.cpu.rl_debug_run: restart at PC = 0x80000000
+instret:1450  PC:0x80000000  instr:0x4c0006f  priv:3
+instret:1451  PC:0x8000004c  instr:0xf1402573  priv:3
+instret:1452  PC:0x80000050  instr:0x51063  priv:3
+instret:1453  PC:0x80000054  instr:0x297  priv:3
+instret:1454  PC:0x80000058  instr:0x1028293  priv:3
+instret:1455  PC:0x8000005c  instr:0x30529073  priv:3
+instret:1456  PC:0x80000060  instr:0x18005073  priv:3
+    mcause:0x2  epc 0x80000060  tval:0x18005073  next_pc 0x80000064, new_priv 3 new_mstatus 0x1800
+instret:1456  PC:0x80000064  instr:0x297  priv:3
+instret:1457  PC:0x80000068  instr:0x2028293  priv:3
+
+NOTE: executing the program loaded by GDB (via gdbstub) ...
+
+instret:1903  PC:0x800005dc  instr:0x301c63  priv:0
+instret:1904  PC:0x800005f4  instr:0xff0000f  priv:0
+instret:1905  PC:0x800005f8  instr:0x100193  priv:0
+instret:1906  PC:0x800005fc  instr:0x73  priv:0
+    mcause:0x8  epc 0x800005fc  tval:0x0  next_pc 0x80000004, new_priv 3 new_mstatus 0x0
+instret:1906  PC:0x80000004  instr:0x34202f73  priv:3
+instret:1907  PC:0x80000008  instr:0x800f93  priv:3
+instret:1908  PC:0x8000000c  instr:0x3ff0a63  priv:3
+instret:1909  PC:0x80000040  instr:0x1f17  priv:3
+instret:1910  PC:0x80000044  instr:0xfc3f2023  priv:3
+
+NOTE: hitting breakpoint set by GDB (via gdbstub) ...
+
+47134: TOP.mkTop_HW_Side.soc_top.core.cpu.rl_trap_BREAK_to_Debug_Mode: PC 0x80000048 instr 0x00100073
+47147: Mem_Controller.rl_process_wr_req: addr 0x80001000 (<tohost>) data 0x1
+PASS
+
+NOTE: Above PASS message is from ISA test program into UART, indicating status
+
+NOTE: GDB has reset the PC to start of program, 80000000 (not visible in this transcript)
+NOTE: single-stepping for 'stepi' commands from GDB (via gdbstub) ...
+
+1368239: TOP.mkTop_HW_Side.soc_top.core.debug_module.dm_run_control.dmcontrol_write: hart0 resume request
+1368240: TOP.mkTop_HW_Side.soc_top.core.cpu.rl_debug_run: restart at PC = 0x80000000
+instret:1911  PC:0x80000000  instr:0x4c0006f  priv:3
+1368288: TOP.mkTop_HW_Side.soc_top.core.cpu.rl_stage1_stop: Stop after single-step. PC = 0x8000004c
+1452394: TOP.mkTop_HW_Side.soc_top.core.debug_module.dm_run_control.dmcontrol_write: hart0 resume request
+1452395: TOP.mkTop_HW_Side.soc_top.core.cpu.rl_debug_run: restart at PC = 0x8000004c
+instret:1912  PC:0x8000004c  instr:0xf1402573  priv:3
+1452418: TOP.mkTop_HW_Side.soc_top.core.cpu.rl_stage1_stop: Stop after single-step. PC = 0x80000050
+1557307: TOP.mkTop_HW_Side.soc_top.core.debug_module.dm_run_control.dmcontrol_write: hart0 resume request
+1557308: TOP.mkTop_HW_Side.soc_top.core.cpu.rl_debug_run: restart at PC = 0x80000050
+instret:1913  PC:0x80000050  instr:0x51063  priv:3
+1557331: TOP.mkTop_HW_Side.soc_top.core.cpu.rl_stage1_stop: Stop after single-step. PC = 0x80000054
+
+NOTE: here we receive a CONTINUE reqeust from GDB (via gdbstub) to execute rest of program
+
+1713490: TOP.mkTop_HW_Side.soc_top.core.debug_module.dm_run_control.dmcontrol_write: hart0 resume request
+1713491: TOP.mkTop_HW_Side.soc_top.core.cpu.rl_debug_run: restart at PC = 0x80000054
+instret:1914  PC:0x80000054  instr:0x297  priv:3
+instret:1915  PC:0x80000058  instr:0x1028293  priv:3
+instret:1916  PC:0x8000005c  instr:0x30529073  priv:3
+
+NOTE: re-executing the rest of the program until we again hit the breakpoint
+
+instret:2365  PC:0x800005f4  instr:0xff0000f  priv:0
+instret:2366  PC:0x800005f8  instr:0x100193  priv:0
+instret:2367  PC:0x800005fc  instr:0x73  priv:0
+    mcause:0x8  epc 0x800005fc  tval:0x0  next_pc 0x80000004, new_priv 3 new_mstatus 0x0
+instret:2367  PC:0x80000004  instr:0x34202f73  priv:3
+instret:2368  PC:0x80000008  instr:0x800f93  priv:3
+instret:2369  PC:0x8000000c  instr:0x3ff0a63  priv:3
+instret:2370  PC:0x80000040  instr:0x1f17  priv:3
+instret:2371  PC:0x80000044  instr:0xfc3f2023  priv:3
+1715206: TOP.mkTop_HW_Side.soc_top.core.cpu.rl_trap_BREAK_to_Debug_Mode: PC 0x80000048 instr 0x00100073
+1715219: Mem_Controller.rl_process_wr_req: addr 0x80001000 (<tohost>) data 0x1
+PASS
+
+NOTE: Above PASS message is from ISA test program into UART, indicating status

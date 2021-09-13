@@ -1,0 +1,96 @@
+NOTE: Annotated and edited transcript of example run of GDB
+NOTE: process in a GDB<-->gdbstub<-->simulation setup
+NOTE: Annotations below start with 'NOTE:'
+
+$ cd ~/git_clones/Piccolo/src_Testbench/gdbstub_tcp_tcp/Example_run
+
+$ make -f Example_GDB_start.mk 
+rm -f  log_gdb_remote.txt  log_gdb.txt
+~/git_clones/RISCV_Gnu_Toolchain/installation/bin/riscv64-unknown-elf-gdb -x  Example_GDB_script.gdb
+GNU gdb (GDB) 10.1
+Copyright (C) 2020 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+Type "show copying" and "show warranty" for details.
+This GDB was configured as "--host=x86_64-pc-linux-gnu --target=riscv64-unknown-elf".
+Type "show configuration" for configuration details.
+For bug reporting instructions, please see:
+<https://www.gnu.org/software/gdb/bugs/>.
+Find the GDB manual and other documentation resources online at:
+    <http://www.gnu.org/software/gdb/documentation/>.
+
+For help, type "help".
+Type "apropos word" to search for commands related to "word".
+
+NOTE: from this point on GDB is executing Example_GDB_script.gdb,
+NOTE: please read that in parallel to correlate steps.
+
+logging debugredirect:  The logging output mode is off.
+logging file:  The current logfile is "log_gdb.txt".
+logging overwrite:  Whether logging overwrites or appends to the log file is on.
+logging redirect:  The logging output mode is off.
+The target architecture is set to "riscv:rv32".
+Filename for remote session recording is "log_gdb_remote.txt".
+Timeout limit to wait for target to respond is 5000.
+
+NOTE: about to connect to gdbstub: 'target remote  :31000' 
+
+Connecting to port 31000
+0x80000000 in _start ()
+Connected
+
+NOTE: about to do load ELF file: 'load ../../../Tests/isa/rv32ui-p-add'
+
+Loading ELF
+Loading section .text.init, size 0x604 lma 0x80000000
+Loading section .tohost, size 0x48 lma 0x80001000
+Start address 0x80000000, load size 1612
+Transfer rate: 17 KB/sec, 806 bytes/write.
+
+NOTE: examining PC: 'p/x  $pc'
+PC value
+$1 = 0x80000000
+
+NOTE: examining memory: 'x/16wx  0x80000000'
+Partial memory dump (16 words in hex from 0x_8000_0000)
+0x80000000 <_start>:	0x04c0006f	0x34202f73	0x00800f93	0x03ff0a63
+0x80000010 <trap_vector+12>:	0x00900f93	0x03ff0663	0x00b00f93	0x03ff0263
+0x80000020 <trap_vector+28>:	0x80000f17	0xfe0f0f13	0x000f0463	0x000f0067
+0x80000030 <trap_vector+44>:	0x34202f73	0x000f5463	0x0040006f	0x5391e193
+
+NOTE: setting a breakpoint: 'break  *0x80000048'
+Setting breakpoint just after final status is written 'tohost'
+Breakpoint 1 at 0x80000048
+
+Note: running the program: 'continue'
+Running the program
+
+Breakpoint 1, 0x80000048 in write_tohost ()
+
+NOTE: stopped at breakpoint
+
+Entering interactive mode.
+We can examine/update PC, registers, memory, ...
+We can run (continue), step instructions (stepi), step C statements (step), ...
+
+(gdb) p/x $pc
+$2 = 0x80000048
+(gdb) set $pc = 0x80000000
+(gdb) stepi
+0x8000004c in reset_vector ()
+(gdb) stepi
+0x80000050 in reset_vector ()
+(gdb) stepi
+0x80000054 in reset_vector ()
+(gdb) continue
+Continuing.
+
+Breakpoint 1, 0x80000048 in write_tohost ()
+(gdb) p/x $pc
+$3 = 0x80000048
+(gdb) detach
+Detaching from program: /home/nikhil/git_clones/Piccolo/Tests/isa/rv32ui-p-add, Remote target
+Ending remote debugging.
+[Inferior 1 (Remote target) detached]
+(gdb) quit

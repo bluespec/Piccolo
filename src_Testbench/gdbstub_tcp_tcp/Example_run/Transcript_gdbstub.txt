@@ -1,0 +1,12 @@
+NOTE: Annotated and edited transcript of example run of gdbstub
+NOTE: process in a GDB<-->gdbstub<-->simulation setup
+
+$ cd ~/git_clones/Piccolo/src_Testbench/gdbstub_tcp_tcp/Example_run
+
+$ ../exe_gdbstub_tcp_tcp_RV32 
+INFO: logfile is log_gdbstub.txt
+INFO: TCP port for GDB is 31000
+INFO: TCP port for DM  is 30000
+tcp_client_open: connecting to '127.0.0.1' port 30000
+tcp_client_open: connected
+Connected to DM: host 127.0.0.1 port 30000

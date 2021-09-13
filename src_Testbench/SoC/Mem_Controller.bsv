@@ -1,4 +1,4 @@
-// Copyright (c) 2016-2019 Bluespec, Inc. All Rights Reserved
+// Copyright (c) 2016-2021 Bluespec, Inc. All Rights Reserved
 
 package Mem_Controller;
 
@@ -542,15 +542,17 @@ module mkMem_Controller (Mem_Controller_IFC);
 	  && (f_reqs.first.addr == rg_tohost_addr)
 	  && (word64_new != 0))
 	 begin
-
 	    $display ("%0d: Mem_Controller.rl_process_wr_req: addr 0x%0h (<tohost>) data 0x%0h",
 		      cur_cycle, f_reqs.first.addr, word64_new);
+
 	    let exit_value = (word64_new >> 1);
 	    if (exit_value == 0)
 	       $display ("PASS");
 	    else
 	       $display ("FAIL %0d", exit_value);
+`ifndef INCLUDE_GDB_CONTROL
 	    rg_status <= fromInteger (status_mem_controller_terminated);
+`endif
 	 end
    endrule
 

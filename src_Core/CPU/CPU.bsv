@@ -1347,9 +1347,6 @@ module mkCPU (CPU_IFC);
       // Fetch_C as well. (issue #89 - explorer)
       imem_c.fence_request.put (?);
 `endif
-
-      // Notify debugger that we've halted
-      f_run_halt_rsps.enq (False);
    endrule: rl_trap_BREAK_to_Debug_Mode
 
    // ----------------
