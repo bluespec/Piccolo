@@ -1,10 +1,10 @@
-// Copyright (c) 2016-2019 Bluespec, Inc. All Rights Reserved
+// Copyright (c) 2016-2021 Bluespec, Inc. All Rights Reserved
 
 package EX_ALU_functions;
 
 // ================================================================
-// These are the "ALU" functions in the EX stage of the "Piccolo" CPU.
-// EX stands for "Execution".
+// These are the "ALU" functions in the EX ("execute") stage
+// for several Bluespec CPUs including Piccolo and Flute.
 
 // ================================================================
 // Exports
@@ -326,6 +326,8 @@ endfunction
 // JALR
 
 function ALU_Outputs fv_JALR (ALU_Inputs inputs);
+   Bool funct3_is_not_zero = (inputs.decoded_instr.funct3 != 0);
+
    let rs1_val = inputs.rs1_val;
    let rs2_val = inputs.rs2_val;
 
@@ -351,7 +353,9 @@ function ALU_Outputs fv_JALR (ALU_Inputs inputs);
 			    taken_PC    : next_pc };
 
    let alu_outputs = alu_outputs_base;
-   alu_outputs.control   = (misaligned_target ? CONTROL_TRAP : CONTROL_BRANCH);
+   alu_outputs.control   = ((misaligned_target || funct3_is_not_zero)
+			    ? CONTROL_TRAP
+			    : CONTROL_BRANCH);
    alu_outputs.exc_code  = exc_code_INSTR_ADDR_MISALIGNED;
    alu_outputs.op_stage2 = OP_Stage2_ALU;
    alu_outputs.rd        = inputs.decoded_instr.rd;
@@ -411,7 +415,7 @@ function ALU_Outputs fv_OP_and_OP_IMM_shifts (ALU_Inputs inputs);
    if (funct3 == f3_SLLI)
       rd_val = fn_shl (rs1_val, shamt);  // in LUTRAMs/DSPs
    else begin // assert: (funct3 == f3_SRxI)
-      if (instr_b30 == 1'b0) begin
+      if (instr_b30 == 1'b0) 
 	 // SRL/SRLI
 	 rd_val = fn_shrl (rs1_val, shamt);  // in LUTRAMs/DSPs
       else
@@ -420,8 +424,14 @@ function ALU_Outputs fv_OP_and_OP_IMM_shifts (ALU_Inputs inputs);
    end
 `endif
 
-   // Trap in RV32 if shamt > 31, i.e., if imm12_I [5] is 1
-   Bool trap = ((rv_version == RV32) && (inputs.decoded_instr.imm12_I [5] == 1));
+   // Trap assertion:
+   //     instr [31] and [29:26] Must Be Zero;;
+   //     For RV32 with immediate shamt, [25] Must Be Zero (shamt <= 31)
+   Bool trap = (   (inputs.instr [31]    != 1'b0)
+		|| (inputs.instr [29:26] != 4'b0)
+		|| (   (rv_version == RV32)
+		    && (inputs.decoded_instr.opcode == op_OP_IMM)
+		    && (inputs.instr [25] != 1'b0)));
 
    let alu_outputs       = alu_outputs_base;
    alu_outputs.control   = (trap ? CONTROL_TRAP : CONTROL_STRAIGHT);
@@ -455,8 +465,15 @@ endfunction: fv_OP_and_OP_IMM_shifts
 // Remaining OP and OP_IMM (excluding shifts, M ops MUL/DIV/REM)
 
 function ALU_Outputs fv_OP_and_OP_IMM (ALU_Inputs inputs);
+   Bool trap = False;
+
    let rs1_val = inputs.rs1_val;
    let rs2_val = inputs.rs2_val;
+   let funct3  = inputs.decoded_instr.funct3;
+
+   // ADD and SUB differ only in instr [30]
+   Bit #(1) instr_b30  = inputs.instr [30];
+   Bool     subtract   = ((inputs.decoded_instr.opcode == op_OP) && (instr_b30 == 1'b1));
 
    // Signed versions of rs1_val and rs2_val
    IntXL  s_rs1_val = unpack (rs1_val);
@@ -465,16 +482,17 @@ function ALU_Outputs fv_OP_and_OP_IMM (ALU_Inputs inputs);
    IntXL  s_rs2_val_local = s_rs2_val;
    WordXL rs2_val_local   = rs2_val;
 
-   Bit #(1) instr_b30  = inputs.instr [30];
-   Bool     subtract   = ((inputs.decoded_instr.opcode == op_OP) && (instr_b30 == 1'b1));
-
    if (inputs.decoded_instr.opcode == op_OP_IMM) begin
       s_rs2_val_local = extend (unpack (inputs.decoded_instr.imm12_I));
       rs2_val_local   = pack (s_rs2_val_local);
    end
+   else begin
+      // For op_OP, check Must Be Zero bits in funct7
+      trap = (   (inputs.instr [31] != 1'b0)
+	      && ((funct3 != f3_ADDI) && (instr_b30 != 1'b0))
+	      && (inputs.instr [29:25] != 5'b0));
+   end
 
-   let  funct3 = inputs.decoded_instr.funct3;
-   Bool trap   = False;
    WordXL rd_val = ?;
 
    if      ((funct3 == f3_ADDI) && (! subtract)) rd_val = pack (s_rs1_val + s_rs2_val_local);
@@ -509,28 +527,29 @@ endfunction: fv_OP_and_OP_IMM
 // OP_IMM_32 (ADDIW, SLLIW, SRxIW)
 
 function ALU_Outputs fv_OP_IMM_32 (ALU_Inputs inputs);
-   WordXL   rs1_val     = inputs.rs1_val;
-   IntXL    s_rs1_val   = unpack (rs1_val);
+   Bit #(5) shamt     = truncate (inputs.decoded_instr.imm12_I);
+   Bit #(1) instr_b30 = inputs.instr [30];
+   Bit #(3) funct3    = inputs.decoded_instr.funct3;
+   WordXL   rs1_val   = inputs.rs1_val;
 
-   Bit #(5) shamt       = truncate (inputs.decoded_instr.imm12_I);
-   Bool     shamt5_is_0 = (inputs.instr [25] == 1'b0);
+   IntXL    s_rs1_val = unpack (rs1_val);
 
-   let    funct3 = inputs.decoded_instr.funct3;
+   // Must Be Zero bits
+   Bool ok_MBZ = ((inputs.instr [31] == 1'b0) && (inputs.instr [29:25] == 5'b0));
+
    Bool   trap   = False;
    WordXL rd_val = ?;
-
    if (funct3 == f3_ADDIW) begin
       IntXL  s_rs2_val = extend (unpack (inputs.decoded_instr.imm12_I));
       IntXL  sum       = s_rs1_val + s_rs2_val;
       WordXL tmp       = pack (sum);
       rd_val           = signExtend (tmp [31:0]);
    end
-   else if ((funct3 == f3_SLLIW) && shamt5_is_0) begin
+   else if ((funct3 == f3_SLLIW) && ok_MBZ && (instr_b30 == 1'b0)) begin
       Bit #(32) tmp = truncate (rs1_val);
       rd_val = signExtend (tmp << shamt);
    end
-   else if ((funct3 == f3_SRxIW) && shamt5_is_0) begin
-      Bit #(1) instr_b30 = inputs.instr [30];
+   else if ((funct3 == f3_SRxIW) && ok_MBZ) begin
       if (instr_b30 == 1'b0) begin
 	 // SRLIW
 	 Bit #(32) tmp = truncate (rs1_val);
@@ -575,8 +594,8 @@ function ALU_Outputs fv_OP_32 (ALU_Inputs inputs);
    Int #(32) s_rs2_val = unpack (rs2_val);
 
    let    funct10 = inputs.decoded_instr.funct10;
-   Bool   trap   = False;
-   WordXL rd_val = ?;
+   Bool   trap    = False;
+   WordXL rd_val  = ?;
 
    if      (funct10 == f10_ADDW) begin
       rd_val = pack (signExtend (s_rs1_val + s_rs2_val));
@@ -659,9 +678,9 @@ function ALU_Outputs fv_AUIPC (ALU_Inputs inputs);
 endfunction
 
 // ----------------------------------------------------------------
-// LOAD
+// LOAD (LB/LH/LW/LD, LBU/LHU/LWU, FLW, FLD
 
-function ALU_Outputs fv_LD (ALU_Inputs inputs);
+function ALU_Outputs fv_LOAD (ALU_Inputs inputs);
    // Signed versions of rs1_val and rs2_val
    let opcode = inputs.decoded_instr.opcode;
    IntXL s_rs1_val = unpack (inputs.rs1_val);
@@ -672,37 +691,39 @@ function ALU_Outputs fv_LD (ALU_Inputs inputs);
 
    let funct3 = inputs.decoded_instr.funct3;
 
-   Bool legal_LD = (   (funct3 == f3_LB) || (funct3 == f3_LBU)
-		    || (funct3 == f3_LH) || (funct3 == f3_LHU)
-		    || (funct3 == f3_LW)
+   Bool legal_LOAD = (   (opcode == op_LOAD)
+		      && (   (funct3 == f3_LB) || (funct3 == f3_LBU)
+			  || (funct3 == f3_LH) || (funct3 == f3_LHU)
+			  || (funct3 == f3_LW)
 `ifdef RV64
-		    || (funct3 == f3_LWU)
-		    || (funct3 == f3_LD)
+			  || (funct3 == f3_LWU)
+			  || (funct3 == f3_LD)
 `endif
-`ifdef ISA_F
-		    || (funct3 == f3_FLW)
-`endif
-`ifdef ISA_D
-		    || (funct3 == f3_FLD)
-`endif
-		    );
+			 ));
 
-   // FP loads are not legal unless the MSTATUS.FS bit is set
-   Bool legal_FP_LD = True;
+
+   Bool legal_LOAD_FP = False;
 `ifdef ISA_F
    if (opcode == op_LOAD_FP)
-      legal_FP_LD = (fv_mstatus_fs (inputs.mstatus) != fs_xs_off);
+      // FP loads are not legal unless the MSTATUS.FS bit is set
+      legal_LOAD_FP = (   (fv_mstatus_fs (inputs.mstatus) != fs_xs_off)
+		       && (  (funct3 == f3_FLW)
+`ifdef ISA_D
+			   || (funct3 == f3_FLD)
+`endif
+			  ));
 `endif
 
    let alu_outputs = alu_outputs_base;
 
-   alu_outputs.control   = ((legal_LD && legal_FP_LD) ? CONTROL_STRAIGHT
-                                                      : CONTROL_TRAP);
+   alu_outputs.control   = ((legal_LOAD || legal_LOAD_FP)
+			    ? CONTROL_STRAIGHT
+			    : CONTROL_TRAP);
    alu_outputs.op_stage2 = OP_Stage2_LD;
    alu_outputs.rd        = inputs.decoded_instr.rd;
    alu_outputs.addr      = eaddr;
 `ifdef ISA_F
-   // note that the destination register for this load is in the FPR
+   // For LOAD_FP, destination register is in FP regs
    alu_outputs.rd_in_fpr = (opcode == op_LOAD_FP);
 `endif
 
@@ -732,7 +753,7 @@ endfunction
 // ----------------------------------------------------------------
 // STORE
 
-function ALU_Outputs fv_ST (ALU_Inputs inputs);
+function ALU_Outputs fv_STORE (ALU_Inputs inputs);
    // Signed version of rs1_val
    IntXL  s_rs1_val = unpack (inputs.rs1_val);
    IntXL  imm_s     = extend (unpack (inputs.decoded_instr.imm12_S));
@@ -740,35 +761,34 @@ function ALU_Outputs fv_ST (ALU_Inputs inputs);
 
    let opcode = inputs.decoded_instr.opcode;
    let funct3 = inputs.decoded_instr.funct3;
-   Bool legal_ST = (   (funct3 == f3_SB)
-		    || (funct3 == f3_SH)
-		    || (funct3 == f3_SW)
+
+   Bool legal_STORE = (   (opcode == op_STORE)
+		       && (   (funct3 == f3_SB)
+			   || (funct3 == f3_SH)
+			   || (funct3 == f3_SW)
 `ifdef RV64
-		    || (funct3 == f3_SD)
+			   || (funct3 == f3_SD)
 `endif
-`ifdef ISA_F
-		    || (funct3 == f3_FSW)
-`endif
-`ifdef ISA_D
-		    || (funct3 == f3_FSD)
-`endif
-		    );
+			  ));
 
-   let alu_outputs = alu_outputs_base;
-
-   // FP stores are not legal unless the MSTATUS.FS bit is set
-   Bool legal_FP_ST = True;
+   Bool legal_STORE_FP = False;
 `ifdef ISA_F
    if (opcode == op_STORE_FP) begin
-      legal_FP_ST = (fv_mstatus_fs (inputs.mstatus) != fs_xs_off);
-
-      // note that the source data register for this store is in the FPR
-      alu_outputs.rs_frm_fpr = True;
+      // FP stores are not legal unless the MSTATUS.FS bit is set
+      legal_STORE_FP = (   (fv_mstatus_fs (inputs.mstatus) != fs_xs_off)
+			&& (   (funct3 == f3_FSW)
+`ifdef ISA_D
+			    || (funct3 == f3_FSD)
+`endif
+			   ));
    end
 `endif
 
-   alu_outputs.control   = ((legal_ST && legal_FP_ST) ? CONTROL_STRAIGHT
-                                                      : CONTROL_TRAP);
+   let alu_outputs = alu_outputs_base;
+
+   alu_outputs.control   = ((legal_STORE || legal_STORE_FP)
+			    ? CONTROL_STRAIGHT
+			    : CONTROL_TRAP);
    alu_outputs.op_stage2 = OP_Stage2_ST;
    alu_outputs.addr      = eaddr;
 
@@ -776,6 +796,8 @@ function ALU_Outputs fv_ST (ALU_Inputs inputs);
 
 `ifdef ISA_F
    alu_outputs.fval2     = inputs.frs2_val;
+   // For STORE_FP, source data register is in FP Regs
+   alu_outputs.rs_frm_fpr = (opcode == op_STORE_FP);
 `endif
 
 `ifdef INCLUDE_TANDEM_VERIF
@@ -805,10 +827,22 @@ endfunction
 // No-ops, for now
 
 function ALU_Outputs fv_MISC_MEM (ALU_Inputs inputs);
+   Bool is_FENCE_I = (   (inputs.decoded_instr.funct3  == f3_FENCE_I)
+		      && (inputs.decoded_instr.rd      == 0)
+		      && (inputs.decoded_instr.rs1     == 0)
+		      && (inputs.decoded_instr.imm12_I == 0));
+
+   Bit #(4) fence_fm = fv_instr_to_fence_fm (inputs.instr);
+   Bool is_FENCE   = (   (inputs.decoded_instr.funct3  == f3_FENCE)
+		      && (inputs.decoded_instr.rd      == 0)
+		      && (inputs.decoded_instr.rs1     == 0)
+		      && (   (fence_fm == fence_fm_none)
+			  || (fence_fm == fence_fm_TSO)));
+
    let alu_outputs = alu_outputs_base;
-   alu_outputs.control  = (  (inputs.decoded_instr.funct3 == f3_FENCE_I)
+   alu_outputs.control  = (  is_FENCE_I
 			   ? CONTROL_FENCE_I
-			   : (  (inputs.decoded_instr.funct3 == f3_FENCE)
+			   : (  is_FENCE
 			      ? CONTROL_FENCE
 			      : CONTROL_TRAP));
 
@@ -886,7 +920,7 @@ function ALU_Outputs fv_SYSTEM (ALU_Inputs inputs);
 `endif
 
 	    /*
-	    // URET instruction (future: Piccolo does not support 'N' extension)
+	    // URET instruction (future: support 'N' extension)
 	    else if (   (inputs.cur_priv >= u_Priv_Mode)
 		     && (inputs.decoded_instr.imm12_I == f12_URET))
 	       begin
@@ -935,8 +969,8 @@ function ALU_Outputs fv_SYSTEM (ALU_Inputs inputs);
       alu_outputs.val1      = rs1_val;
    end
 
-   // funct3 is not f3_PRIV
-   else begin // (funct3 == f3_SYSTEM_ILLEGAL)
+   // Illegal funct3
+   else begin
       alu_outputs.control = CONTROL_TRAP;
    end
 
@@ -1019,11 +1053,13 @@ endfunction
 
 `ifdef ISA_A
 function ALU_Outputs fv_AMO (ALU_Inputs inputs);
+   let rs2    = inputs.decoded_instr.rs2;
    let funct3 = inputs.decoded_instr.funct3;
    let funct5 = inputs.decoded_instr.funct5;
    let funct7 = inputs.decoded_instr.funct7;
 
-   Bool legal_f5 = (   (funct5 == f5_AMO_LR)   || (funct5 == f5_AMO_SC)
+   Bool legal_f5 = (   ((funct5 == f5_AMO_LR) && (rs2 == 0))
+		    || (funct5 == f5_AMO_SC)
 
 		    || (funct5 == f5_AMO_ADD)
 		    || (funct5 == f5_AMO_SWAP)
@@ -1098,7 +1134,10 @@ function ALU_Outputs fv_ALU (ALU_Inputs inputs);
 `ifdef RV64
    // OP 'M' ops MULW/ DIVW/ DIVUW/ REMW/ REMUW
    else if (   (inputs.decoded_instr.opcode == op_OP_32)
-	    && f7_is_OP_MUL_DIV_REM (inputs.decoded_instr.funct7))
+	    && f7_is_OP_MUL_DIV_REM (inputs.decoded_instr.funct7)
+	    && (inputs.decoded_instr.funct3 != 3'b001)
+	    && (inputs.decoded_instr.funct3 != 3'b010)
+	    && (inputs.decoded_instr.funct3 != 3'b011))
       begin
 	 // Will be executed in MBox in next stage
 	 alu_outputs.op_stage2 = OP_Stage2_M;
@@ -1147,10 +1186,10 @@ function ALU_Outputs fv_ALU (ALU_Inputs inputs);
       alu_outputs = fv_AUIPC (inputs);
 
    else if (inputs.decoded_instr.opcode == op_LOAD)
-      alu_outputs = fv_LD (inputs);
+      alu_outputs = fv_LOAD (inputs);
 
    else if (inputs.decoded_instr.opcode == op_STORE)
-      alu_outputs = fv_ST (inputs);
+      alu_outputs = fv_STORE (inputs);
 
    else if (inputs.decoded_instr.opcode == op_MISC_MEM)
       alu_outputs = fv_MISC_MEM (inputs);
@@ -1165,10 +1204,10 @@ function ALU_Outputs fv_ALU (ALU_Inputs inputs);
 
 `ifdef ISA_F
    else if (   (inputs.decoded_instr.opcode == op_LOAD_FP))
-      alu_outputs = fv_LD (inputs);
+      alu_outputs = fv_LOAD (inputs);
 
    else if (   (inputs.decoded_instr.opcode == op_STORE_FP))
-      alu_outputs = fv_ST (inputs);
+      alu_outputs = fv_STORE (inputs);
 
    else if (   (inputs.decoded_instr.opcode == op_FP)
             || (inputs.decoded_instr.opcode == op_FMADD)
